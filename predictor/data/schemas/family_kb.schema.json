@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MvillarruelD/RIO/schemas/family_kb.schema.json",
+  "title": "TFOP per-family anchor knowledge base",
+  "type": "object",
+  "required": ["family", "family_tag", "clusters"],
+  "properties": {
+    "family": {"type": "string"},
+    "family_tag": {"type": "string"},
+    "generated": {"type": ["string", "null"]},
+    "source": {"type": ["string", "object", "array", "null"]},
+    "clusters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["anchors", "conflict", "n_anchors", "n_independent_anchors"],
+        "properties": {
+          "anchors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["accession", "source_route"],
+              "properties": {
+                "accession": {"type": "string"},
+                "accessions": {"type": "array", "items": {"type": "string"}},
+                "seq_md5": {"type": ["string", "null"], "pattern": "^[0-9a-f]{32}$"},
+                "inducer": {"type": ["string", "null"]},
+                "organism": {"type": ["string", "null"]},
+                "evidence_level": {"type": ["string", "null"]},
+                "evidence_grade": {"type": ["string", "null"]},
+                "source_route": {"type": "string"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "inducer_consensus": {"type": ["string", "null"]},
+          "confidence_tier": {"type": "string"},
+          "conflict": {"type": "boolean"},
+          "n_anchors": {"type": "integer", "minimum": 0},
+          "n_independent_anchors": {"type": "integer", "minimum": 0}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

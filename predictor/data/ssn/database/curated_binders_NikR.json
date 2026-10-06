@@ -1,0 +1,41 @@
+[
+ {
+  "acc": "A0A080IJ23",
+  "ion": "Ni2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Ni2+",
+  "name": "",
+  "organism": "Escherichia coli 1-250-04_S3_C2",
+  "seq": "MQRVTITLDDDLLETLDSLSQRRGYNNRSEAIRDILRSALAQEATQQHGTQGFAVLSYVYEHEKRDLASRIVSTQHHHHDLSVATLHVHINHDDCLEIAVLKGDMGDVQHFADDVIAQRGVRHGHLQCLPKED",
+  "cluster": "NikR_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A832W6V5",
+  "ion": "Ni2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Ni2+",
+  "name": "",
+  "organism": "Pyrococcus horikoshii",
+  "seq": "MELIRFSISIPSKLLEKFDQIIEEIGYENRSEAIRDLIRDFIIRHEWEVGNEEVAGTITIVYNHDEGDVVKALLDLQHEYLDEIISSLHVHMDEHNCLEVIVVKGEAKKIKMIADKLLSLKGVKHGKLVMTSTGKELV",
+  "cluster": "NikR_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A1YSQ9",
+  "ion": "Ni2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Ni",
+  "name": "",
+  "organism": "Helicobacter pylori",
+  "seq": "MDTPNKDDSIIRFSVSLQQNLLDELDNRIIKNGYSSRSELVRDMIREKLVEDNWAEDNPNDESKIAVLVVIYDHHQRELNQRMIDIQHASGTHVLCTTHIHMDEHNCLETIILQGNSFEIQRLQLEIGGLRGVKFAKLTKASSFEHNE",
+  "cluster": "NikR_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

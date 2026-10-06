@@ -1,0 +1,15 @@
+[
+ {
+  "acc": "Q8NLM6",
+  "ion": "Zn2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Zn2+",
+  "name": "",
+  "organism": "Corynebacterium glutamicum (strain ATCC 13032 / DSM 20300 / BCRC 11384 / JCM 1318 / LMG 3730 / NCIMB 10025)",
+  "seq": "MSVKAHESVMDWVTEELRSGRLKIGDHLPSERALSETLGVSRSSLREALRVLEALGTISTATGSGPRSGTIITAAPGQALSLSVTLQLVTNQVGHHDIYETRQLLEGWAALHSSAERGDWDVAEALLEKMDDPSLPLEDFLRFDAEFHVVISKGAENPLISTLMEALRLSVADHTVARARALPDWRATSARLQKEHRAILAALRAGESTVAATLIKEHIEGYYEETAAAEA",
+  "cluster": "GntR_c3",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

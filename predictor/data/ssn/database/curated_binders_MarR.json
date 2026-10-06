@@ -1,0 +1,28 @@
+[
+ {
+  "acc": "A0A084A9I6",
+  "ion": "Zn2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Zn2+",
+  "name": "",
+  "organism": "Lactococcus cremoris subsp. cremoris GE214",
+  "seq": "MSLANQIDQFLGAIMQFAENKHEILLGECESNVKLTSTQEHILMILAAEVSTNARIAEQLKISPAAVTKALKKLQEQELIKSSRATNDERVVLWSLTEKAIPVAKEHAAHHEKTLSTYQELGDKFTDEEQKVISQFLSVLTEEFR",
+  "cluster": "MarR_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A0H2US15",
+  "ion": "Zn2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Zn2+",
+  "name": "",
+  "organism": "Streptococcus pneumoniae serotype 4 (strain ATCC BAA-334 / TIGR4)",
+  "seq": "MRQLAKDINAFLNEVILQAENQHEILIGHCTSEVALTNTQEHILMLLSEESLTNSELARRLNVSQAAVTKAIKSLVKEGMLETSKDSKDARVIFYQLTDLARPIAEEHHHHHEHTLLTYEQVATQFTPNEQKVIQRFLTALVGEIK",
+  "cluster": "MarR_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

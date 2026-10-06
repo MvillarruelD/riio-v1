@@ -1,0 +1,740 @@
+{
+"ArsR1_Atumefaciens": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_metalloid",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Agrobacterium tumefaciens",
+"taxid": 358,
+"length": 119
+},
+"ArsR_Aferrooxidans": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": "PF01022",
+"uniprot": "B7J952",
+"organism": "Acidithiobacillus ferrooxidans",
+"taxid": 920,
+"length": 118
+},
+"ArsR_CgArsR": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": "PF01022",
+"uniprot": "A0A5H1ZR36",
+"organism": "Corynebacterium glutamicum",
+"taxid": 196627,
+"length": 119
+},
+"ArsR_EcR773": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P15905",
+"organism": "Escherichia coli",
+"taxid": 562,
+"length": 117
+},
+"BigR_Xcitri": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_rss",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Xanthomonas citri subsp. citri",
+"taxid": 190485,
+"length": 24
+},
+"BxmR_Obrevis": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": "PF01022",
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Oscillatoria brevis",
+"taxid": 64293,
+"length": 136
+},
+"CadC_Saureus_pI258": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": "PF01022",
+"uniprot": "P20047",
+"organism": "Staphylococcus aureus",
+"taxid": 1280,
+"length": 122
+},
+"CmtR_Mtb": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P9WMI9",
+"organism": "Mycobacterium tuberculosis",
+"taxid": 83332,
+"length": 118
+},
+"CzrA_Saureus": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "O85142",
+"organism": "Staphylococcus aureus",
+"taxid": 1280,
+"length": 106
+},
+"HlyU_Vcholerae": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_rss",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P52695",
+"organism": "Vibrio cholerae",
+"taxid": 345073,
+"length": 108
+},
+"KmtR_Mtb": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF02082",
+"name": "Rrf2"
+}
+],
+"uniprot": "O53838",
+"organism": "Mycobacterium tuberculosis",
+"taxid": 83332,
+"length": 130
+},
+"MAsArsR_Atumefaciens": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_metalloid",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Agrobacterium tumefaciens",
+"taxid": 358,
+"length": 118
+},
+"NmtR_Mtb": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P9WMI7",
+"organism": "Mycobacterium tuberculosis",
+"taxid": 83332,
+"length": 114
+},
+"NolR_Sfredii": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_no_metal",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Sinorhizobium fredii",
+"taxid": 1395,
+"length": 118
+},
+"RexT_Nostoc": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_rox",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Nostoc sp. PCC 7120",
+"taxid": 103690,
+"length": 144
+},
+"Rv2358_Mtuberculosis": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_metal",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P9WMI5",
+"organism": "Mycobacterium tuberculosis",
+"taxid": 83332,
+"length": 135
+},
+"SmtB_Msmegmatis": {
+"family": "Fur",
+"family_group": "canonical_metal",
+"pfam": [
+{
+"id": "PF01475",
+"name": "FUR"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Mycobacterium smegmatis",
+"taxid": 246196,
+"length": 136
+},
+"SmtB_Synechococcus": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P30340",
+"organism": "Synechococcus elongatus PCC 7942",
+"taxid": 1140,
+"length": 122
+},
+"SqrR_Rcapsulatus": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "D5AT91",
+"organism": "Rhodobacter capsulatus",
+"taxid": 272942,
+"length": 124
+},
+"SrnR_Sgriseus": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_metal",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "B1VX88",
+"organism": "Streptomyces griseus",
+"taxid": 455632,
+"length": 114
+},
+"YgaV_Ecoli": {
+"family": "ArsR/SmtB",
+"family_group": null,
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "P77295",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 99
+},
+"ZiaR_Synechocystis": {
+"family": "ArsR/SmtB",
+"family_group": "canonical_metal",
+"pfam": [
+{
+"id": "PF01022",
+"name": "HTH_5"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Synechocystis sp. PCC 6803",
+"taxid": 1148,
+"length": 132
+},
+"AdhR_Bsubtilis": {
+"family": "MerR",
+"family_group": "canonical_redox",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "O06008",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 140
+},
+"BltR_Bsubtilis": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+}
+],
+"uniprot": "P39842",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 273
+},
+"BluR_Ecoli": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+},
+{
+"id": "PF22267",
+"name": "MlrA_C"
+},
+{
+"id": "PF22270",
+"name": "MlrA_helical"
+}
+],
+"uniprot": "P75989",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 243
+},
+"BmrR_Bsubtilis": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+},
+{
+"id": "PF06445",
+"name": "GyrI-like"
+}
+],
+"uniprot": "P39075",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 278
+},
+"BrlR_Paeruginos": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+}
+],
+"uniprot": "Q9I2W4",
+"organism": "Pseudomonas aeruginosa",
+"taxid": 208964,
+"length": 245
+},
+"CadR_Paeruginos": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Pseudomonas aeruginosa",
+"taxid": 208964,
+"length": 156
+},
+"CadR_Pputida": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "Q93TP7",
+"organism": "Pseudomonas putida",
+"taxid": 303,
+"length": 147
+},
+"CarH_Mxanthus": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "Q1D256",
+"organism": "Myxococcus xanthus",
+"taxid": 246197,
+"length": 302
+},
+"CoaR_Synechocystis": {
+"family": "MerR",
+"family_group": "atypical_metal",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Synechocystis sp. PCC 6803",
+"taxid": 1148,
+"length": 370
+},
+"CueR_Ecoli": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P68688",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 135
+},
+"EcmrR_Ecoli": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+},
+{
+"id": "PF06445",
+"name": "GyrI-like"
+}
+],
+"uniprot": "A0A8I3B050",
+"organism": "Escherichia coli",
+"taxid": 83334,
+"length": 268
+},
+"GlnR_Bsubtilis": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P37582",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 135
+},
+"GolS_Styphimurium": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "A0A636FGX4",
+"organism": "Salmonella enterica",
+"taxid": 90371,
+"length": 154
+},
+"HspR_Scoelicolor": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P40183",
+"organism": "Streptomyces coelicolor",
+"taxid": 100226,
+"length": 151
+},
+"LitR_Tthermophilus": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "Q72H01",
+"organism": "Thermus thermophilus",
+"taxid": 300852,
+"length": 122
+},
+"MerR_Tn501": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P0A183",
+"organism": "Pseudomonas aeruginosa",
+"taxid": 287,
+"length": 134
+},
+"MliR_Bargentinensis": {
+"family": "MerR",
+"family_group": "atypical_no_ebd",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Bizionia argentinensis",
+"taxid": 859517,
+"length": 24
+},
+"MlrA_Ecoli": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P33358",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 244
+},
+"Mta_Bsubtilis": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+}
+],
+"uniprot": "P40405",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 167
+},
+"NimR_Hi_Ni": {
+"family": "MerR",
+"family_group": "canonical_metal",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Haemophilus influenzae",
+"taxid": 71421,
+"length": 135
+},
+"NimR_Hinfluenzae": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Haemophilus influenzae",
+"taxid": 71421,
+"length": 24
+},
+"NmlR_Ngonorrhoeae": {
+"family": "MerR",
+"family_group": "canonical_redox",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "SEQUENCE_VERIFY_REQUIRED",
+"organism": "Neisseria gonorrhoeae",
+"taxid": 242231,
+"length": 24
+},
+"NmlR_Spneumoniae": {
+"family": "MerR",
+"family_group": "canonical_redox",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "A0A0H2ZLV3",
+"organism": "Streptococcus pneumoniae",
+"taxid": 373153,
+"length": 117
+},
+"PbrR2_Cmetallidurans": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": null,
+"organism": "Cupriavidus metallidurans",
+"taxid": 266264,
+"length": 132
+},
+"PbrR710_Cmetallidurans": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": null,
+"organism": "Cupriavidus metallidurans",
+"taxid": 266264,
+"length": 150
+},
+"PbrR_Cmetallidurans": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "Q9F9N1",
+"organism": "Cupriavidus metallidurans",
+"taxid": 266264,
+"length": 145
+},
+"SoxR_Ecoli": {
+"family": "MerR",
+"family_group": "canonical_redox",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P0ACS3",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 154
+},
+"TipA_Slividans": {
+"family": "MerR",
+"family_group": "canonical_drug",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+}
+],
+"uniprot": "P0A4T9",
+"organism": "Streptomyces lividans",
+"taxid": 1916,
+"length": 253
+},
+"TnrA_Bsubtilis": {
+"family": "MerR",
+"family_group": "atypical",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "Q45666",
+"organism": "Bacillus subtilis",
+"taxid": 224308,
+"length": 110
+},
+"ZccR_Bpertussis": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF13411",
+"name": "MerR_1"
+}
+],
+"uniprot": null,
+"organism": "Bordetella pertussis",
+"taxid": 257313,
+"length": 24
+},
+"ZntR_Ecoli": {
+"family": "MerR",
+"family_group": "canonical_metalloregulator",
+"pfam": [
+{
+"id": "PF00376",
+"name": "HTH_3"
+}
+],
+"uniprot": "P0ACS6",
+"organism": "Escherichia coli",
+"taxid": 83333,
+"length": 141
+}
+}

@@ -1,0 +1,1453 @@
+[
+  {
+    "cluster_id": "MerR_10",
+    "family": "MerR",
+    "representative": "bsGlnR",
+    "inducer": "nitrogen",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 2302,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_10_bsGlnR.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 4,
+      "pdb_refs": [
+        "4R4E",
+        "7TFC"
+      ]
+    },
+    "pdb_refs": [
+      "4R4E",
+      "7TFC"
+    ]
+  },
+  {
+    "cluster_id": "MerR_1",
+    "family": "MerR",
+    "representative": "ppCadR",
+    "inducer": "Cd2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CX7-8C",
+    "n_seqs": 7568,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_1_ppCadR.fasta",
+    "annotation_confidence": "tentative (single anchor)",
+    "annotation_sources": [
+      "anchor",
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Hg2+",
+      "basis": "membership",
+      "confidence": "moderate (2 member sensors = Hg2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Hg2+": 2,
+        "Cu+": 1
+      },
+      "sequence_votes_hi": {
+        "Cu+": 4
+      },
+      "sequence_votes_lo": {
+        "Cu+": 9
+      },
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "1NY9",
+        "1Q05",
+        "1Q06",
+        "1Q07",
+        "2MBZ",
+        "2MC0",
+        "2VZ4",
+        "4WLS",
+        "4WLW",
+        "5I41",
+        "5I44",
+        "6LDI",
+        "6XH7",
+        "6XH8",
+        "7C17",
+        "8C73",
+        "8C76"
+      ]
+    },
+    "pdb_refs": [
+      "1NY9",
+      "1Q05",
+      "1Q06",
+      "1Q07",
+      "2MBZ",
+      "2MC0",
+      "2VZ4",
+      "4WLS",
+      "4WLW",
+      "5I41",
+      "5I44",
+      "6LDI",
+      "6XH7",
+      "6XH8",
+      "7C17",
+      "8C73",
+      "8C76"
+    ],
+    "mining_flag": "mining (basis=membership) suggests Hg2+ != published Cd2+; see cluster_ligand_evidence.json",
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 8,
+      "structures": [
+        "1Q05",
+        "1Q06",
+        "1Q07",
+        "4WLW",
+        "6LDI",
+        "6XH7",
+        "6XH8",
+        "7C17"
+      ],
+      "nearest_labeled_sites": [
+        "5CRL:Hg2+",
+        "1Q09:Zn2+",
+        "5CRL:Hg2+",
+        "1Q08:Zn2+",
+        "5CRL:Hg2+",
+        "1Q09:Zn2+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "MerR_2",
+    "family": "MerR",
+    "representative": "CadR/PbrR691",
+    "inducer": "Cd2+/Pb2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CX7-8C",
+    "n_seqs": 4027,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_2_ecCadR.fasta",
+    "annotation_confidence": "polyspecific (Cd2+/Pb2+) -- two conflicting representatives, one curated anchor; the SSN may not separate the CadR and PbrR clades at this alignment score and members may be genuinely promiscuous",
+    "annotation_sources": [
+      "preprint_curation",
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": true,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "5XBI",
+        "5XBT",
+        "5XBW",
+        "5XQL",
+        "5YC9",
+        "7CLA"
+      ]
+    },
+    "pdb_refs": [
+      "5XBI",
+      "5XBT",
+      "5XBW",
+      "5XQL",
+      "5YC9",
+      "7CLA"
+    ],
+    "label_correction": {
+      "was": {
+        "representative": "ecCadR",
+        "inducer": "Cd2+"
+      },
+      "now": {
+        "representative": "CadR/PbrR691",
+        "inducer": "Cd2+/Pb2+"
+      },
+      "basis": "The Cd2+ label had NO support beyond the FASTA filename (`..._2_ecCadR.fasta`): this table recorded 'no ground-truth evidence' and mining returned no inducer. The preprint's curation sheet (Table S1_And_Others.xlsx, sheet MerR) assigns cluster 2 exactly one characterized member, PbrR691 (UniProt Q1LKZ5, Cupriavidus metallidurans, Pb(II)), verified present in that FASTA; their logo set also carries cmPbrR_logo.svg.",
+      "why_polyspecific": "CadR and PbrR are adjacent clades reading the same chemistry (soft thiophilic divalents via the same C-terminal CX7-8C pair). The filename says CadR, the only curated anchor says PbrR/Pb(II), and neither overrules the other, so the cluster is labelled for both rather than forcing a single ion.",
+      "downstream": "Safe: Cd2+ and Pb2+ both map to the same AF3 surrogate ion (ZN) via af3_export.map_effector_to_ion, which now resolves slash labels; and effector.inducer already prefers a query's nearest curated member ion over a lumped cluster label."
+    }
+  },
+  {
+    "cluster_id": "MerR_3",
+    "family": "MerR",
+    "representative": "hiNmlR",
+    "inducer": "NO/RSS",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 2325,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_3_hiNmlR.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 1,
+      "pdb_refs": [
+        "1BOW",
+        "1EXI",
+        "1EXJ",
+        "1R8E",
+        "2BOW",
+        "3D6Y",
+        "3D6Z",
+        "3D70",
+        "3D71",
+        "3IAO",
+        "3Q1M",
+        "3Q2Y",
+        "3Q3D",
+        "3Q5P",
+        "3Q5R",
+        "3Q5S",
+        "5D8C",
+        "5D90",
+        "5E01",
+        "7CKQ"
+      ]
+    },
+    "pdb_refs": [
+      "1BOW",
+      "1EXI",
+      "1EXJ",
+      "1R8E",
+      "2BOW",
+      "3D6Y",
+      "3D6Z",
+      "3D70",
+      "3D71",
+      "3IAO",
+      "3Q1M",
+      "3Q2Y",
+      "3Q3D",
+      "3Q5P",
+      "3Q5R",
+      "3Q5S",
+      "5D8C",
+      "5D90",
+      "5E01",
+      "7CKQ"
+    ]
+  },
+  {
+    "cluster_id": "MerR_4",
+    "family": "MerR",
+    "representative": "ecSoxR",
+    "inducer": "redox[2Fe-2S]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 7301,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_4_ecSoxR.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Fe",
+      "basis": "membership",
+      "confidence": "high (7 member sensors = Fe)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Fe": 7
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "2ZHG",
+        "2ZHH",
+        "5YDC",
+        "5YDD"
+      ]
+    },
+    "pdb_refs": [
+      "2ZHG",
+      "2ZHH",
+      "5YDC",
+      "5YDD"
+    ],
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 2,
+      "structures": [
+        "2ZHG",
+        "2ZHH"
+      ],
+      "nearest_labeled_sites": [
+        "6LDI:Cu+",
+        "6XH8:Cu+",
+        "6LDI:Cu+",
+        "7C17:Cu+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "MerR_5",
+    "family": "MerR",
+    "representative": "bsTnrA",
+    "inducer": "nitrogen",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 447,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_5_bsTnrA.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 2,
+      "pdb_refs": [
+        "4R22",
+        "4R24",
+        "4S0R"
+      ]
+    },
+    "pdb_refs": [
+      "4R22",
+      "4R24",
+      "4S0R"
+    ]
+  },
+  {
+    "cluster_id": "MerR_6",
+    "family": "MerR",
+    "representative": "bcMerR1",
+    "inducer": "Hg2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CX7-8C",
+    "n_seqs": 2314,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_6_bcMerR1.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Hg2+",
+      "basis": "membership",
+      "confidence": "high (7 member sensors = Hg2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Hg2+": 7
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "5CRL"
+      ]
+    },
+    "pdb_refs": [
+      "5CRL"
+    ],
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 1,
+      "structures": [
+        "5CRL"
+      ],
+      "nearest_labeled_sites": [
+        "6XH7:Cu+",
+        "7C17:Cu+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "MerR_8",
+    "family": "MerR",
+    "representative": "bsYfmP",
+    "inducer": "multidrug",
+    "role": "multidrug",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 596,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_8_bsYfmP.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 1,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "MerR_9",
+    "family": "MerR",
+    "representative": "ecZntR",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CX7-8C",
+    "n_seqs": 1951,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_9_ecZntr.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Zn2+",
+      "basis": "membership",
+      "confidence": "moderate (2 member sensors = Zn2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Zn2+": 2
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "1JBG",
+        "1Q08",
+        "1Q09",
+        "1Q0A",
+        "1R8D"
+      ]
+    },
+    "pdb_refs": [
+      "1JBG",
+      "1Q08",
+      "1Q09",
+      "1Q0A",
+      "1R8D"
+    ],
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 3,
+      "structures": [
+        "1Q08",
+        "1Q09",
+        "1Q0A"
+      ],
+      "nearest_labeled_sites": [
+        "7C17:Cu+",
+        "6XH8:Cu+",
+        "7C17:Cu+",
+        "6LDI:Cu+",
+        "7C17:Cu+",
+        "6XH7:Cu+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "ArsR_c1",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": "As3+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ArsR-metal",
+    "n_seqs": 12211,
+    "fasta": "SSN_sequences\\ArsRs\\c1.fasta",
+    "annotation_confidence": "uniprot_curated: high (8 member sensors = As3+)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "As3+",
+      "basis": "membership",
+      "confidence": "high (8 member sensors = As3+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "As3+": 8
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {
+        "As3+": 1
+      },
+      "n_nonmetal_members": 0,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "ArsR_c2",
+    "family": "ArsR/SmtB",
+    "representative": "CzrA/SmtB/ZiaR",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ArsR-metal",
+    "n_seqs": 16782,
+    "fasta": "SSN_sequences\\ArsRs\\c2.fasta",
+    "annotation_confidence": "high (3 consistent anchors)",
+    "annotation_sources": [
+      "anchor",
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Cd2+",
+      "basis": "membership",
+      "confidence": "polyspecific members {'Cd2+': 6, 'Zn2+': 3, 'Ni2+': 1} -> plurality Cd2+",
+      "polyspecific": true,
+      "membership_votes": {
+        "Cd2+": 6,
+        "Zn2+": 3,
+        "Ni2+": 1
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 1,
+      "pdb_refs": [
+        "1R1T",
+        "1R22",
+        "1R23",
+        "1SMT",
+        "1U2W",
+        "3F72"
+      ]
+    },
+    "pdb_refs": [
+      "1R1T",
+      "1R22",
+      "1R23",
+      "1SMT",
+      "1U2W",
+      "3F72"
+    ],
+    "mining_flag": "mining (basis=membership) suggests Cd2+ != published Zn2+; see cluster_ligand_evidence.json",
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 3,
+      "structures": [
+        "1R22",
+        "1R23",
+        "1U2W"
+      ],
+      "nearest_labeled_sites": [
+        "8QKF:Zn2+",
+        "1U2W:Cd2+",
+        "1U2W:Cd2+",
+        "8QKF:Zn2+",
+        "8QKF:Zn2+",
+        "1R22:Zn2+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "ArsR_c3",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": null,
+    "role": "unknown",
+    "is_metal": false,
+    "gate": "ArsR-metal",
+    "n_seqs": 7282,
+    "fasta": "SSN_sequences\\ArsRs\\c3.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {
+        "As3+": 2
+      },
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "1KU9"
+      ]
+    },
+    "pdb_refs": [
+      "1KU9"
+    ]
+  },
+  {
+    "cluster_id": "ArsR_c4",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": null,
+    "role": "unknown",
+    "is_metal": false,
+    "gate": "ArsR-metal",
+    "n_seqs": 10964,
+    "fasta": "SSN_sequences\\ArsRs\\c4.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "ArsR_c5",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ArsR-metal",
+    "n_seqs": 1505,
+    "fasta": "SSN_sequences\\ArsRs\\c5.fasta",
+    "annotation_confidence": "uniprot_curated: moderate (2 member sensors = Zn2+)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Zn2+",
+      "basis": "membership",
+      "confidence": "moderate (2 member sensors = Zn2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Zn2+": 2
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "8QKF"
+      ]
+    },
+    "pdb_refs": [
+      "8QKF"
+    ]
+  },
+  {
+    "cluster_id": "ArsR_c6",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": "Cd2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ArsR-metal",
+    "n_seqs": 2925,
+    "fasta": "SSN_sequences\\ArsRs\\c6.fasta",
+    "annotation_confidence": "uniprot_curated: high (3 member sensors = Cd2+)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Cd2+",
+      "basis": "membership",
+      "confidence": "high (3 member sensors = Cd2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Cd2+": 3
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": [
+        "2JSC"
+      ]
+    },
+    "pdb_refs": [
+      "2JSC"
+    ],
+    "structural_site": {
+      "tool": "folddisco",
+      "metal_site_confirmed": true,
+      "n_structures": 1,
+      "structures": [
+        "2JSC"
+      ],
+      "nearest_labeled_sites": [
+        "7C17:Cu+",
+        "8QKF:Zn2+"
+      ],
+      "note": "metal-binding-site architecture confirmed structurally; exact ion not resolved by structure (see folddisco_site_results.json)"
+    }
+  },
+  {
+    "cluster_id": "ArsR_c7",
+    "family": "ArsR/SmtB",
+    "representative": "YgaV/HlyU/BigR",
+    "inducer": "persulfide/RSS",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 12361,
+    "fasta": "SSN_sequences\\ArsRs\\c7.fasta",
+    "annotation_confidence": "corrected (membership): persulfide/thiol-redox cluster, not Ni",
+    "annotation_sources": [
+      "anchor",
+      "membership_correction",
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 5,
+      "pdb_refs": [
+        "2ZKZ",
+        "3CUO",
+        "3PQJ",
+        "3PQK",
+        "4K2E",
+        "4OOI",
+        "6JMI"
+      ]
+    },
+    "pdb_refs": [
+      "2ZKZ",
+      "3CUO",
+      "3PQJ",
+      "3PQK",
+      "4K2E",
+      "4OOI",
+      "6JMI"
+    ],
+    "correction_note": "All curated members of c7 are persulfide/RSS or thiol-redox sensors (YgaV, HlyU, BigR/biofilm-growth-associated repressor, SdpR), none metal. The canonical Ni/Co sensors NmtR (O69711) and KmtR (O53838) are members of c2, NOT c7. The earlier 'c7=Ni2+' anchor was a mislabeled ground-truth artifact: the 5.8 op-MSA 'NmtR_Mtb' sequence (114 aa, MESEPLYKL...) is NOT canonical NmtR (O69711, 120 aa, MGHGVEGRNR...) -- it is a c7-type persulfide protein that bins to c7 (support 0.99), while real NmtR bins to c2 (id 1.0). Verified against accession_to_cluster.json + UniProt."
+  },
+  {
+    "cluster_id": "ArsR_c8",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": null,
+    "role": "unknown",
+    "is_metal": false,
+    "gate": "ArsR-metal",
+    "n_seqs": 6947,
+    "fasta": "SSN_sequences\\ArsRs\\c8.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 1,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "ArsR_c9",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": null,
+    "role": "unknown",
+    "is_metal": false,
+    "gate": "ArsR-metal",
+    "n_seqs": 3667,
+    "fasta": "SSN_sequences\\ArsRs\\c9.fasta",
+    "annotation_confidence": "unknown (no ground-truth evidence)",
+    "annotation_sources": [],
+    "mining": {
+      "inducer": null,
+      "basis": null,
+      "confidence": "no curated binder with a derivable ion assigned",
+      "polyspecific": false,
+      "membership_votes": {},
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 1,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "ArsR_c10",
+    "family": "ArsR/SmtB",
+    "representative": "",
+    "inducer": "Hg2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ArsR-metal",
+    "n_seqs": 54,
+    "fasta": "SSN_sequences\\ArsRs\\c10.fasta",
+    "annotation_confidence": "uniprot_curated: tentative (1 member sensor = Hg2+)",
+    "annotation_sources": [
+      "uniprot_curated"
+    ],
+    "mining": {
+      "inducer": "Hg2+",
+      "basis": "membership",
+      "confidence": "tentative (1 member sensor = Hg2+)",
+      "polyspecific": false,
+      "membership_votes": {
+        "Hg2+": 1
+      },
+      "sequence_votes_hi": {},
+      "sequence_votes_lo": {},
+      "n_nonmetal_members": 0,
+      "pdb_refs": []
+    }
+  },
+  {
+    "cluster_id": "MerR_7",
+    "family": "MerR",
+    "representative": "ecCueR",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CX7-8C",
+    "n_seqs": 8942,
+    "fasta": "SSN_sequences\\MerRs\\MerR_cluster_7_ecCueR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_baMur",
+    "family": "Fur",
+    "representative": "baMur",
+    "inducer": "Mn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 4406,
+    "fasta": "SSN_sequences\\Furs\\baMur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_bbBosR",
+    "family": "Fur",
+    "representative": "bbBosR",
+    "inducer": "redox[H2O2]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 34,
+    "fasta": "SSN_sequences\\Furs\\bbBosR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_bjIrr",
+    "family": "Fur",
+    "representative": "bjIrr",
+    "inducer": "heme",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 3079,
+    "fasta": "SSN_sequences\\Furs\\bjIrr.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_bsFur",
+    "family": "Fur",
+    "representative": "bsFur",
+    "inducer": "Fe2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 3352,
+    "fasta": "SSN_sequences\\Furs\\bsFur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_bsPerR",
+    "family": "Fur",
+    "representative": "bsPerR",
+    "inducer": "redox[H2O2]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 2647,
+    "fasta": "SSN_sequences\\Furs\\bsPerR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_bsZur",
+    "family": "Fur",
+    "representative": "bsZur",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 1646,
+    "fasta": "SSN_sequences\\Furs\\bsZur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_cjFur",
+    "family": "Fur",
+    "representative": "cjFur",
+    "inducer": "Fe2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 310,
+    "fasta": "SSN_sequences\\Furs\\cjFur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_ecFur",
+    "family": "Fur",
+    "representative": "ecFur",
+    "inducer": "Fe2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 8724,
+    "fasta": "SSN_sequences\\Furs\\ecFur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_ecZur",
+    "family": "Fur",
+    "representative": "ecZur",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 7586,
+    "fasta": "SSN_sequences\\Furs\\ecZur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_liPerR",
+    "family": "Fur",
+    "representative": "liPerR",
+    "inducer": "redox[H2O2]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 112,
+    "fasta": "SSN_sequences\\Furs\\liPerR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_mtFurB",
+    "family": "Fur",
+    "representative": "mtFurB",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 84,
+    "fasta": "SSN_sequences\\Furs\\mtFurB.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_mtZur",
+    "family": "Fur",
+    "representative": "mtZur",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 82,
+    "fasta": "SSN_sequences\\Furs\\mtZur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_scNur",
+    "family": "Fur",
+    "representative": "scNur",
+    "inducer": "Ni2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 1924,
+    "fasta": "SSN_sequences\\Furs\\scNur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Fur_scZur",
+    "family": "Fur",
+    "representative": "scZur",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "Fur-His/Cys",
+    "n_seqs": 4041,
+    "fasta": "SSN_sequences\\Furs\\scZur.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CopY_c1",
+    "family": "CopY",
+    "representative": "CopY",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CopY-Cu(Cys)",
+    "n_seqs": 2194,
+    "fasta": "SSN_sequences\\CopYs\\c1.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CopY_c2",
+    "family": "CopY",
+    "representative": "BlaI/CopY-like",
+    "inducer": "beta-lactam",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 3230,
+    "fasta": "SSN_sequences\\CopYs\\c2.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CopY_c3",
+    "family": "CopY",
+    "representative": "BlaI-like",
+    "inducer": "beta-lactam",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 1315,
+    "fasta": "SSN_sequences\\CopYs\\c3.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CopY_c4",
+    "family": "CopY",
+    "representative": "BlaI/MecI",
+    "inducer": "beta-lactam",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 130,
+    "fasta": "SSN_sequences\\CopYs\\c4.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_bsCsoR",
+    "family": "CsoR/FrmR",
+    "representative": "CsoR/RicR",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-CHC",
+    "n_seqs": 8091,
+    "fasta": "SSN_sequences\\CsoRs\\bsCsoR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_ecFrmR",
+    "family": "CsoR/FrmR",
+    "representative": "FrmR/RcnR",
+    "inducer": "formaldehyde",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 5069,
+    "fasta": "SSN_sequences\\CsoRs\\ecFrmR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_ecRcnR",
+    "family": "CsoR/FrmR",
+    "representative": "RcnR",
+    "inducer": "Ni2+/Co2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-His/Cys",
+    "n_seqs": 480,
+    "fasta": "SSN_sequences\\CsoRs\\ecRcnR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_mtCsoR",
+    "family": "CsoR/FrmR",
+    "representative": "CsoR",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-CHC",
+    "n_seqs": 142,
+    "fasta": "SSN_sequences\\CsoRs\\mtCsoR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_saCstR",
+    "family": "CsoR/FrmR",
+    "representative": "CstR",
+    "inducer": "persulfide/RSS",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 1915,
+    "fasta": "SSN_sequences\\CsoRs\\saCstR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_scCstR",
+    "family": "CsoR/FrmR",
+    "representative": "CsoR/CstR",
+    "inducer": "Cu+/persulfide",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 3748,
+    "fasta": "SSN_sequences\\CsoRs\\scCstR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_seFrmR_group",
+    "family": "CsoR/FrmR",
+    "representative": "FrmR",
+    "inducer": "formaldehyde",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 1973,
+    "fasta": "SSN_sequences\\CsoRs\\seFrmR_group.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_spNreA",
+    "family": "CsoR/FrmR",
+    "representative": "CsoR-like",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-CHC",
+    "n_seqs": 1821,
+    "fasta": "SSN_sequences\\CsoRs\\spNreA.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_syInrS",
+    "family": "CsoR/FrmR",
+    "representative": "InrS",
+    "inducer": "Ni2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-His/Cys",
+    "n_seqs": 1352,
+    "fasta": "SSN_sequences\\CsoRs\\syInrS.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "CsoR_ttCsoR",
+    "family": "CsoR/FrmR",
+    "representative": "CsoR",
+    "inducer": "Cu+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "CsoR-CHC",
+    "n_seqs": 212,
+    "fasta": "SSN_sequences\\CsoRs\\ttCsoR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "DtxR_bsMntR",
+    "family": "DtxR/MntR",
+    "representative": "MntR",
+    "inducer": "Mn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "DtxR-carboxylate",
+    "n_seqs": 1652,
+    "fasta": "SSN_sequences\\DtxRs\\bsMntR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "DtxR_ecMntR",
+    "family": "DtxR/MntR",
+    "representative": "MntR",
+    "inducer": "Mn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "DtxR-carboxylate",
+    "n_seqs": 516,
+    "fasta": "SSN_sequences\\DtxRs\\ecMntR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "DtxR_IdeR",
+    "family": "DtxR/MntR",
+    "representative": "IdeR/DtxR",
+    "inducer": "Fe2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "DtxR-carboxylate",
+    "n_seqs": 4753,
+    "fasta": "SSN_sequences\\DtxRs\\IdeR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "DtxR_mtMntR",
+    "family": "DtxR/MntR",
+    "representative": "MntR/SirR",
+    "inducer": "Mn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "DtxR-carboxylate",
+    "n_seqs": 1928,
+    "fasta": "SSN_sequences\\DtxRs\\mtMntR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "DtxR_smSloR",
+    "family": "DtxR/MntR",
+    "representative": "SloR",
+    "inducer": "Mn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "DtxR-carboxylate",
+    "n_seqs": 474,
+    "fasta": "SSN_sequences\\DtxRs\\smSloR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "GntR_c1",
+    "family": "GntR",
+    "representative": "GntR",
+    "inducer": "gluconate",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 740,
+    "fasta": "SSN_sequences\\GntRs\\GntR_c1.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "GntR_c2",
+    "family": "GntR",
+    "representative": "CitO/GntR",
+    "inducer": "citrate",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 379,
+    "fasta": "SSN_sequences\\GntRs\\GntR_c2.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "GntR_c3",
+    "family": "GntR",
+    "representative": "PdhR/LldR",
+    "inducer": "2-oxoacid",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 1267,
+    "fasta": "SSN_sequences\\GntRs\\GntR_c3.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "GntR_c4",
+    "family": "GntR",
+    "representative": "UxuR/ExuR",
+    "inducer": "hexuronate",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 5585,
+    "fasta": "SSN_sequences\\GntRs\\GntR_c4.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "GntR_c5",
+    "family": "GntR",
+    "representative": "LutR-like",
+    "inducer": "organic",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 637,
+    "fasta": "SSN_sequences\\GntRs\\GntR_c5.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "LysR_c1",
+    "family": "LysR-type (LTTR)",
+    "representative": "CysB/CmpR",
+    "inducer": "O-acetylserine",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 22287,
+    "fasta": "SSN_sequences\\LysRs\\LysR_c1.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "LysR_c2",
+    "family": "LysR-type (LTTR)",
+    "representative": "OxyR",
+    "inducer": "redox[H2O2]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 27629,
+    "fasta": "SSN_sequences\\LysRs\\LysR_c2.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "LysR_ModE",
+    "family": "LysR-type (LTTR)",
+    "representative": "ModE",
+    "inducer": "molybdate",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "ModE-Mop",
+    "n_seqs": 1218,
+    "fasta": "SSN_sequences\\LysRs\\ModE.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "MarR_c1",
+    "family": "MarR/SlyA",
+    "representative": "AdcR",
+    "inducer": "Zn2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "MarR-Zn(His/Glu)",
+    "n_seqs": 612,
+    "fasta": "SSN_sequences\\MarRs\\c1.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "MarR_ecMarR",
+    "family": "MarR/SlyA",
+    "representative": "MarR",
+    "inducer": "salicylate/multidrug",
+    "role": "multidrug",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 848,
+    "fasta": "SSN_sequences\\MarRs\\ecMarR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "MarR_OhrR",
+    "family": "MarR/SlyA",
+    "representative": "OhrR/SarZ",
+    "inducer": "redox[ROOH]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 17370,
+    "fasta": "SSN_sequences\\MarRs\\OhrR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "NikR_c1",
+    "family": "NikR",
+    "representative": "NikR",
+    "inducer": "Ni2+",
+    "role": "metal",
+    "is_metal": true,
+    "gate": "NikR-His/Cys",
+    "n_seqs": 7575,
+    "fasta": "SSN_sequences\\NikRs\\NikR_c1.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Rrf2_ecIscR",
+    "family": "Rrf2",
+    "representative": "IscR",
+    "inducer": "redox[2Fe-2S]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 5874,
+    "fasta": "SSN_sequences\\Rrf2s\\ecIscR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Rrf2_saCymR",
+    "family": "Rrf2",
+    "representative": "CymR",
+    "inducer": "cysteine/OAS",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 3001,
+    "fasta": "SSN_sequences\\Rrf2s\\saCymR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Rrf2_scNsrR",
+    "family": "Rrf2",
+    "representative": "NsrR",
+    "inducer": "NO",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 1187,
+    "fasta": "SSN_sequences\\Rrf2s\\scNsrR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Rrf2_svRsrR",
+    "family": "Rrf2",
+    "representative": "RsrR",
+    "inducer": "redox[NAD(P)]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 116,
+    "fasta": "SSN_sequences\\Rrf2s\\svRsrR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "Rrf2_tpIscR",
+    "family": "Rrf2",
+    "representative": "IscR-like",
+    "inducer": "redox[2Fe-2S]",
+    "role": "redox",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 62,
+    "fasta": "SSN_sequences\\Rrf2s\\tpIscR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  },
+  {
+    "cluster_id": "TetR_c1_tetR",
+    "family": "TetR/AcrR",
+    "representative": "KstR2/TetR",
+    "inducer": "steroid-CoA/organic",
+    "role": "non-metal",
+    "is_metal": false,
+    "gate": "",
+    "n_seqs": 332,
+    "fasta": "SSN_sequences\\TetRs\\c1_tetR.fasta",
+    "label_source": "2026_drop_seed (anchor/UniProt/literature; see analysis/ssn_final_state/SSN_MASTER)"
+  }
+]

@@ -1,0 +1,8 @@
+tf	refseq_protein	locus_tag	truth_family	truth_class	truth_ions	n_target_units	n_experimental_units	included	reason	anchored	anchor_clusters	identity_to_ecoli_ortholog	near_identical_to_anchor	source
+Fur	WP_000131699.1	SL1344_RS03500	Fur	metal	Fe2+	1	1	yes	all rules pass	yes	Fur_ecFur	0.986	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+Zur	WP_000416272.1	SL1344_RS21770	Fur	metal	Zn2+	4	2	yes	all rules pass	no		0.93	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+CueR	WP_001026760.1	SL1344_RS02540	MerR	metal	Cu+	3	3	yes	all rules pass	yes	MerR_7	0.911	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+ZntR	WP_000285586.1	SL1344_RS17620	MerR	metal	Zn2+	1	1	yes	all rules pass	yes	MerR_9	0.922	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+MntR	WP_000533542.1	SL1344_RS04225	DtxR/MntR	metal	Mn2+	4	2	yes	all rules pass	no		0.916	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+NikR	WP_001190057.1	SL1344_RS18470	NikR	metal	Ni2+	1	0	no	fails R5' (no experimental target)	no		0.985	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv
+RcnR	WP_000019953.1	SL1344_RS15640	CsoR/FrmR	metal	Co2+;Ni2+	1	1	yes	all rules pass	no		0.933	yes	Osman D et al. (2019) Nat Chem Biol 15:241-249, Table 1 + osman2019_targets.tsv

@@ -1,0 +1,212 @@
+{
+ "clusters": {
+  "MarR_OhrR": {
+   "anchors": [
+    {
+     "accession": "A0A071KVQ7",
+     "accessions": [
+      "A0A071KVQ7",
+      "A0A0H2ZBI6",
+      "A0A6N0KKI6",
+      "A0A9Q9JYU6",
+      "Q9HZZ4"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Organic hydroperoxide",
+     "n_accessions": 5,
+     "n_operators": 8,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Pseudomonas aeruginosa",
+     "seq_md5": "88ea5b16c74d41b6e4035955aade0bbf",
+     "source_route": "kb"
+    },
+    {
+     "accession": "Q92MX6",
+     "accessions": [
+      "Q92MX6"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 1,
+     "n_operators": 2,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Rhizobium meliloti (strain 1021)",
+     "seq_md5": "d871d9bad9ac9e8303e836f218675c8e",
+     "source_route": "kb"
+    },
+    {
+     "accession": "A0A083ZQB8",
+     "accessions": [
+      "A0A083ZQB8",
+      "A0A7I0RDU1",
+      "A9CJU2"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 3,
+     "n_operators": 1,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Rhizobium radiobacter",
+     "seq_md5": "69d5958103451bedc6b82dee29663bb9",
+     "source_route": "kb"
+    },
+    {
+     "accession": "A0A0A1MC09",
+     "accessions": [
+      "A0A0A1MC09",
+      "A0A6H0H171",
+      "A0A6M3ZAH4",
+      "O34777"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 4,
+     "n_operators": 1,
+     "n_regulon_genes": 1,
+     "name": null,
+     "organism": "Bacillus subtilis",
+     "seq_md5": "6bbd4bf48e4102072a55eda2b199490d",
+     "source_route": "kb+figure"
+    },
+    {
+     "accession": "A0A3T0FT54",
+     "accessions": [
+      "A0A3T0FT54",
+      "Q93R11"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 2,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Xanthomonas sp. ISO98C4",
+     "seq_md5": "da9fa6d10110e7468b92d649c720db2d",
+     "source_route": "kb+figure"
+    },
+    {
+     "accession": "Q8EI70",
+     "accessions": [
+      "Q8EI70"
+     ],
+     "evidence_grade": "omics",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 1,
+     "n_operators": 1,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Shewanella oneidensis (strain MR-1)",
+     "seq_md5": "0bc3c2562fcbc2383a3de807908cc927",
+     "source_route": "kb"
+    }
+   ],
+   "confidence_tier": "high (6 consistent anchors)",
+   "conflict": false,
+   "inducer_consensus": "organic hydroperoxide",
+   "n_accession_rows": 16,
+   "n_anchors": 6,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 6
+  },
+  "MarR_c1": {
+   "anchors": [
+    {
+     "accession": "A0A084A9I6",
+     "accessions": [
+      "A0A084A9I6",
+      "A0A0M2ZSP8",
+      "A0A1E7G0W9",
+      "A2RNS2",
+      "T2F8Q2"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Zn2+",
+     "n_accessions": 5,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Lactococcus cremoris subsp. cremoris GE214",
+     "seq_md5": "ac69497352340165513b53d5aaa208a0",
+     "source_route": "kb+figure"
+    },
+    {
+     "accession": "A0A0H2US15",
+     "accessions": [
+      "A0A0H2US15",
+      "A5LLN0",
+      "B1I9Y3",
+      "C1CHH1",
+      "O33703",
+      "Q04I02"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Zn2+",
+     "n_accessions": 6,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Streptococcus pneumoniae serotype 4 (strain ATCC BAA-334 / TIGR4)",
+     "seq_md5": "5c5eea0f3475acf7be3d98d32ecb009f",
+     "source_route": "kb+figure"
+    }
+   ],
+   "confidence_tier": "high (2 consistent anchors)",
+   "conflict": false,
+   "inducer_consensus": "Zn2+",
+   "n_accession_rows": 11,
+   "n_anchors": 2,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 2
+  },
+  "MarR_ecMarR": {
+   "anchors": [
+    {
+     "accession": "A0A037Y6L1",
+     "accessions": [
+      "A0A037Y6L1",
+      "A0A0E1LX58",
+      "A0A0E1SX27",
+      "A0A127SH16",
+      "A0A140NBN9",
+      "A0A1X3JHF1",
+      "A0A523HFH1",
+      "A0A9X5R8G0",
+      "P27245"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "salicylate",
+     "n_accessions": 9,
+     "n_operators": 6,
+     "n_regulon_genes": 3,
+     "name": null,
+     "organism": "Escherichia coli",
+     "seq_md5": "cad395e3116df1c3d268532f0e9da79b",
+     "source_route": "kb+figure"
+    }
+   ],
+   "confidence_tier": "tentative (single anchor)",
+   "conflict": false,
+   "inducer_consensus": "salicylate",
+   "n_accession_rows": 9,
+   "n_anchors": 1,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 1
+  }
+ },
+ "family": "MarR/SlyA",
+ "family_tag": "MarR",
+ "generated": "2026-08-30 23:16",
+ "source": "analysis/family_kb"
+}

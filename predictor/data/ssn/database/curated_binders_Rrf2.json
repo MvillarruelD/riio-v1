@@ -1,0 +1,28 @@
+[
+ {
+  "acc": "A0A080IRI1",
+  "ion": "Fe2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Fe2+",
+  "name": "",
+  "organism": "Escherichia coli 1-250-04_S3_C2",
+  "seq": "MRLTSKGRYAVTAMLDVALNSEAGPVPLADISERQGISLSYLEQLFSRLRKNGLVSSVRGPGGGYLLGKDASSIAVGEVISAVDESVDATRCQGKGGCQGGDKCLTHALWRDLSDRLTGFLNNITLGELVNNQEVLDVSGRQHTHDAPRTRTQDAIDVKLRA",
+  "cluster": "Rrf2_ecIscR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A7K2URZ6",
+  "ion": "Fe2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Fe2+",
+  "name": "",
+  "organism": "Streptomyces sp. SID7813",
+  "seq": "MRLTKFTDLALRSLMRLAVVRDGDEPLATREVAEVVGVPYTHAAKAITRLQHLGVVEARRGRGGGLTLTDLGRRVSVGWLVRELEGEAEVVDCEGDNPCPLRGACRLRRALRDAQEAFYAALDPLTVTDLVAAPTGPVLLGLTDRPSG",
+  "cluster": "Rrf2_scNsrR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

@@ -1,0 +1,15 @@
+[
+ {
+  "acc": "A0A7Z9DKJ2",
+  "ion": "Zn2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Zn2+",
+  "name": "",
+  "organism": "Enterococcus hirae",
+  "seq": "MEEKRVLIKISDSEWEVMRVIWTLGQANAQQITQILADSMDWKVATVKTLLGRLVKKEALWTEQEGKKFIYHPAVSEMENVRSATENLFSHICAKRVGATIADLVEEATLTQEDIQQIMKQLNKKEPVETIECNCIPGQCECKKQ",
+  "cluster": "CopY_c1",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

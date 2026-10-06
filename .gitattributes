@@ -1,0 +1,20 @@
+# Normalise text to LF in the repo (consistent cross-platform diffs); mark known binaries.
+* text=auto eol=lf
+
+*.npy binary
+*.npz binary
+*.hmm binary
+*.sqlite binary
+*.pdf binary
+*.png binary
+*.tiff binary
+*.jpg binary
+*.gz binary
+*.zip binary
+
+# Immutable reference hashes identify exact bytes, including original line endings.
+predictor/data/** -text
+predictor/data/** whitespace=cr-at-eol
+analysis/**/*.fasta -text
+analysis/**/*.faa -text
+*.tsv whitespace=-blank-at-eol,-blank-at-eof

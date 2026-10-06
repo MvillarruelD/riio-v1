@@ -1,0 +1,124 @@
+{
+ "clusters": {
+  "CopY_c1": {
+   "anchors": [
+    {
+     "accession": "A0A7Z9DKJ2",
+     "accessions": [
+      "A0A7Z9DKJ2",
+      "Q47839"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "curated",
+     "inducer": "Zn2+",
+     "n_accessions": 2,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Enterococcus hirae",
+     "seq_md5": "7ccc53af86791ce13d51b8cbc7e44e77",
+     "source_route": "kb+figure"
+    },
+    {
+     "accession": "A0A0B8QY54",
+     "accessions": [
+      "A0A0B8QY54",
+      "A0A199YT82",
+      "A0A2A8DFC6",
+      "A0A5D4G0L6",
+      "A0A6I2I5G8",
+      "D2BPV4",
+      "H5SY50",
+      "Q9CHA6",
+      "S6FUI7"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 9,
+     "n_operators": 7,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Lactococcus lactis subsp. lactis",
+     "seq_md5": "dae64cb9b44757dd0739cbaa3a0ab509",
+     "source_route": "kb"
+    },
+    {
+     "accession": "Q8DQJ7",
+     "accessions": [
+      "Q8DQJ7"
+     ],
+     "evidence_grade": "computational",
+     "evidence_level": "curated",
+     "inducer": null,
+     "n_accessions": 1,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": "spCopY",
+     "organism": "Streptococcus pneumoniae (strain ATCC BAA-255 / R6)",
+     "seq_md5": "4102e8c013692bc960d661c7a8a7bc1e",
+     "source_route": "kb+figure"
+    }
+   ],
+   "confidence_tier": "high (3 consistent anchors)",
+   "conflict": false,
+   "inducer_consensus": "Zn2+",
+   "n_accession_rows": 12,
+   "n_anchors": 3,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 3
+  },
+  "CopY_c2": {
+   "anchors": [
+    {
+     "accession": "A0A6I7TRC2",
+     "accessions": [
+      "A0A6I7TRC2",
+      "P06555"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "lactamase",
+     "n_accessions": 2,
+     "n_operators": 6,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Bacillus paralicheniformis",
+     "seq_md5": "7f2ab0a62dabc62e397dc57d9bfe3d94",
+     "source_route": "kb"
+    }
+   ],
+   "confidence_tier": "tentative (single anchor)",
+   "conflict": false,
+   "inducer_consensus": "lactamase",
+   "n_accession_rows": 2,
+   "n_anchors": 1,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 1
+  },
+  "CopY_c3": {
+   "anchors": [],
+   "confidence_tier": "unknown (no ground-truth evidence)",
+   "conflict": false,
+   "inducer_consensus": null,
+   "n_accession_rows": 0,
+   "n_anchors": 0,
+   "n_distinct_inducers": 0,
+   "n_independent_anchors": 0
+  },
+  "CopY_c4": {
+   "anchors": [],
+   "confidence_tier": "unknown (no ground-truth evidence)",
+   "conflict": false,
+   "inducer_consensus": null,
+   "n_accession_rows": 0,
+   "n_anchors": 0,
+   "n_distinct_inducers": 0,
+   "n_independent_anchors": 0
+  }
+ },
+ "family": "CopY",
+ "family_tag": "CopY",
+ "generated": "2026-08-30 23:16",
+ "source": "analysis/family_kb"
+}

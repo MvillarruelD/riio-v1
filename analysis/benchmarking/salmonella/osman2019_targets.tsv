@@ -1,0 +1,23 @@
+sensor	target_unit	gene	locus_tag	contig	start	end	strand	provenance	curation_confidence	curation_evidence	note
+MntR	mntS	mntS	SL1344_RS25090	NC_016810.1	901218	901346	-	salmonella_homology_ecoli	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+MntR	mntH	mntH	SL1344_RS12360	NC_016810.1	2521435	2522676	-	salmonella_experimental	confident	sole 'Nramp family divalent metal transporter' in the genome; 1242 bp = 413 aa, matching MntH (~412 aa)	
+MntR	sitABCD	sitA	SL1344_RS14815	NC_016810.1	3028947	3029864	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+MntR	sitABCD	sitB	SL1344_RS14820	NC_016810.1	3029861	3030682	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+MntR	sitABCD	sitC	SL1344_RS14825	NC_016810.1	3030679	3031539	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+MntR	sitABCD	sitD	SL1344_RS14830	NC_016810.1	3031530	3032378	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+MntR	mntP	mntP	SL1344_RS09160	NC_016810.1	1889712	1890278	+	salmonella_homology_ecoli	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Fur	iroBCDE	iroB	SL1344_RS14355	NC_016810.1	2938953	2940068	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Fur	iroBCDE	iroC	SL1344_RS14360	NC_016810.1	2940149	2943802	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Fur	iroBCDE	iroD	SL1344_RS14365	NC_016810.1	2943912	2945156	+	salmonella_experimental	confident	synteny: iroB (RS14355) -> iroC (RS14360) -> THIS -> iroE (RS14370), all + strand and contiguous; 'esterase family protein', 1245 bp = 414 aa, matching IroD (~420 aa); iroN (TonB-dependent siderophore receptor) lies divergent beyond, as expected	
+Fur	iroBCDE	iroE	SL1344_RS14370	NC_016810.1	2945188	2946123	+	salmonella_experimental	confident	fourth gene of the syntenic iroBCDE operon; 'alpha/beta hydrolase', 936 bp = 311 aa, matching IroE (~318 aa)	
+RcnR	rcnA	rcnA	SL1344_RS15645	NC_016810.1	3196045	3196878	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	resolved by product (RcnA nickel/cobalt efflux); adjacent to rcnR SL1344_RS15640
+NikR	nixA	nixA	SL1344_RS14405	NC_016810.1	2953789	2954802	-	ecoli_motif_search_1mismatch	probable	product names the family: 'HoxN/HupN/NixA family nickel/cobalt transporter', 1014 bp = 337 aa vs NixA ~331 aa. ALTERNATIVE: SL1344_RS13075, a second NiCoT annotated generically ('nickel/cobalt transporter', 328 aa). Product strings are algorithmic, so this is not certain -- exclude if the benchmark must be strict	
+NikR	nikA	nikA						ecoli_motif_search	absent	SL1344 HAS NO nik OPERON. No gene named nikA; the only other nik* gene is nikB, an IncI1-type plasmid relaxase (conjugative transfer, unrelated to nickel). nikR (RS18470) is not syntenic with any nickel ABC transporter -- its neighbours are acpT and an unrelated ABC permease/rbbA. Consistent with S. enterica lacking nikABCDE. EXCLUDE from scoring	
+CueR	copA	copA	SL1344_RS02535	NC_016810.1	557433	559934	-	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+CueR	cueO	cueO	SL1344_RS00855	NC_016810.1	196528	198138	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+CueR	cueP	cueP	SL1344_RS18815	NC_016810.1	3858140	3858679	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+ZntR	zntA	zntA	SL1344_RS18430	NC_016810.1	3763766	3765964	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Zur	znuA	znuA	SL1344_RS09460	NC_016810.1	1943983	1944927	-	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Zur	zinT	zinT	SL1344_RS06270	NC_016810.1	1302693	1303340	+	salmonella_experimental	from_gff_gene_name	exact gene-name match in the SL1344 annotation	
+Zur	rpmE2	rpmE2	SL1344_RS02390	NC_016810.1	525840	526100	+	salmonella_homology_ecoli	confident	'type B 50S ribosomal protein L31' -- rpmE2 IS the type-B, zinc-independent L31 paralog, and it is the Zur-derepressed one. The canonical zinc-binding rpmE is separately annotated at SL1344_RS21045, so the two are not confusable	
+Zur	pliG	pliG	SL1344_RS13380	NC_016810.1	2756009	2756410	+	salmonella_homology_ecoli	from_gff_gene_name	exact gene-name match in the SL1344 annotation	

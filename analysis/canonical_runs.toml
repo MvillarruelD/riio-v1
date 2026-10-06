@@ -1,0 +1,45 @@
+# The canonical run: the ONE place report, figure and benchmark scripts read to find their data.
+# Re-pointing every downstream artefact at a new run is an edit to this file and nothing else.
+#
+# Current canonical run: the 2026-09-24 six-genome rerun on the frozen predictor (tag v1.0.0-rc =
+# e9ba665), structure OFF, in three run roots. Re-pointed 2026-09-25 after the runbook §11 checks:
+# 238/238 bundles complete; every run_record carries git_commit e9ba665, git_dirty false and
+# allow_folds false; every bundle carries the one runtime fingerprint below. The bundles record the
+# commit themselves, so no worktree or TFOP_REPO override is needed to run downstream stages on them.
+#
+# Superseded: the 2026-09-17 reruns (predictor 9fe0c32, runtime 8bfae31...), roots
+# C:/Users/matia/dev/jjr_fresh_runs/run_{ecoli,salm,survey}_rerun20260917.
+
+[provenance]
+predictor_commit = "e9ba665"
+predictor_tag = "v1.0.0-rc"
+runtime_sha256 = "16034b7adbedbb009bf9b62dc67451bfe83e9c03449d53a333ce13ccc349ecff"
+source_sha256 = "2bf12003ddcd4be76e32fe1e39bc5a95a70a0d3051737731ee9a27b3bd2b0c42"
+data_manifest_sha256 = "6bd8b440605ddb014ed90a34731bc6f233f312caf5cf84107ff8eacf14eb6a9f"
+package_version = "0.3.0"
+structure = false
+run_dates = "2026-09-25 02:37 UTC -> 2026-09-25 17:14 UTC"
+
+[runs.ecoli]
+role = "benchmark"
+tag = "ecoli_rerun20260924"
+root = "run_ecoli_rerun20260924"
+manifest = "run_manifest_ecoli_rerun20260924.csv"   # copy of run_manifest_ecoli_rerun20260917.csv
+genomes = ["GCF_000005845.2"]                        # E. coli K-12 MG1655
+n_candidates = 39
+
+[runs.salmonella]
+role = "benchmark"
+tag = "salm_rerun20260924"
+root = "run_salm_rerun20260924"
+manifest = "run_manifest_salm_rerun20260924.csv"    # copy of run_manifest_salm_rerun20260917.csv
+genomes = ["GCF_000210855.2"]                        # S. Typhimurium SL1344
+n_candidates = 45
+
+[runs.survey]
+role = "survey"
+tag = "survey_rerun20260924"
+root = "run_survey_rerun20260924"
+manifest = "run_manifest_survey_rerun20260924.csv"  # copy of run_manifest_survey_rerun20260917.csv
+genomes = ["MtubH37Rv", "MaviHomi", "VchoRFB16", "VvulNBRC"]
+n_candidates = 154

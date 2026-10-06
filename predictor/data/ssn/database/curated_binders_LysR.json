@@ -1,0 +1,15 @@
+[
+ {
+  "acc": "A0A080JC06",
+  "ion": "MoO42-",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "molybdate",
+  "name": "",
+  "organism": "Escherichia coli 1-250-04_S3_C2",
+  "seq": "MQAEILLTLKLQQKLFADPRRISLLKHIALSGSISQGAKDAGISYKSAWDAINEMNQLSEHILVERATGGKGGGGAVLTRYGQRLIQLYDLLAQIQQKAFDVLSDDDALPLNSLLAAISRFSLQTSARNQWFGTITARDHDDVQQHVDVLLADGKTRLKVAITAQSGARLGLDEGKEVLILLKAPWVGITQDEAVAQNADNQLPGIISHIERGAEQCEVLMALPDGQTLCATVPVNEATSLQQGQNVTAYFNADSVIIATLC",
+  "cluster": "LysR_ModE",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

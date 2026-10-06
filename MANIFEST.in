@@ -1,0 +1,11 @@
+include README.md LICENSE CITATION.cff THIRD_PARTY_NOTICES.md CHANGELOG.md CONTRIBUTING.md
+include AUTHORS.md
+recursive-include .streamlit *.toml
+recursive-include LICENSES *.txt
+recursive-include docs *.md *.json
+recursive-include analysis *.py *.csv *.tsv *.txt *.toml *.json *.fasta *.faa
+recursive-include reports *.py
+recursive-include tools *.py
+prune runs
+prune results
+global-exclude *.py[cod]

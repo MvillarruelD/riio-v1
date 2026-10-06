@@ -1,0 +1,67 @@
+[
+ {
+  "acc": "A0A045I1M7",
+  "ion": "Cu+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Cu+",
+  "name": "",
+  "organism": "Mycobacterium tuberculosis",
+  "seq": "MTAAHGYTQQKDNYAKRLRRVEGQVRGIARMIEEDKYCIDVLTQISAVTSALRSVALNLLDEHLSHCVTRAVAEGGPGADGKLAEASAAIARLVRS",
+  "cluster": "CsoR_bsCsoR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A063XGC7",
+  "ion": "Cu+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Cu+",
+  "name": "",
+  "organism": "Bacillus subtilis",
+  "seq": "MEKHNEHKTLNHKSSKEKDQITNRLKRIEGQVRGIQNMVENDRYCVDILVQISAVQAAMKNVALHLLEDHAHHCVADAIKSGDGEQAISELLDVFKKFTKS",
+  "cluster": "CsoR_bsCsoR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A045KCT7",
+  "ion": "Cu+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Copper",
+  "name": "",
+  "organism": "Mycobacterium tuberculosis",
+  "seq": "MSKELTAKKRAALNRLKTVRGHLDGIVRMLESDAYCVDVMKQISAVQSSLERANRVMLHNHLETCFSTAVLDGHGQAAIEELIDAVKFTPALTGPHARLGGAAVGESATEEPMPDASNM",
+  "cluster": "CsoR_mtCsoR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A045JQN7",
+  "ion": "Cu+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Cu+",
+  "name": "",
+  "organism": "Mycobacterium tuberculosis",
+  "seq": "MIGDQDSIAAVLNRLRRAQGQLAGVISMIEQGRDCRDVVTQLAAVSRALDRAGFKIVAAGLKECVSGATASGAAPLSAAELEKLFLALA",
+  "cluster": "CsoR_scCstR",
+  "evidence_tier": 3,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "A0A080IYM9",
+  "ion": "Co2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Co2+",
+  "name": "",
+  "organism": "Escherichia coli 1-250-04_S3_C2",
+  "seq": "MSHTIRDKQKLKARASKIQGQVVALKKMLDEPHECAAVLQQIAAIRGAVNGLMREVIKGHLTEHIVHQGDELKREEDLDVVLKVLDSYIK",
+  "cluster": "",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ }
+]

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MvillarruelD/RIO/schemas/cluster_inducer_table.schema.json",
+  "title": "TFOP SSN cluster inducer table",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["cluster_id", "family", "role"],
+    "properties": {
+      "cluster_id": {"type": "string"},
+      "family": {"type": "string"},
+      "representative": {"type": ["string", "null"]},
+      "inducer": {"type": ["string", "null"]},
+      "role": {"type": "string", "enum": ["metal", "non-metal", "redox", "multidrug", "unknown"]},
+      "is_metal": {"type": "boolean"},
+      "gate": {"type": ["string", "null"]},
+      "annotation_confidence": {"type": ["string", "null"]},
+      "annotation_sources": {"type": "array", "items": {"type": "string"}}
+    },
+    "additionalProperties": true
+  }
+}

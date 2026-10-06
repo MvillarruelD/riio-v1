@@ -1,0 +1,52 @@
+{
+ "clusters": {
+  "TetR_c1_tetR": {
+   "anchors": [
+    {
+     "accession": "A0A0H2URF5",
+     "accessions": [
+      "A0A0H2URF5",
+      "A0A0H2ZQB6"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Cobalt",
+     "n_accessions": 2,
+     "n_operators": 6,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Streptococcus pneumoniae serotype 4 (strain ATCC BAA-334 / TIGR4)",
+     "seq_md5": "c492587cf73af64110aea83193d6eb10",
+     "source_route": "kb"
+    },
+    {
+     "accession": "A0ACD7PTH0",
+     "accessions": [
+      "A0ACD7PTH0"
+     ],
+     "evidence_grade": null,
+     "evidence_level": "curated",
+     "inducer": null,
+     "n_accessions": 1,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": "spSczA",
+     "organism": "Streptococcus pneumoniae",
+     "seq_md5": null,
+     "source_route": "figure"
+    }
+   ],
+   "confidence_tier": "high (2 consistent anchors)",
+   "conflict": false,
+   "inducer_consensus": "Co2+",
+   "n_accession_rows": 3,
+   "n_anchors": 2,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 2
+  }
+ },
+ "family": "TetR/AcrR",
+ "family_tag": "TetR",
+ "generated": "2026-08-30 23:16",
+ "source": "analysis/family_kb"
+}

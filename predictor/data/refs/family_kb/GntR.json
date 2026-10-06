@@ -1,0 +1,219 @@
+{
+ "clusters": {
+  "GntR_c1": {
+   "anchors": [
+    {
+     "accession": "A0A063XIZ2",
+     "accessions": [
+      "A0A063XIZ2",
+      "A0A6H0H8V7",
+      "A0A6M3ZLW2",
+      "P10585"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": null,
+     "n_accessions": 4,
+     "n_operators": 1,
+     "n_regulon_genes": 1,
+     "name": null,
+     "organism": "Bacillus subtilis",
+     "seq_md5": "d59e665a3d710b06925d6bde1c8b91d6",
+     "source_route": "kb+figure"
+    }
+   ],
+   "confidence_tier": "tentative (single anchor)",
+   "conflict": false,
+   "inducer_consensus": null,
+   "n_accession_rows": 4,
+   "n_anchors": 1,
+   "n_distinct_inducers": 0,
+   "n_independent_anchors": 1
+  },
+  "GntR_c2": {
+   "anchors": [
+    {
+     "accession": "Q2KKB8",
+     "accessions": [
+      "Q2KKB8"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Citrate",
+     "n_accessions": 1,
+     "n_operators": 2,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Enterococcus faecalis",
+     "seq_md5": "beb402c735d6c899286f0579d7c14cba",
+     "source_route": "kb"
+    }
+   ],
+   "confidence_tier": "tentative (single anchor)",
+   "conflict": false,
+   "inducer_consensus": "citrate",
+   "n_accession_rows": 1,
+   "n_anchors": 1,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 1
+  },
+  "GntR_c3": {
+   "anchors": [
+    {
+     "accession": "Q8NLM6",
+     "accessions": [
+      "Q8NLM6"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "Zn2+",
+     "n_accessions": 1,
+     "n_operators": 0,
+     "n_regulon_genes": 0,
+     "name": null,
+     "organism": "Corynebacterium glutamicum (strain ATCC 13032 / DSM 20300 / BCRC 11384 / JCM 1318 / LMG 3730 / NCIMB 10025)",
+     "seq_md5": "16a6e4cddcb4cdb8f998b662f1fb74a0",
+     "source_route": "kb"
+    }
+   ],
+   "confidence_tier": "tentative (single anchor)",
+   "conflict": false,
+   "inducer_consensus": "Zn2+",
+   "n_accession_rows": 1,
+   "n_anchors": 1,
+   "n_distinct_inducers": 1,
+   "n_independent_anchors": 1
+  },
+  "GntR_c4": {
+   "anchors": [
+    {
+     "accession": "A0A037YJM1",
+     "accessions": [
+      "A0A037YJM1",
+      "A0A080IQW6",
+      "A0A0E0XVM3",
+      "A0A0E1M1Q6",
+      "A0A0E1T544",
+      "A0A0H3ML65",
+      "A0A0H3PSA3",
+      "A0A0I3Q4R1",
+      "A0A1Q8MHL9",
+      "A0A1S9KD87",
+      "A0A1X3KY80",
+      "A0A4P7TTE1",
+      "A0A4P8BY04",
+      "A0A6D2WBY4",
+      "A0A6H2GMG8",
+      "A0A6N3QK91",
+      "A0A6N3QXR3",
+      "A0A7I6GZU7",
+      "A0A7U9LLG7",
+      "A0A7U9NYH8",
+      "A0A822PQ96",
+      "A0A836NB74",
+      "A0A891SN82",
+      "A0A979GHW3",
+      "A0A9P2ID79",
+      "A0A9P2R462",
+      "A0A9P2SUB1",
+      "A0A9P2WTT8",
+      "A0A9Q6V2X9",
+      "A0A9Q7EBA0",
+      "A7ZRY2",
+      "B7LH33",
+      "D2A821",
+      "D7XRQ6",
+      "D8E4Y8",
+      "E0IWN8",
+      "E1IL42",
+      "E1J0N3",
+      "E6BFE2",
+      "E9TH28",
+      "F4NI35",
+      "F4VJ98",
+      "F5NZR3",
+      "I2UGY0",
+      "I6DSU1",
+      "P0ACL2",
+      "P0ACL3",
+      "P0ACL4",
+      "Q0T0H1",
+      "Q31WT4",
+      "Q3YXD2",
+      "S1EXB2",
+      "U9ZLC3"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "α-D-galacturonate",
+     "n_accessions": 53,
+     "n_operators": 21,
+     "n_regulon_genes": 10,
+     "name": null,
+     "organism": "Escherichia coli",
+     "seq_md5": "022fb3f73dae00ef40aaa4e42ab852b8",
+     "source_route": "kb+figure"
+    },
+    {
+     "accession": "A0A0H3MT30",
+     "accessions": [
+      "A0A0H3MT30",
+      "A0A140NEN4",
+      "A0A1X3J784",
+      "A0A1X3LB24",
+      "A0A3R0JJS6",
+      "A0A894KHZ0",
+      "A0A8E0IVE9",
+      "A0A8H9AEU0",
+      "B7NGY0",
+      "D7XQI6",
+      "E1IRK8",
+      "E1J9W5",
+      "E6BIY8",
+      "E9TKU2",
+      "F4NKW4",
+      "F4T978",
+      "I2UPZ9",
+      "J7QBG4",
+      "P39161",
+      "S1E3Z2",
+      "U9YV43",
+      "U9ZF93",
+      "V0APR3"
+     ],
+     "evidence_grade": "literature",
+     "evidence_level": "experimental",
+     "inducer": "α-D-glucuronate",
+     "n_accessions": 23,
+     "n_operators": 18,
+     "n_regulon_genes": 11,
+     "name": null,
+     "organism": "Escherichia coli O7:K1 (strain IAI39 / ExPEC)",
+     "seq_md5": "70486e9a70fd07afad407569bd60334b",
+     "source_route": "kb+figure"
+    }
+   ],
+   "confidence_tier": "mixed-anchor (2 inducers)",
+   "conflict": true,
+   "inducer_consensus": "α-D-galacturonate; α-D-glucuronate",
+   "n_accession_rows": 76,
+   "n_anchors": 2,
+   "n_distinct_inducers": 2,
+   "n_independent_anchors": 2
+  },
+  "GntR_c5": {
+   "anchors": [],
+   "confidence_tier": "unknown (no ground-truth evidence)",
+   "conflict": false,
+   "inducer_consensus": null,
+   "n_accession_rows": 0,
+   "n_anchors": 0,
+   "n_distinct_inducers": 0,
+   "n_independent_anchors": 0
+  }
+ },
+ "family": "GntR",
+ "family_tag": "GntR",
+ "generated": "2026-08-30 23:16",
+ "source": "analysis/family_kb"
+}

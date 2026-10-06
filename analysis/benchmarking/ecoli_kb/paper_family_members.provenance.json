@@ -1,0 +1,53 @@
+{
+  "transformation": "Exact UniProt accession headers only; original family mapping preserved",
+  "sources": [
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/ArsR.fasta",
+      "sha256": "198c24124c7c5343ab7b31292d38684e79d8acb540da48577195c8ec34681ae0"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/CopY.fasta",
+      "sha256": "7289bba00a2bb8a1edd4ef0bc3e2a6c2b29cd1e892b6e4e3ce97ac35410549d8"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/CsoR.fasta",
+      "sha256": "8123cb6d0051e5f222211cbb777316471b3908f69c3cd8e29a04bc68a86393b9"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/DtxR.fasta",
+      "sha256": "57bd1c3b21245699c40a062e208b27f6182502a25e262ac400629e8212156102"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/Fur.fasta",
+      "sha256": "5bb19a86d03a6eae3118e5ac746a3174ccd8a9352fe8106c77dac894284cf6fd"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/GntR.fasta",
+      "sha256": "3a3701981709957912069b3ebb39d90805254d84a089844e2b32659b198a0216"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/LysR.fasta",
+      "sha256": "23e0af7cc3a108a21ce8be38574dd78471c14eb4b157e8850519dab09415e690"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/MarR.fasta",
+      "sha256": "cd997944614755220d4d3cf8a0bce4300ecff80278883dddf8f643fb95869f0c"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/MerR.fasta",
+      "sha256": "74a76730478ac37b6af36b7929541b05b8a5c4de0a7a3ac0aea00c898271569f"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/NikR.fasta",
+      "sha256": "ef21d6cf640b6af06031eb6eac2efc8aacae3f5df068c882f04dc84bfe69d36d"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/Rrf2.fasta",
+      "sha256": "09300f1e62a5eef7242f8efec91e68e4a634957ade6c9cb9a2d9a0b7a587e573"
+    },
+    {
+      "path": "SSNs_metalloFamilies_2026/Suppl_material/sequences_X_family/TetR.fasta",
+      "sha256": "07be9af02b8695dceb36948981ac2557c1cbbb050db1f11d52223511a469e7f7"
+    }
+  ]
+}

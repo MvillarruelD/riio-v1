@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MvillarruelD/RIO/schemas/curated_binders.schema.json",
+  "title": "TFOP curated binder evidence",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["acc", "ion", "ion_source", "cluster", "assign_method", "support", "identity"],
+    "properties": {
+      "acc": {"type": "string"},
+      "ion": {"type": ["string", "null"]},
+      "ion_source": {"type": ["string", "null"]},
+      "ion_detail": {"type": ["string", "null"]},
+      "name": {"type": "string"},
+      "organism": {"type": "string"},
+      "pdb": {"type": "array", "items": {"type": "string"}},
+      "pubmed": {"type": "array", "items": {"type": "string"}},
+      "seq": {"type": "string"},
+      "cluster": {"type": ["string", "null"]},
+      "assign_method": {"type": ["string", "null"], "enum": ["membership", "sequence", null]},
+      "support": {"type": "number", "minimum": 0, "maximum": 1},
+      "identity": {"type": "number", "minimum": 0, "maximum": 1}
+    },
+    "additionalProperties": true
+  }
+}

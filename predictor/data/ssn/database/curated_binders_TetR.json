@@ -1,0 +1,28 @@
+[
+ {
+  "acc": "A0A0H2URF5",
+  "ion": "Co2+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Cobalt",
+  "name": "",
+  "organism": "Streptococcus pneumoniae serotype 4 (strain ATCC BAA-334 / TIGR4)",
+  "seq": "MTNIDRRISKTKKAIYQAFIQLLNAKGYEATTVQDIIDLADVGRSTFYCHYESKELLLDQLCRYLFHHLFEREQAISTEDYLAHLFLHFHKNQDHITSLLFSKNDYFLRQLHKELEHHVYSVLADNLKEAHPNLPTSYLQHLVMSNFIETLTWWLKKGQDFTDQEVVQFYLDLLIPKN",
+  "cluster": "TetR_c1_tetR",
+  "evidence_tier": 1,
+  "assign_method": "census_known_inducer"
+ },
+ {
+  "acc": "P75952",
+  "ion": "Cu+",
+  "ion_alternatives": [],
+  "ion_source": "family_kb_census",
+  "ion_detail": "Cu+",
+  "name": "",
+  "organism": "Escherichia coli (strain K12)",
+  "seq": "MATDSTQCVKKSRGRPKVFDRDAALDKAMKLFWQHGYEATSLADLVEATGAKAPTLYAEFTNKEGLFRAVLDRYIDRFAAKHEAQLFCEEKSVESALADYFAAIANCFTSKDTPAGCFMINNCTTLSPDSGDIANTLKSRHAMQERTLQQFLCQRQARGEIPPHCDVTHLAEFLNCIIQGMSISAREGASLEKLMQIAGTTLRLWPELVK",
+  "cluster": "",
+  "evidence_tier": 3,
+  "assign_method": "census_known_inducer"
+ }
+]

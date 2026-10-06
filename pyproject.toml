@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tf-operator-predictor"
+version = "1.0.0"
+description = "Predict bacterial TF operators, motif, inducer, and regulon from a protein sequence, with a one-page report."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT AND GPL-3.0-only"
+license-files = ["LICENSE", "LICENSES/*.txt"]
+authors = [{ name = "Matias Villarruel Dujovne", email = "matias.villarruel.dujovne@gmail.com" }]
+keywords = ["synthetic biology", "biosensor", "transcription factor", "operator", "DNA motif", "AlphaFold"]
+
+# Core orchestrator dependencies. pyhmmer bundles HMMER itself (cross-platform wheel, incl. Windows) so
+# Pfam family classification needs no external `hmmscan` binary. The remaining engines the pipeline
+# shells out to (MMseqs2, BLAST+, NCBI datasets; BITACORA and MetalNet2 in their own environments) are
+# EXTERNAL tools with their own installers -- checked/guided by `tfop setup`, not Python packages --
+# see README and env/SETUP.md, which pins the BITACORA and MetalNet2 commits.
+dependencies = [
+    "biopython>=1.81",
+    "numpy>=1.24",
+    "matplotlib>=3.6",
+    "promotercalculator>=1.2.4",
+    "pyyaml>=6.0",
+    "pyhmmer>=0.10",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+# `tfop scan` on a nucleotide genome gene-calls it in-process with pyrodigal (a cross-platform wheel, no
+# external Prodigal binary). A protein FASTA (proteome) needs nothing beyond the core deps.
+genome = ["pyrodigal>=3.0"]
+# Optional figure extras. scipy adds the density overlay to the per-TF score histogram; without it the
+# histogram still renders. (PyMOL, for structure snapshots when folds are on, is conda-only and is
+# likewise skipped when absent.)
+figures = ["scipy>=1.10"]
+gui = ["streamlit>=1.63"]
+# `build` is here because docs/DISTRIBUTION.md and tools/release_check.py both invoke
+# `python -m build`. Without it the documented release command fails on a fresh dev environment,
+# which is exactly where it is first run.
+dev = [
+    "build>=1.2",
+    "pytest>=7",
+    "ruff>=0.4",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.scripts]
+tfop = "predictor.run_cli:main"
+tfop-gui = "predictor.gui:main"
+
+[project.urls]
+Homepage = "https://github.com/MvillarruelD/riio-v1"
+Repository = "https://github.com/MvillarruelD/riio-v1"
+Changelog = "https://github.com/MvillarruelD/riio-v1/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["predictor*"]
+
+[tool.setuptools.package-data]
+# Immutable reference databases ship in the wheel. Generated caches belong under the platform user cache.
+predictor = [
+    "_engines/bitacora_patches/*.pl",
+    "_engines/bitacora_patches/*.md",
+    "discovery/vendor/LICENSE",
+    "discovery/vendor/CITATION.cff",
+    "data/*.md",
+    "data/*.json",
+    "data/schemas/*.json",
+    "data/refs/*.faa",
+    "data/refs/*.json",
+    "data/refs/*.hmm",
+    "data/refs/*.json.gz",
+    "data/refs/family_kb/*.json",
+    "data/refs/family_pwms/*.npy",
+    "data/refs/family_pwms/*.npz",
+    "data/ssn/clusters/*/*.fasta",
+    "data/ssn/database/*.json",
+    "data/ssn/database/*.fasta",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# Gate CI on rules that catch REAL defects -- undefined names, dead code, syntax/runtime errors (E9 + F,
+# i.e. pyflakes) -- and not on style. This is a deliberate, narrow selection:
+#   * E4/E7 (import placement, semicolons, ambiguous names, lambda assignment) are formatting opinions;
+#     they fire ~90 times on working scientific code and catching none of them would have caught a bug.
+#   * BLE001 (blind except) is exactly how every optional engine here degrades gracefully.
+#   * I001 (import sorting) fights the deferred/local imports that keep module import cheap.
+#   * PLR0124 (`x != x`) is the NaN test, commented as such at each site.
+# F did earn its place: it found an undefined `tag` in a UniProt error handler (a recoverable network
+# failure raised NameError instead of using the cache) and an `idx` referenced outside the scope that
+# defined it. Widen this only if the new rules are shown to catch defects, not preferences.
+select = ["E9", "F"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests", "analysis/tests"]
+addopts = "-q --strict-markers -m 'not released_data'"
+markers = [
+    "network: needs internet (never run in CI; the default suite is offline by construction)",
+    "engine: needs an external engine binary (MMseqs2/BLAST+/foldseek)",
+    "released_data: reads shipped database/reference records or packaged-data manifests; opt in explicitly",
+]

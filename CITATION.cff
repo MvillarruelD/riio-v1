@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "Please cite this software version and the associated paper when available. Software authorship metadata is provisional pending the project authors' update."
+type: software
+title: "RIIO: Regulator, Inducer & Operator inference"
+version: 1.0.0
+date-released: "2026-10-06"
+authors:
+  - family-names: "Villarruel Dujovne"
+    given-names: "Matías"
+repository-code: "https://github.com/MvillarruelD/riio-v1"
+url: "https://github.com/MvillarruelD/riio-v1/releases/tag/v1.0.0"
+license:
+  - MIT
+  - GPL-3.0-only
+keywords:
+  - transcription factor
+  - inducer inference
+  - operator prediction
+  - reproducible software

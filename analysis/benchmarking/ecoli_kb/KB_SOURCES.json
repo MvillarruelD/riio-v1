@@ -1,0 +1,47 @@
+{
+  "built": "2026-10-05",
+  "regulondb": {
+    "release": "14.5",
+    "files": [
+      "EvidenceSet.tsv",
+      "NetworkRegulatorGene.tsv",
+      "OperonSet.tsv",
+      "RISet.tsv",
+      "RegulatorSet.tsv",
+      "TuPromOperonTFSet.tsv"
+    ],
+    "citation": "Salgado H et al. (2024) RegulonDB v12.0. Nucleic Acids Res 52:D255. doi:10.1093/nar/gkad1072"
+  },
+  "uniprot": {
+    "url": "https://rest.uniprot.org/uniprotkb/stream?query=(organism_id:83333)+AND+(reviewed:true)&format=tsv&fields=accession,gene_oln,gene_primary,protein_name,length,xref_pfam,xref_refseq,cc_cofactor,ft_binding,cc_function",
+    "release": "2026_03",
+    "release_date": "02-September-2026",
+    "fetched": "2026-09-24"
+  },
+  "curated_effectors_rows": 10,
+  "counts": {
+    "tf": 262,
+    "tf_in_regulondb": 243,
+    "in_study_families": 97,
+    "metal_sensors": 14,
+    "effector_rows": 130,
+    "interactions": 5840,
+    "precise_operators": 2524,
+    "regulon_edges": 6563,
+    "tf_without_uniprot": [
+      "CRP-Sxy",
+      "DinJ-YafQ",
+      "FlhDC",
+      "GadRcs",
+      "HigBA",
+      "HipAB",
+      "HU",
+      "IHF",
+      "MazEF",
+      "RcsAB",
+      "RcsB-BglJ",
+      "RelBE",
+      "YefMB"
+    ]
+  }
+}

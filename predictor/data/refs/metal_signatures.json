@@ -1,0 +1,968 @@
+{
+  "generated_by": "tools/build_metal_reference.py",
+  "catalogue": "predictor/structure/metal_motifs.py",
+  "corpus": {
+    "source": "predictor/data/ssn/database/ssn_members_<TAG>.fasta",
+    "n_by_family": {
+      "MerR": 37773,
+      "ArsR/SmtB": 74698,
+      "Fur": 38027,
+      "CopY": 6869,
+      "CsoR/FrmR": 24803,
+      "DtxR/MntR": 9323,
+      "GntR": 8608,
+      "LysR-type (LTTR)": 51134,
+      "MarR/SlyA": 18830,
+      "NikR": 7575,
+      "Rrf2": 10240,
+      "TetR/AcrR": 332
+    },
+    "n_total": 288212
+  },
+  "global_safe_threshold": 0.02,
+  "selectivity": {
+    "Cu+": {
+      "cn": "2-4",
+      "geometry": "linear / trigonal",
+      "prefers": "Cys(thiolate)"
+    },
+    "Ag+": {
+      "cn": "2-3",
+      "geometry": "linear / trigonal",
+      "prefers": "Cys(thiolate)"
+    },
+    "Au+": {
+      "cn": "2",
+      "geometry": "linear",
+      "prefers": "Cys(thiolate)"
+    },
+    "Hg2+": {
+      "cn": "2-4",
+      "geometry": "linear / trigonal",
+      "prefers": "Cys(thiolate)"
+    },
+    "Zn2+": {
+      "cn": "4",
+      "geometry": "tetrahedral",
+      "prefers": "Cys / His / Asp-Glu"
+    },
+    "Cd2+": {
+      "cn": "4-6",
+      "geometry": "tetrahedral / octahedral",
+      "prefers": "Cys(thiolate)"
+    },
+    "Pb2+": {
+      "cn": "3-4",
+      "geometry": "trigonal pyramidal (lone pair)",
+      "prefers": "Cys(thiolate)"
+    },
+    "Ni2+": {
+      "cn": "4 or 6",
+      "geometry": "square planar or octahedral",
+      "prefers": "His / Cys"
+    },
+    "Co2+": {
+      "cn": "4-6",
+      "geometry": "tetrahedral / octahedral",
+      "prefers": "His / Cys"
+    },
+    "Fe2+": {
+      "cn": "6",
+      "geometry": "octahedral",
+      "prefers": "His / Asp-Glu"
+    },
+    "Mn2+": {
+      "cn": "6",
+      "geometry": "octahedral",
+      "prefers": "Asp-Glu / His"
+    },
+    "As3+": {
+      "cn": "3",
+      "geometry": "trigonal pyramidal",
+      "prefers": "Cys(thiolate)"
+    }
+  },
+  "irving_williams": [
+    "Mg2+",
+    "Mn2+",
+    "Fe2+",
+    "Co2+",
+    "Ni2+",
+    "Cu2+",
+    "Zn2+"
+  ],
+  "motifs": [
+    {
+      "name": "ArsR_a5_DxHx10Hx2HE",
+      "family": "ArsR/SmtB",
+      "pattern": "D.H.{10}H.{2}[HE]",
+      "implies": [
+        "Zn2+",
+        "Ni2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "tetrahedral (Zn) / octahedral (Ni, completing with the N-terminal His-Gly)",
+      "coordination_number": "4-6",
+      "ligand_set": "Asp + 2-3 His (+/- Glu)",
+      "scope": "global",
+      "names_ion": true,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.2.1",
+      "note": "The interfacial alpha5 site shared by the CzrA/SmtB/ZiaR zinc sensors AND by NmtR (Ni), which completes an octahedron using its N-terminal His-Gly. It cannot separate Zn from Ni on sequence -- the review is explicit that they share the motif -- so it implies BOTH.",
+      "prevalence": {
+        "in_family": 0.1773,
+        "per_family": {
+          "MerR": 0.0026,
+          "ArsR/SmtB": 0.1773,
+          "Fur": 0.0026,
+          "CopY": 0.0,
+          "CsoR/FrmR": 0.001,
+          "DtxR/MntR": 0.0002,
+          "GntR": 0.0002,
+          "LysR-type (LTTR)": 0.0004,
+          "MarR/SlyA": 0.0002,
+          "NikR": 0.0034,
+          "Rrf2": 0.0,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "ArsR_c1": 0.0007,
+          "ArsR_c10": 0.0,
+          "ArsR_c2": 0.6972,
+          "ArsR_c3": 0.0,
+          "ArsR_c4": 0.0,
+          "ArsR_c5": 0.99,
+          "ArsR_c6": 0.0,
+          "ArsR_c7": 0.0032,
+          "ArsR_c8": 0.0001,
+          "ArsR_c9": 0.0
+        },
+        "top_clade": "ArsR_c5",
+        "top_clade_rate": 0.99,
+        "max_other_family": 0.0034,
+        "max_other_family_name": "NikR",
+        "global_safe": true
+      }
+    },
+    {
+      "name": "ArsR_a3_CVC",
+      "family": "ArsR/SmtB",
+      "pattern": "C[VA]C",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "trigonal planar (As) / varies",
+      "coordination_number": "3-4",
+      "ligand_set": "the alpha3 C-(V/A)-C thiol pair (+ a third Cys nearby or C-terminal)",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.2.3",
+      "note": "The review names C-(V/A)-C as the canonical arsenite-sensor motif, and it does concentrate in the As(III) clade (measured: ArsR_c1 90 %). It DOES NOT identify arsenic on its own: it also fires on 71 % of ArsR_c3 and, decisively, on 41 % of ArsR_c2 -- the CzrA/SmtB/ZiaR ZINC clade. It is a sharper alpha3-thiol-site detector than a bare C-x-C (2.8 % vs 31.9 % out of family), and that is all it may be used for.",
+      "prevalence": {
+        "in_family": 0.3112,
+        "per_family": {
+          "MerR": 0.0284,
+          "ArsR/SmtB": 0.3112,
+          "Fur": 0.002,
+          "CopY": 0.0135,
+          "CsoR/FrmR": 0.001,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0,
+          "LysR-type (LTTR)": 0.0051,
+          "MarR/SlyA": 0.0042,
+          "NikR": 0.0005,
+          "Rrf2": 0.002,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "ArsR_c1": 0.8996,
+          "ArsR_c10": 0.0,
+          "ArsR_c2": 0.4063,
+          "ArsR_c3": 0.7115,
+          "ArsR_c4": 0.0174,
+          "ArsR_c5": 0.0013,
+          "ArsR_c6": 0.0106,
+          "ArsR_c7": 0.0014,
+          "ArsR_c8": 0.0024,
+          "ArsR_c9": 0.0
+        },
+        "top_clade": "ArsR_c1",
+        "top_clade_rate": 0.8996,
+        "max_other_family": 0.0284,
+        "max_other_family_name": "MerR",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "ArsR_a3_thiol_CxC",
+      "family": "ArsR/SmtB",
+      "pattern": "C.C",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "varies",
+      "coordination_number": "3-4",
+      "ligand_set": "Cys pair from alpha3 (+/- 2 N-terminal Cys)",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.2.1",
+      "note": "The alpha3 thiol site. With two further N-terminal Cys this is the alpha3N site of the Cd/Pb sensors CadC and LmCadC. Deliberately does NOT name an ion: the review notes this Cys-rich site keeps only partial selectivity for Cd/Pb over Zn, and four Cys in the site actively degrades Pb specificity.",
+      "prevalence": {
+        "in_family": 0.3532,
+        "per_family": {
+          "MerR": 0.2416,
+          "ArsR/SmtB": 0.3532,
+          "Fur": 0.0239,
+          "CopY": 0.3193,
+          "CsoR/FrmR": 0.0156,
+          "DtxR/MntR": 0.0003,
+          "GntR": 0.0009,
+          "LysR-type (LTTR)": 0.0176,
+          "MarR/SlyA": 0.024,
+          "NikR": 0.0104,
+          "Rrf2": 0.0091,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "ArsR_c1": 0.9451,
+          "ArsR_c10": 0.0,
+          "ArsR_c2": 0.424,
+          "ArsR_c3": 0.8218,
+          "ArsR_c4": 0.1071,
+          "ArsR_c5": 0.002,
+          "ArsR_c6": 0.1371,
+          "ArsR_c7": 0.004,
+          "ArsR_c8": 0.0164,
+          "ArsR_c9": 0.0008
+        },
+        "top_clade": "ArsR_c1",
+        "top_clade_rate": 0.9451,
+        "max_other_family": 0.3193,
+        "max_other_family_name": "CopY",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "ArsR_AfArsR_CCx5C",
+      "family": "ArsR/SmtB",
+      "pattern": "CC.{5}C",
+      "implies": [
+        "As3+"
+      ],
+      "implied_class": "metal",
+      "geometry": "trigonal planar",
+      "coordination_number": "3",
+      "ligand_set": "3 Cys",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.2.3",
+      "note": "The second, distinct As(III) site of Acidithiobacillus ferrooxidans ArsR.",
+      "prevalence": {
+        "in_family": 0.011,
+        "per_family": {
+          "MerR": 0.0004,
+          "ArsR/SmtB": 0.011,
+          "Fur": 0.0003,
+          "CopY": 0.0004,
+          "CsoR/FrmR": 0.0009,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0,
+          "LysR-type (LTTR)": 0.0001,
+          "MarR/SlyA": 0.0,
+          "NikR": 0.0,
+          "Rrf2": 0.0084,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "ArsR_c1": 0.0033,
+          "ArsR_c10": 0.0,
+          "ArsR_c2": 0.0005,
+          "ArsR_c3": 0.0026,
+          "ArsR_c4": 0.0584,
+          "ArsR_c5": 0.0,
+          "ArsR_c6": 0.0373,
+          "ArsR_c7": 0.0001,
+          "ArsR_c8": 0.0,
+          "ArsR_c9": 0.0
+        },
+        "top_clade": "ArsR_c4",
+        "top_clade_rate": 0.0584,
+        "max_other_family": 0.0084,
+        "max_other_family_name": "Rrf2",
+        "global_safe": true
+      }
+    },
+    {
+      "name": "ArsR_CmtR_a4_plus_tail",
+      "family": "ArsR/SmtB",
+      "pattern": "",
+      "implies": [
+        "Cd2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "",
+      "coordination_number": "",
+      "ligand_set": "2 Cys from the alpha4 DNA-binding helix + 1 Cys from the C-terminal tail",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.2.2",
+      "note": "NOT DETECTED. The ligands come from three different structural elements, so no linear spacing identifies them; separating CmtR from any other multi-Cys ArsR needs an alignment.",
+      "prevalence": null
+    },
+    {
+      "name": "MerR_ZntR_CCx3Hx4C",
+      "family": "MerR",
+      "pattern": "CC.{3}H.{4}C",
+      "implies": [
+        "Zn2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "binuclear, both sites ~tetrahedral",
+      "coordination_number": "4",
+      "ligand_set": "Cys/Cys/His/Cys from the metal-binding loop + a Cys from the alpha5 N-terminus",
+      "scope": "global",
+      "names_ion": true,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.3.2",
+      "note": "The canonical MerR-family zinc efflux regulator (EcZntR).",
+      "prevalence": {
+        "in_family": 0.032,
+        "per_family": {
+          "MerR": 0.032,
+          "ArsR/SmtB": 0.0,
+          "Fur": 0.0,
+          "CopY": 0.0,
+          "CsoR/FrmR": 0.0,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0,
+          "LysR-type (LTTR)": 0.0,
+          "MarR/SlyA": 0.0,
+          "NikR": 0.0,
+          "Rrf2": 0.0,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "MerR_1": 0.0036,
+          "MerR_10": 0.0,
+          "MerR_2": 0.0007,
+          "MerR_3": 0.0,
+          "MerR_4": 0.0,
+          "MerR_5": 0.0,
+          "MerR_6": 0.0,
+          "MerR_7": 0.0001,
+          "MerR_8": 0.0,
+          "MerR_9": 0.6028
+        },
+        "top_clade": "MerR_9",
+        "top_clade_rate": 0.6028,
+        "max_other_family": 0.0,
+        "max_other_family_name": "ArsR/SmtB",
+        "global_safe": true
+      }
+    },
+    {
+      "name": "MerR_SoxR_FeS",
+      "family": "MerR",
+      "pattern": "C.{2}C.C.{4,6}C",
+      "implies": [],
+      "implied_class": "redox",
+      "geometry": "[2Fe-2S] cluster",
+      "coordination_number": "4",
+      "ligand_set": "4 Cys (CIGCGCLSxxC)",
+      "scope": "global",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.3.6",
+      "note": "The redox-sensing MerR branch: a sensory [2Fe-2S] cluster responding to superoxide, NO and redox-cycling agents. A cluster, not a sensed metal ion -- hence no `implies`.",
+      "prevalence": {
+        "in_family": 0.1921,
+        "per_family": {
+          "MerR": 0.1921,
+          "ArsR/SmtB": 0.0001,
+          "Fur": 0.0004,
+          "CopY": 0.0,
+          "CsoR/FrmR": 0.0,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0,
+          "LysR-type (LTTR)": 0.0,
+          "MarR/SlyA": 0.0,
+          "NikR": 0.0,
+          "Rrf2": 0.0,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "MerR_1": 0.0003,
+          "MerR_10": 0.0,
+          "MerR_2": 0.0,
+          "MerR_3": 0.0,
+          "MerR_4": 0.9937,
+          "MerR_5": 0.0,
+          "MerR_6": 0.0,
+          "MerR_7": 0.0,
+          "MerR_8": 0.0,
+          "MerR_9": 0.0
+        },
+        "top_clade": "MerR_4",
+        "top_clade_rate": 0.9937,
+        "max_other_family": 0.0004,
+        "max_other_family_name": "Fur",
+        "global_safe": true
+      }
+    },
+    {
+      "name": "MerR_metal_CX7_8C",
+      "family": "MerR",
+      "pattern": "C.{7,8}C",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "varies with the branch",
+      "coordination_number": "2-4",
+      "ligand_set": "the reactive Cys pair of the metal-binding loop",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.3",
+      "note": "The existing MerR gate. It separates the metal-sensing clades from the non-metal ones (TnrA/GlnR/NmlR/YfmP) but cannot say WHICH metal -- the same pair serves Hg, Cd/Pb, Zn and Cu. `metal_site.coordination_gate` additionally requires it C-terminally.",
+      "prevalence": {
+        "in_family": 0.8071,
+        "per_family": {
+          "MerR": 0.8071,
+          "ArsR/SmtB": 0.1835,
+          "Fur": 0.1135,
+          "CopY": 0.2473,
+          "CsoR/FrmR": 0.0114,
+          "DtxR/MntR": 0.0011,
+          "GntR": 0.0125,
+          "LysR-type (LTTR)": 0.3516,
+          "MarR/SlyA": 0.0107,
+          "NikR": 0.0071,
+          "Rrf2": 0.1615,
+          "TetR/AcrR": 0.003
+        },
+        "per_clade": {
+          "MerR_1": 0.9033,
+          "MerR_10": 0.0,
+          "MerR_2": 0.9089,
+          "MerR_3": 0.0052,
+          "MerR_4": 0.9938,
+          "MerR_5": 0.0,
+          "MerR_6": 0.9702,
+          "MerR_7": 0.9904,
+          "MerR_8": 0.0,
+          "MerR_9": 0.8309
+        },
+        "top_clade": "MerR_4",
+        "top_clade_rate": 0.9938,
+        "max_other_family": 0.3516,
+        "max_other_family_name": "LysR-type (LTTR)",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "MerR_CueR_coinage",
+      "family": "MerR",
+      "pattern": "",
+      "implies": [
+        "Cu+",
+        "Ag+",
+        "Au+"
+      ],
+      "implied_class": "metal",
+      "geometry": "linear bis-thiolate",
+      "coordination_number": "2",
+      "ligand_set": "2 Cys from a SHORT MBL",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.3.4",
+      "note": "NOT DETECTED. Selectivity for the monovalent coinage metals comes from two NEGATIVE design elements -- a conserved Ser in alpha5 that excludes divalents, and an MBL shorter than the divalent sensors' -- neither of which is a presence/absence motif. Distinguishing CueR from a divalent sensor needs the alignment, not a regex.",
+      "prevalence": null
+    },
+    {
+      "name": "MerR_PbrR_CadR_trigonal",
+      "family": "MerR",
+      "pattern": "",
+      "implies": [
+        "Pb2+",
+        "Cd2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "trigonal pyramidal (Pb, with a stereochemically active lone pair)",
+      "coordination_number": "3 (+1 Asn in CadR)",
+      "ligand_set": "3 Cys: 2 from the MBL + 1 from the dimerisation helix",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.3.1",
+      "note": "NOT DETECTED. The third Cys comes from a different helix, so the ligand set has no fixed spacing. CadR adds an Asn as a fourth ligand that Pb's lone pair excludes in PbrR.",
+      "prevalence": null
+    },
+    {
+      "name": "Fur_HHxHx2Cx2C",
+      "family": "Fur",
+      "pattern": "HH.H.{2}C.{2}C",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "site 1 tetrathiolate (structural); sites 2/3 His/carboxylate (regulatory)",
+      "coordination_number": "4 (site 1); 4-6 (site 2)",
+      "ligand_set": "His from HHxH -> regulatory sites 2/3; Cx2C -> half of the structural S4 site 1",
+      "scope": "global",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.6",
+      "note": "The conserved hinge motif of the family. It marks a Fur-fold metal architecture but not which metal: the SAME site 2 is tuned to Fe(II), Zn(II), Mn(II) or Ni(II) across Fur/Zur/Mur/Nur, and PerR uses it to hold the Fe that reacts with peroxide. The review presents this family precisely as the illustration that one site is retuned, not replaced.",
+      "prevalence": {
+        "in_family": 0.3734,
+        "per_family": {
+          "MerR": 0.0,
+          "ArsR/SmtB": 0.0,
+          "Fur": 0.3734,
+          "CopY": 0.0,
+          "CsoR/FrmR": 0.0,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0,
+          "LysR-type (LTTR)": 0.0,
+          "MarR/SlyA": 0.0,
+          "NikR": 0.0,
+          "Rrf2": 0.0,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "Fur_baMur": 0.0315,
+          "Fur_bbBosR": 0.0,
+          "Fur_bjIrr": 0.0,
+          "Fur_bsFur": 0.2739,
+          "Fur_bsPerR": 0.0404,
+          "Fur_bsZur": 0.9933,
+          "Fur_cjFur": 0.9677,
+          "Fur_ecFur": 0.7029,
+          "Fur_ecZur": 0.0,
+          "Fur_liPerR": 0.0,
+          "Fur_mtFurB": 0.8929,
+          "Fur_mtZur": 0.8902,
+          "Fur_scNur": 0.4522,
+          "Fur_scZur": 0.9772
+        },
+        "top_clade": "Fur_bsZur",
+        "top_clade_rate": 0.9933,
+        "max_other_family": 0.0,
+        "max_other_family_name": "MerR",
+        "global_safe": true
+      }
+    },
+    {
+      "name": "Fur_site2_His",
+      "family": "Fur",
+      "pattern": "HH[HD]H",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "His/carboxylate",
+      "coordination_number": "4-6",
+      "ligand_set": "His-rich regulatory site 2",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.6",
+      "note": "The regulatory site alone. Family-scoped and NOT safe outside it -- measured, it also fires on a substantial share of NikR.",
+      "prevalence": {
+        "in_family": 0.5233,
+        "per_family": {
+          "MerR": 0.0014,
+          "ArsR/SmtB": 0.0005,
+          "Fur": 0.5233,
+          "CopY": 0.0017,
+          "CsoR/FrmR": 0.0057,
+          "DtxR/MntR": 0.0,
+          "GntR": 0.0001,
+          "LysR-type (LTTR)": 0.0003,
+          "MarR/SlyA": 0.0117,
+          "NikR": 0.1254,
+          "Rrf2": 0.0006,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "Fur_baMur": 0.916,
+          "Fur_bbBosR": 0.0,
+          "Fur_bjIrr": 0.0185,
+          "Fur_bsFur": 0.2739,
+          "Fur_bsPerR": 0.0136,
+          "Fur_bsZur": 0.9933,
+          "Fur_cjFur": 0.9677,
+          "Fur_ecFur": 0.9562,
+          "Fur_ecZur": 0.0514,
+          "Fur_liPerR": 0.5982,
+          "Fur_mtFurB": 0.9048,
+          "Fur_mtZur": 0.9024,
+          "Fur_scNur": 0.0083,
+          "Fur_scZur": 0.9782
+        },
+        "top_clade": "Fur_bsZur",
+        "top_clade_rate": 0.9933,
+        "max_other_family": 0.1254,
+        "max_other_family_name": "NikR",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "Fur_site1_Cx2C",
+      "family": "Fur",
+      "pattern": "C.{2}C",
+      "implies": [
+        "Zn2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "tetrathiolate",
+      "coordination_number": "4",
+      "ligand_set": "2x Cx2C",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.6.1",
+      "note": "The STRUCTURAL site: nearly always Zn, stabilising the dimer, and a Zn here behaves as apoprotein. Finding it says nothing about what the protein senses -- which is why it does not name an ion despite implying Zn occupancy.",
+      "prevalence": {
+        "in_family": 0.7402,
+        "per_family": {
+          "MerR": 0.2006,
+          "ArsR/SmtB": 0.0707,
+          "Fur": 0.7402,
+          "CopY": 0.0108,
+          "CsoR/FrmR": 0.0108,
+          "DtxR/MntR": 0.0013,
+          "GntR": 0.0014,
+          "LysR-type (LTTR)": 0.0235,
+          "MarR/SlyA": 0.0415,
+          "NikR": 0.0116,
+          "Rrf2": 0.0079,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "Fur_baMur": 0.0347,
+          "Fur_bbBosR": 1.0,
+          "Fur_bjIrr": 0.0039,
+          "Fur_bsFur": 0.9994,
+          "Fur_bsPerR": 1.0,
+          "Fur_bsZur": 1.0,
+          "Fur_cjFur": 0.9968,
+          "Fur_ecFur": 0.7208,
+          "Fur_ecZur": 0.9992,
+          "Fur_liPerR": 0.0,
+          "Fur_mtFurB": 1.0,
+          "Fur_mtZur": 1.0,
+          "Fur_scNur": 1.0,
+          "Fur_scZur": 0.9998
+        },
+        "top_clade": "Fur_bbBosR",
+        "top_clade_rate": 1.0,
+        "max_other_family": 0.2006,
+        "max_other_family_name": "MerR",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "NikR_His3Cys",
+      "family": "NikR",
+      "pattern": "H.H.{4,7}C",
+      "implies": [
+        "Ni2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "square planar",
+      "coordination_number": "4",
+      "ligand_set": "His-x-His-x(4,7)-Cys (+ a His from the adjacent subunit)",
+      "scope": "family",
+      "names_ion": true,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.8; Dudev & Lim 2014 section 6.4.2",
+      "note": "FAMILY-SCOPED, and this is the entry that proves why the distinction matters: the code comment in metal_site.py claims this spacing occurs in <=3.2 % of other families, but measured on the current member DB it fires on a large fraction of Fur. Inside NikR it is the real square-planar Ni site (Dudev & Lim show the cavity disfavours Zn/Co/Cu, which prefer other geometries); outside it, it is noise.",
+      "prevalence": {
+        "in_family": 0.8541,
+        "per_family": {
+          "MerR": 0.0342,
+          "ArsR/SmtB": 0.0025,
+          "Fur": 0.6058,
+          "CopY": 0.0012,
+          "CsoR/FrmR": 0.0019,
+          "DtxR/MntR": 0.0002,
+          "GntR": 0.0023,
+          "LysR-type (LTTR)": 0.0872,
+          "MarR/SlyA": 0.0015,
+          "NikR": 0.8541,
+          "Rrf2": 0.0011,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "NikR_c1": 0.8541
+        },
+        "top_clade": "NikR_c1",
+        "top_clade_rate": 0.8541,
+        "max_other_family": 0.6058,
+        "max_other_family_name": "Fur",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "CsoR_WXYZ_metal_site",
+      "family": "CsoR/FrmR",
+      "pattern": "C.{15,40}H.{3}C",
+      "implies": [],
+      "implied_class": "metal",
+      "geometry": "trigonal S2N (Cu I) / varies",
+      "coordination_number": "3-4",
+      "ligand_set": "the W-X-Y-Z frame: X=Cys, Y=His', Z=Cys' (MtCsoR Cys36/His61'/Cys65')",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.4.1",
+      "note": "The subunit-bridging metal site of this superfamily. Measured, it is an excellent METAL / NON-METAL discriminator within the family -- 95-99 % across CsoR_mtCsoR, CsoR_bsCsoR, CsoR_syInrS and CsoR_spNreA, against 0.0 % in both FrmR clades (formaldehyde) and 0.3-1.4 % in the CstR persulfide clades. It does NOT name the metal: syInrS is a Ni/Co sensor and scores as highly as the Cu(I) clades, exactly as the shared W-X-Y-Z frame predicts. It also misses the Thermus x-C-H-H variant (10 % of CsoR_ttCsoR), which substitutes His for the second Cys and is still Cu-specific.",
+      "prevalence": {
+        "in_family": 0.4507,
+        "per_family": {
+          "MerR": 0.0234,
+          "ArsR/SmtB": 0.0053,
+          "Fur": 0.0362,
+          "CopY": 0.0012,
+          "CsoR/FrmR": 0.4507,
+          "DtxR/MntR": 0.0021,
+          "GntR": 0.001,
+          "LysR-type (LTTR)": 0.0076,
+          "MarR/SlyA": 0.0026,
+          "NikR": 0.005,
+          "Rrf2": 0.0074,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "CsoR_bsCsoR": 0.9815,
+          "CsoR_ecFrmR": 0.0002,
+          "CsoR_ecRcnR": 0.0,
+          "CsoR_mtCsoR": 0.993,
+          "CsoR_saCstR": 0.0141,
+          "CsoR_scCstR": 0.0027,
+          "CsoR_seFrmR_group": 0.0005,
+          "CsoR_spNreA": 0.95,
+          "CsoR_syInrS": 0.9652,
+          "CsoR_ttCsoR": 0.1038
+        },
+        "top_clade": "CsoR_mtCsoR",
+        "top_clade_rate": 0.993,
+        "max_other_family": 0.0362,
+        "max_other_family_name": "Fur",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "CsoR_RcnR_Nterm_His",
+      "family": "CsoR/FrmR",
+      "pattern": "",
+      "implies": [
+        "Ni2+",
+        "Co2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "",
+      "coordination_number": "",
+      "ligand_set": "an N-terminal His donor added to the W-X-Y-Z frame (RcnR His3/Cys35/His60/His64)",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.4.2",
+      "note": "NOT DETECTED. RcnR is nested INSIDE the FrmR clade in our SSN, and the N-terminal His that distinguishes it is a single residue at the chain start. This is the known root cause of the RcnR->FrmR misassignment; a regex does not fix it.",
+      "prevalence": null
+    },
+    {
+      "name": "CsoR_FrmR_ligand_loss",
+      "family": "CsoR/FrmR",
+      "pattern": "",
+      "implies": [],
+      "implied_class": "non-metal",
+      "geometry": "",
+      "coordination_number": "",
+      "ligand_set": "Pro2 + Cys35 ONLY -- His64 replaced by Glu, N-terminal His absent",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.4.2",
+      "note": "NOT DETECTED as a motif, but its ABSENCE is what the live CsoR gate tests: `coordination_gate` requires >=2 His and >=1 Cys, which E. coli FrmR (1 His, 2 Cys) fails. Formaldehyde is sensed by a Pro2/Cys35 methylene bridge, not by a metal.",
+      "prevalence": null
+    },
+    {
+      "name": "CopY_CxC",
+      "family": "CopY",
+      "pattern": "C.C",
+      "implies": [
+        "Cu+"
+      ],
+      "implied_class": "metal",
+      "geometry": "tetrahedral (Zn, resting) -> S4-Cu2 cluster (Cu-loaded)",
+      "coordination_number": "4",
+      "ligand_set": "CxC; a single Zn per dimer, displaced by two Cu(I)",
+      "scope": "family",
+      "names_ion": true,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.5",
+      "note": "The resting state holds a structural Zn that ACTIVATES DNA binding; rising Cu(I) displaces it to form the S4-Cu2 cluster that releases the operator. The BlaI/MecI branch of this family senses beta-lactam and is not a metal sensor at all.",
+      "prevalence": {
+        "in_family": 0.3193,
+        "per_family": {
+          "MerR": 0.2416,
+          "ArsR/SmtB": 0.3532,
+          "Fur": 0.0239,
+          "CopY": 0.3193,
+          "CsoR/FrmR": 0.0156,
+          "DtxR/MntR": 0.0003,
+          "GntR": 0.0009,
+          "LysR-type (LTTR)": 0.0176,
+          "MarR/SlyA": 0.024,
+          "NikR": 0.0104,
+          "Rrf2": 0.0091,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "CopY_c1": 0.9964,
+          "CopY_c2": 0.0022,
+          "CopY_c3": 0.0,
+          "CopY_c4": 0.0
+        },
+        "top_clade": "CopY_c1",
+        "top_clade_rate": 0.9964,
+        "max_other_family": 0.3532,
+        "max_other_family_name": "ArsR/SmtB",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "Rrf2_FeS_Cys_triad",
+      "family": "Rrf2",
+      "pattern": "C.{2,20}C.{2,20}C",
+      "implies": [],
+      "implied_class": "redox",
+      "geometry": "[Fe-S] cluster",
+      "coordination_number": "4",
+      "ligand_set": "highly variable: IscR/RirA 3 Cys, NsrR 3 Cys + Asp, RsrR 1 His + 1 Glu + 2 Cys",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": true,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.9",
+      "note": "Rrf2 senses cluster OCCUPANCY, NO, or thiol status -- never a free metal ion, which is why `coordination_gate` returns has_site=False for this family by design. The review is explicit that the ligand set is 'remarkably variable', so this pattern marks the Cys spacing and nothing more. SifR uses a SINGLE Cys to react with quinones and is missed.",
+      "prevalence": {
+        "in_family": 0.8616,
+        "per_family": {
+          "MerR": 0.4188,
+          "ArsR/SmtB": 0.1814,
+          "Fur": 0.3886,
+          "CopY": 0.0457,
+          "CsoR/FrmR": 0.0229,
+          "DtxR/MntR": 0.0005,
+          "GntR": 0.001,
+          "LysR-type (LTTR)": 0.0742,
+          "MarR/SlyA": 0.0506,
+          "NikR": 0.01,
+          "Rrf2": 0.8616,
+          "TetR/AcrR": 0.0
+        },
+        "per_clade": {
+          "Rrf2_ecIscR": 0.9477,
+          "Rrf2_saCymR": 0.6614,
+          "Rrf2_scNsrR": 0.9966,
+          "Rrf2_svRsrR": 0.2241,
+          "Rrf2_tpIscR": 1.0
+        },
+        "top_clade": "Rrf2_tpIscR",
+        "top_clade_rate": 1.0,
+        "max_other_family": 0.4188,
+        "max_other_family_name": "MerR",
+        "global_safe": false
+      }
+    },
+    {
+      "name": "MarR_AdcR_ZitR_linker",
+      "family": "MarR/SlyA",
+      "pattern": "",
+      "implies": [
+        "Zn2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "two proximate pseudotetrahedral sites",
+      "coordination_number": "4",
+      "ligand_set": "ligands drawn from the unstructured region between alpha1 and alpha2",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.11.1",
+      "note": "NOT DETECTED. The discriminator is STRUCTURAL, not compositional: in the zinc-sensing MarRs (AdcR, ZitR) the ligands come from a disordered alpha1-alpha2 linker that is a continuous longer alpha2 helix in every other MarR. Detecting it needs the fold or an alignment. These are also the only characterised metal sensors in this large superfamily, and uniquely for MarR the metal ACTIVATES operator binding.",
+      "prevalence": null
+    },
+    {
+      "name": "DtxR_binuclear",
+      "family": "DtxR/MntR",
+      "pattern": "",
+      "implies": [
+        "Fe2+",
+        "Mn2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "binuclear; MntR's two sites are closer together and share ligands",
+      "coordination_number": "6",
+      "ligand_set": "",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.7",
+      "note": "NOT DETECTED, and this is why the DtxR gate is silent: the site is assembled from dispersed His/Asp/Glu with no linear signature. Non-cognate metals (Fe, Zn, Co in MntR) bind MONONUCLEARLY and simply fail to trigger the allosteric response.",
+      "prevalence": null
+    },
+    {
+      "name": "TetR_SczA_dual_site",
+      "family": "TetR/AcrR",
+      "pattern": "",
+      "implies": [
+        "Zn2+"
+      ],
+      "implied_class": "metal",
+      "geometry": "two site pairs per dimer -- one tetrahedral, one octahedral",
+      "coordination_number": "4 and 6",
+      "ligand_set": "",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.12",
+      "note": "NOT DETECTED. SczA is the lone metal-responsive TetR and activates a Zn efflux transporter; the rest of this very large family senses organic ligands in independently evolved C-terminal cavities.",
+      "prevalence": null
+    },
+    {
+      "name": "GntR_buried_structural_Zn",
+      "family": "GntR",
+      "pattern": "",
+      "implies": [
+        "Zn2+"
+      ],
+      "implied_class": "",
+      "geometry": "buried at the base of a solvent-accessible effector cavity",
+      "coordination_number": "",
+      "ligand_set": "",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.10",
+      "note": "NOT DETECTED, AND DELIBERATELY NOT A SENSOR CALL. ~70 % of GntR proteins carry a conserved Zn site, but the review states as an OPEN QUESTION whether it is regulatory or simply positions the carboxylate of the cognate organic acid. `metal_site.STRUCTURAL_SITE_FAMILIES` already encodes this caveat; finding a site here is a real observation, and 'therefore a metal sensor' is the step that does not follow.",
+      "prevalence": null
+    },
+    {
+      "name": "LysR_OxyR_peroxidatic_Cys",
+      "family": "LysR-type (LTTR)",
+      "pattern": "",
+      "implies": [],
+      "implied_class": "redox",
+      "geometry": "",
+      "coordination_number": "",
+      "ligand_set": "a peroxidatic Cys that forms a disulfide on H2O2 oxidation",
+      "scope": "family",
+      "names_ion": false,
+      "implemented": false,
+      "source": "Rondon et al., Metallostasis (Chem. Rev.), 3.2.13",
+      "note": "NOT DETECTED. Not a metal site at all -- OxyR senses H2O2 through Cys oxidation.",
+      "prevalence": null
+    }
+  ]
+}

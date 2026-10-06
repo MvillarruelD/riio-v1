@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated article and this repository."
+title: "metalloregulator-mining: genome mining and metal-site prediction for bacterial metalloregulators"
+authors:
+  - family-names: "Rondón"
+    given-names: "Johnma J."
+  - family-names: "Antelo"
+    given-names: "Giuliano T."
+  - family-names: "Giedroc"
+    given-names: "David P."
+  - family-names: "Capdevila"
+    given-names: "Daiana A."
+version: "0.1.0"
+date-released: "2026-01-01"
+license: MIT
