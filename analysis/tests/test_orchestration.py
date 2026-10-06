@@ -411,5 +411,6 @@ def test_the_limit_is_not_enforced_off_windows(pipeline_at, monkeypatch, capsys)
     """POSIX has no 260-character ceiling; the number is still reported, but it never blocks."""
     monkeypatch.setattr(RPL.sys, "platform", "linux")
     pipeline_at(["cand"])
-    monkeypatch.setattr(RPL, "JOBS", Path("/" + "d" * 300 + "/jobs"))
+    # POSIX permits long total paths, but each individual component must stay below NAME_MAX.
+    monkeypatch.setattr(RPL, "JOBS", Path("/" + "d" * 150 + "/" + "d" * 150 + "/jobs"))
     assert RPL.check() == 0
