@@ -42,6 +42,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import time
 from pathlib import Path
 
@@ -124,6 +125,13 @@ def build_artifacts(py: Path, outdir: Path) -> tuple[Path, Path]:
     if not wheels:
         raise Failure(f"no wheel was produced in {outdir}")
     sdists = sorted(outdir.glob("*.tar.gz"))
+    if sdists:
+        with tarfile.open(sdists[0]) as archive:
+            names = {name.split("/", 1)[1] for name in archive.getnames() if "/" in name}
+        required = {".env.example", "AUTHORS.md", "CITATION.cff", "analysis/canonical_config.py"}
+        required.update(f"analysis/run_manifest_{tag}_rerun20260924.csv" for tag in ("ecoli", "salm", "survey"))
+        if missing := required - names:
+            raise Failure(f"source archive omits release configuration/inputs: {sorted(missing)}")
     return wheels[0], (sdists[0] if sdists else None)
 
 
