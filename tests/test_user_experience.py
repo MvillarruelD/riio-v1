@@ -193,7 +193,7 @@ def test_scan_report_matches_the_decision_first_visual_system(tmp_path):
     assert "Genome TF census" in html
     assert "Scope and interpretation" in html
     assert "The census screens 22 families" in html
-    assert "github.com/MvillarruelD/RIO" in html
+    assert "github.com/MvillarruelD/riio-v1" in html
     assert "not experimental" in html
     assert "table-wrap" in html
     assert "viewport" in html
