@@ -5457,6 +5457,33 @@
       "source_path": "RELEASE_PLAN.md",
       "release_path": "docs/RELEASE_PLAN.md",
       "source_sha256": "a99861b9102d514ce59a89b1867ff1aa6aee911edf5e9eae711cc803bd7e8652"
+    },
+    {
+      "source_repository": "RIO",
+      "source_path": ".streamlit/config.toml",
+      "release_path": ".streamlit/config.toml",
+      "source_sha256": "61abf0340464f41ace1fec52c2084ef0b82c3a58724ed58f02e62dadd8cb3023"
+    },
+    {
+      "source_repository": "RIO",
+      "source_path": "tools/build_metal_reference.py",
+      "release_path": "tools/build_metal_reference.py",
+      "source_sha256": "c689142b5db831bbcd58dc58f57ea4b0d1a3a2868c0025e792918a3fd8c42c9c"
+    },
+    {
+      "source_repository": "RIO",
+      "source_path": "docs/METAL_SIGNATURES.md",
+      "release_path": "docs/METAL_SIGNATURES.md",
+      "source_sha256": "8f9beabaf2f6549069e618bb01ae10db2253a02ff99e22312cc01a1752858de2"
     }
+  ],
+  "export_policy": "Explicit runtime/source/input allowlist; fresh Git history; no credentials, outputs, engines, weights or research archives.",
+  "release_only_changes": [
+    "Packaging of engine runners and required adapter closure",
+    "Portable project/run paths",
+    "Frozen benchmark accession-header export in place of unused builder",
+    "Software version 1.0.0; independent unchanged database release 0.3.0",
+    "Public repository URLs, documentation, license notices, citation and attribution",
+    "Cross-platform deterministic manifest ordering and corrected portability test fixture"
   ]
 }

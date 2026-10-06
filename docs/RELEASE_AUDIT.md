@@ -50,7 +50,17 @@ Manuscript names are acknowledged; final software authorship and paper DOI remai
 - Publication scan found no private-key/GitHub/OpenAI credential patterns or private/generated paths;
   all exported files are below GitHub's 100 MB per-file limit.
 
-Installed-wheel and remote CI results are recorded below when complete.
+- Isolated local wheel check passed in 11 minutes: wheel and source archive built, wheel installed
+  non-editably into a new environment, CLI/data census exercised outside the checkout, all 479
+  reference-manifest assets and required adapters/notices present, no data written into site-packages.
+- Linux GitHub isolated-wheel verification also passed: 42 module self-tests passed, six skipped
+  for absent external engines/network, zero timeouts and zero failures. CLI audit and packaged-data
+  census succeeded outside the checkout. The six unavailable integrations are not certified.
+- Cross-platform CI exposed and corrected implicit Windows-specific manifest sorting and an invalid
+  POSIX test fixture with an overlong single path component. Reference bytes and runtime rules were
+  unchanged. The genome-report repository-link assertion now tracks the public RIIO URL.
+- GitHub Actions runs the complete source/data suites on Python 3.11 and 3.12 and isolated wheel
+  checks on Python 3.12. Exact commit status and logs are available in the repository's Actions tab.
 
 ## Reproducibility limits
 
