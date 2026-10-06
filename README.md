@@ -1,6 +1,6 @@
 # RIIO v1
 
-**Regulator, Inducer & Operator inference**, named with a nod to Río de la Plata.
+**Regulator, Inducer & Operator inference**.
 
 RIIO takes a bacterial transcription-factor protein or genome and produces operator, motif,
 inducer and regulon predictions, with evidence and provenance in a portable `REPORT.html` bundle.
