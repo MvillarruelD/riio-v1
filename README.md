@@ -45,6 +45,11 @@ conda create -n riio-tools -c conda-forge -c bioconda mmseqs2 blast ncbi-dataset
 conda activate riio-tools
 ```
 
+After downloading this repository on Linux/macOS, `conda env create -f environment.yml` provides
+an alternative starter environment with Python, RIIO and the three search/acquisition tools together.
+Activate it with `conda activate riio`. This environment recipe is provided for convenience; the local
+release verification used the Python installation route above.
+
 Run the RIIO commands with these tools available on `PATH`, or configure their executable paths as
 described in [engine setup](docs/ENGINES.md). Windows MMseqs2 needs its upstream Windows distribution;
 BITACORA needs Linux or WSL. Each tool retains its own license.

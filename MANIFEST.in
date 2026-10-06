@@ -1,5 +1,6 @@
 include README.md LICENSE CITATION.cff THIRD_PARTY_NOTICES.md CHANGELOG.md CONTRIBUTING.md
 include AUTHORS.md
+include environment.yml
 recursive-include .streamlit *.toml
 recursive-include LICENSES *.txt
 recursive-include docs *.md *.json

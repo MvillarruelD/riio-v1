@@ -171,8 +171,11 @@ def check_cli(venv: Path, workdir: Path, *, timeout: int) -> None:
 
     run([tfop, "--version"], cwd=workdir, env=env, label="tfop --version")
     run([tfop, "audit"], cwd=workdir, env=env, label="tfop audit")
-    run([tfop, "selftest", "--timeout", str(timeout)], cwd=workdir, env=env,
-        timeout=timeout * 20, label="tfop selftest")
+    selftest = run([tfop, "selftest", "--timeout", str(timeout)], cwd=workdir, env=env,
+                   timeout=timeout * 20, label="tfop selftest")
+    print(selftest.stdout.strip())
+    if "timed out" in selftest.stdout and "0 timed out" not in selftest.stdout:
+        raise Failure("installed module self-tests timed out; rerun with a longer timeout")
 
     # A scan over a tiny protein FASTA: it reads the packaged Pfam HMM and reference data, which is
     # the part a wheel most easily omits.

@@ -1,0 +1,13 @@
+# Linux/macOS starter environment. MetalNet2 and BITACORA have separate setup instructions.
+name: riio
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - pip
+  - mmseqs2
+  - blast
+  - ncbi-datasets-cli
+  - pip:
+      - "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.0.0"

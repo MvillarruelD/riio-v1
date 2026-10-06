@@ -30,7 +30,9 @@ def _records(path: Path) -> int | None:
 
 def build() -> dict:
     files = []
-    for path in sorted(DATA.rglob("*")):
+    # Preserve the established reference order on every OS. WindowsPath comparison folds case;
+    # PosixPath does not, so relying on Path ordering changes an otherwise identical manifest.
+    for path in sorted(DATA.rglob("*"), key=lambda p: p.relative_to(DATA).as_posix().casefold()):
         if not path.is_file() or path == OUT or "__pycache__" in path.parts:
             continue
         raw = path.read_bytes()
