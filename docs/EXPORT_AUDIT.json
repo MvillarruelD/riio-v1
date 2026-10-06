@@ -3,194 +3,157 @@
   "changed_source_files": [
     {
       "path": ".env.example",
-      "source_sha256": "a76dc16bdf857df19e5271bf1f75778c110fe6e1741cfa46e036a4981aeef321",
-      "release_sha256": "c883df2428ba6cbd2d7ef8bd2f1556bd98bb55f1ff38e9f4c914b41ccee4d871"
+      "source_sha256": "a76dc16bdf857df19e5271bf1f75778c110fe6e1741cfa46e036a4981aeef321"
     },
     {
       "path": ".gitattributes",
-      "source_sha256": "4ee88a7cc99cb42c22ccad417aec0a2ee5e07bb6abd5ca3d96f918197f21b8c6",
-      "release_sha256": "feedb16bba1e19c20c89511708d3a4819b1fec216917f5ba890c56599a923939"
+      "source_sha256": "4ee88a7cc99cb42c22ccad417aec0a2ee5e07bb6abd5ca3d96f918197f21b8c6"
     },
     {
       "path": "predictor/__init__.py",
-      "source_sha256": "7d298429bea67c602520ef41227fe8a20c6647d3eecf290ff3ad64832978eece",
-      "release_sha256": "a74020c2be11ea32afe5a211640883d497d51edb139ec68f8662095ef8f4b399"
+      "source_sha256": "7d298429bea67c602520ef41227fe8a20c6647d3eecf290ff3ad64832978eece"
     },
     {
       "path": "predictor/annotate/genome_scan.py",
-      "source_sha256": "a805bd4b52a99b87231a8851071be5f86c38602d443dcd0803302102ada77a1b",
-      "release_sha256": "a0d1507f99f1e186830a190c24b029b43fa53811b963411aa29775bb14a2205b"
+      "source_sha256": "a805bd4b52a99b87231a8851071be5f86c38602d443dcd0803302102ada77a1b"
     },
     {
       "path": "predictor/annotate/homologs.py",
-      "source_sha256": "7ae3f70f0d07806a230ff5e25ab9ce6573960310964274ef93a89d1afbbc936a",
-      "release_sha256": "16c5c8cb2233626101e84bf00bcbf042f01a3ff420d39cdb54ff91c9c86a08ba"
+      "source_sha256": "7ae3f70f0d07806a230ff5e25ab9ce6573960310964274ef93a89d1afbbc936a"
     },
     {
       "path": "predictor/discovery/bitacora.py",
-      "source_sha256": "78a3bd9972d87652601485396c7c5d5c8b597446dcb220ac35a8dcc5dcdd7693",
-      "release_sha256": "8d7d0e1e79e276fa699a5d83234915ee8b4eba6116ff77484500e5c2dc6c2e59"
+      "source_sha256": "78a3bd9972d87652601485396c7c5d5c8b597446dcb220ac35a8dcc5dcdd7693"
     },
     {
       "path": "predictor/genome_run.py",
-      "source_sha256": "36142e2e6a7a5046713c2e4d9c6ff2047023e1135038e36cfee0f3461fc5c36a",
-      "release_sha256": "062bc1708204c9a827a65c19ef6a308100002d97a13ff25fc890d20b201dfde7"
+      "source_sha256": "36142e2e6a7a5046713c2e4d9c6ff2047023e1135038e36cfee0f3461fc5c36a"
     },
     {
       "path": "predictor/gui_app.py",
-      "source_sha256": "4de602bf5f5cbefeed94515f25a0c0b90fcaef7544382e5ca681293280ff777b",
-      "release_sha256": "5b1fb417d114e34edeb5dc1c18d07c44f3bf71a0261b9d560a74103d8ccc25a4"
+      "source_sha256": "4de602bf5f5cbefeed94515f25a0c0b90fcaef7544382e5ca681293280ff777b"
     },
     {
       "path": "predictor/resources.py",
-      "source_sha256": "40400c2f278b72fe526c1d32a40b2e48cb15fa3e7118287f35222c7f52bf679b",
-      "release_sha256": "fc83622ba702ee14baf78534ea95ee4f538aef8ad01fbf0013c9d3d141eefa67"
+      "source_sha256": "40400c2f278b72fe526c1d32a40b2e48cb15fa3e7118287f35222c7f52bf679b"
     },
     {
       "path": "predictor/setup_tools.py",
-      "source_sha256": "f2354d6e7192f1490e55320b6d74ea85cc8c4e4961c767e535cd414fcdd0da89",
-      "release_sha256": "ed0b82f6c1bd50dbaa43a305c446ea6706631d3ed27ed1f5af3639235579e1cd"
+      "source_sha256": "f2354d6e7192f1490e55320b6d74ea85cc8c4e4961c767e535cd414fcdd0da89"
     },
     {
       "path": "predictor/structure/metalnet.py",
-      "source_sha256": "2eefa7d56970747703121b52d96c8e9decbd90d2ff52fce36236a2194d733421",
-      "release_sha256": "07500fec7fc89a501c0e891c9e5b01366e776f03d65b116fd76a6c953380d687"
+      "source_sha256": "2eefa7d56970747703121b52d96c8e9decbd90d2ff52fce36236a2194d733421"
     },
     {
       "path": "pyproject.toml",
-      "source_sha256": "5ce1e0eda6828af3dc27eca17235b0c4f5eddcf1896f1cf61ee54269a0636187",
-      "release_sha256": "f8072ec482af434e7dbffe7cdff904968f206bec396712e02438f09cf77fdffb"
+      "source_sha256": "5ce1e0eda6828af3dc27eca17235b0c4f5eddcf1896f1cf61ee54269a0636187"
     },
     {
       "path": "tests/test_packaging.py",
-      "source_sha256": "3109d4a7ec349f3629d505b323c71881d74d732aa124ea301eadd764c2b7cc85",
-      "release_sha256": "6972330747410974c7bf8e2d39fdb267fac87e90c461cd16a598c8764566ea50"
+      "source_sha256": "3109d4a7ec349f3629d505b323c71881d74d732aa124ea301eadd764c2b7cc85"
     },
     {
       "path": "tests/test_production_hardening.py",
-      "source_sha256": "b81145673a86a1a59d0ad79753993b7c43e22fa4cbcb7897233c274eac47cecb",
-      "release_sha256": "86a6cca52912f4e59981142e87a244fc9e7dcd43f6a6032089710bae1c55f38d"
+      "source_sha256": "b81145673a86a1a59d0ad79753993b7c43e22fa4cbcb7897233c274eac47cecb"
     },
     {
       "path": "tests/test_review_fixes.py",
-      "source_sha256": "7d8f16cf0e8efe4f53a1527409896bdc621105a4829c822a72634a5c4f4f20a2",
-      "release_sha256": "1758fe4af31df2097b39a0abeb2a887a8a9a92520197269d627a527e98eb4bda"
+      "source_sha256": "7d8f16cf0e8efe4f53a1527409896bdc621105a4829c822a72634a5c4f4f20a2"
     },
     {
       "path": "tests/test_user_experience.py",
-      "source_sha256": "0da83106297a0ac98ed7e8eb31cfdc67b1e9d5e0ab9ef3d1c3b0aad355c09c80",
-      "release_sha256": "8281575fd1e1efda04c2fe321d543d1d38d94508c96466262445854965d9e941"
+      "source_sha256": "0da83106297a0ac98ed7e8eb31cfdc67b1e9d5e0ab9ef3d1c3b0aad355c09c80"
     },
     {
       "path": "tools/build_data_manifest.py",
-      "source_sha256": "e381bbcb9868d43d16904aa35c669820cc856a04f59f541c5f57cab02e6b2c4c",
-      "release_sha256": "cd256baa7e2bdb7f4fc5932214b2e860a670f079c0fd9ffade526530916c1f5e"
+      "source_sha256": "e381bbcb9868d43d16904aa35c669820cc856a04f59f541c5f57cab02e6b2c4c"
     },
     {
       "path": "tools/release_check.py",
-      "source_sha256": "316a31ace3025adda0c1aff1abb928ea61dfe65394e4a1241083aa44df5b69bd",
-      "release_sha256": "6d303fed504cfc273cf5922fb1cbf0bccc129d669c4d4a2fb1793b6d37215d89"
+      "source_sha256": "316a31ace3025adda0c1aff1abb928ea61dfe65394e4a1241083aa44df5b69bd"
     },
     {
       "path": "predictor/_engines/metalnet_runner.py",
-      "source_sha256": "313bdddc2d764eaa74ad93c72ac6fadb3dd1b51f373249b43e38915ef370d4e7",
-      "release_sha256": "9ca5b2671fb1a371e73fa45a03572f71021998d708cf258ffef6aa787ed0e9d9"
+      "source_sha256": "313bdddc2d764eaa74ad93c72ac6fadb3dd1b51f373249b43e38915ef370d4e7"
     },
     {
       "path": "predictor/_engines/bitacora_patches/get_blastp_parsed_newv2.pl",
-      "source_sha256": "328f56d7e435deba88e8cd5bd49d2a845e63c0bc8c75636521ab1ab21360d489",
-      "release_sha256": "808c3124d7c9e5a197375e11caf828e71d4334992607bc2a3d45075cea40860b"
+      "source_sha256": "328f56d7e435deba88e8cd5bd49d2a845e63c0bc8c75636521ab1ab21360d489"
     },
     {
       "path": "predictor/_engines/esmfold_lib/_lib/__init__.py",
-      "source_sha256": "e193786d9afad37327ebba02ba1344a72b1c4215ccc350461f1e353b44ad9b92",
-      "release_sha256": "143e16a84664a879ed73597fd2e8f58d0f8073b74d823797be926581c1f4b471"
+      "source_sha256": "e193786d9afad37327ebba02ba1344a72b1c4215ccc350461f1e353b44ad9b92"
     },
     {
       "path": "predictor/_engines/esmfold_lib/_lib/af3_parse.py",
-      "source_sha256": "9deb7c90699b62019b69e1ae917e2ab92ac3059ba2312dfd293bbd0c1203a85a",
-      "release_sha256": "fe5ea3a5f58824aa69ddd03754a5d838e19c33c67b4122e0dd8db69c0fe42268"
+      "source_sha256": "9deb7c90699b62019b69e1ae917e2ab92ac3059ba2312dfd293bbd0c1203a85a"
     },
     {
       "path": "predictor/_engines/esmfold_lib/_lib/contacts.py",
-      "source_sha256": "158b1dedd3d0c10e7a1162efb3d540a388f4fb5d213e3fc722dc732ed18cb6d0",
-      "release_sha256": "278c9b0404cd258b11359254d4d3b5f5be38b15f5080b88d55d2932bc953eeee"
+      "source_sha256": "158b1dedd3d0c10e7a1162efb3d540a388f4fb5d213e3fc722dc732ed18cb6d0"
     },
     {
       "path": "predictor/_engines/esmfold_lib/_lib/dna_geometry.py",
-      "source_sha256": "8406af2dcab007926198d09241c0e5a07bf0cb7caef51ceb4f5a8958e7b1fde9",
-      "release_sha256": "3a2203b07bb15249db3e66015eae771611235217eb1685a3623dcca60bfab8f4"
+      "source_sha256": "8406af2dcab007926198d09241c0e5a07bf0cb7caef51ceb4f5a8958e7b1fde9"
     },
     {
       "path": "predictor/_engines/esmfold_lib/_lib/operator_score.py",
-      "source_sha256": "4f49c734cc49092b1f4a0a98bdfb13874131cc7db04f6e40e787eba950469e2f",
-      "release_sha256": "34720898b2edf3292112cdd6e64d035b5a75e098836c5940b61733939af2f29d"
+      "source_sha256": "4f49c734cc49092b1f4a0a98bdfb13874131cc7db04f6e40e787eba950469e2f"
     },
     {
       "path": "analysis/project_config.py",
-      "source_sha256": "3ba77605e233bd708d8c1e5c909c0f2311bfdae5458beb179cf4204eee2b21a1",
-      "release_sha256": "3b374e4290d8daa1a672f2ec299c0dc20384ea73e7afe7da5b5dc47787cda4f7"
+      "source_sha256": "3ba77605e233bd708d8c1e5c909c0f2311bfdae5458beb179cf4204eee2b21a1"
     },
     {
       "path": "analysis/requirements.txt",
-      "source_sha256": "4628f895e87fbfae7fd2ae5672f7d74ca4b91b0fbe449e4967ed6a8dc1f96506",
-      "release_sha256": "f2107bf97f3c0ef8ee2ee3b9552631728fbf0d7151f93230c092246ac36451ca"
+      "source_sha256": "4628f895e87fbfae7fd2ae5672f7d74ca4b91b0fbe449e4967ed6a8dc1f96506"
     },
     {
       "path": "analysis/canonical_runs.toml",
-      "source_sha256": "d2ea9156b8d5c4451ae41b24e044da6331ac367b15639a950f98b54df0d77e4e",
-      "release_sha256": "d52c9015ffdeccb0e892196a234585c7efc49a70a13d204ea81169cfdaa7d6c5"
+      "source_sha256": "d2ea9156b8d5c4451ae41b24e044da6331ac367b15639a950f98b54df0d77e4e"
     },
     {
       "path": "analysis/tests/test_manifest.py",
-      "source_sha256": "40366f2b6ee24d58527ec13061b9f4e6f6616ccc7837f29abc6122d830d6c3f4",
-      "release_sha256": "9be20848bfae0cf5e7c819bf86356ac4c20de951642046b4ec2c228e26e37382"
+      "source_sha256": "40366f2b6ee24d58527ec13061b9f4e6f6616ccc7837f29abc6122d830d6c3f4"
     },
     {
       "path": "analysis/tests/test_orchestration.py",
-      "source_sha256": "36469e379d4d3cb9048480f06dc9b5052ddf021721ff157160c89b4963461b7f",
-      "release_sha256": "ba0df1508ca9a2d064bee64de631ac03bde3eba768147ddef4f98a6a907765ba"
+      "source_sha256": "36469e379d4d3cb9048480f06dc9b5052ddf021721ff157160c89b4963461b7f"
     },
     {
       "path": "analysis/tests/test_portability.py",
-      "source_sha256": "aaf5b609ecb2c5e3d0c842bd09450b483090bc326afac1ddc89b83e2b03318cf",
-      "release_sha256": "e10b0d03b4805ecbfe58e5b67f98ea1b7a78f847b73d95e281d992e842c5608c"
+      "source_sha256": "aaf5b609ecb2c5e3d0c842bd09450b483090bc326afac1ddc89b83e2b03318cf"
     },
     {
       "path": "analysis/tests/test_distributed_inputs.py",
-      "source_sha256": "3752012e127b75db120e5def409d5b97a4ace96d47db2aeb37dcd15939cb17a4",
-      "release_sha256": "8b75d1d839163fa30ca597746a3828ff62e8a185a542e1b9704876b377c097c5"
+      "source_sha256": "3752012e127b75db120e5def409d5b97a4ace96d47db2aeb37dcd15939cb17a4"
     },
     {
       "path": "reports/compute_numbers.py",
-      "source_sha256": "f2eebae50e0760087a09edd29fcd69fcdd82082b51c0498d2089420c7cda1bc5",
-      "release_sha256": "d0bd1829284c2f1edc6199be97bddab14eaf0335544acb0827a88b56b4e045f6"
+      "source_sha256": "f2eebae50e0760087a09edd29fcd69fcdd82082b51c0498d2089420c7cda1bc5"
     },
     {
       "path": "analysis/benchmarking/ecoli_kb/discovery_recall.py",
-      "source_sha256": "01c783823ef3035d73b15a097af6aca2c7bf2f66217982fdc7e794babab1f325",
-      "release_sha256": "e6ce1645d33fcf5201ddf484eb2e2428f6e3ec68ffb6e4b104e2fd6fdc348283"
+      "source_sha256": "01c783823ef3035d73b15a097af6aca2c7bf2f66217982fdc7e794babab1f325"
     },
     {
       "path": "analysis/benchmarking/ecoli_kb/score_discovered.py",
-      "source_sha256": "72fad9cdc8a265f5666f845867aa65fac36155a58c12d3676e32e01ee5d4f535",
-      "release_sha256": "28a0245a0a2da7fde4f6e05672145a1b0dcd24c48fb6ba582a34366a1b356ace"
+      "source_sha256": "72fad9cdc8a265f5666f845867aa65fac36155a58c12d3676e32e01ee5d4f535"
     },
     {
       "path": "analysis/benchmarking/salmonella/score_discovered.py",
-      "source_sha256": "14da7ccc49ca1ac89788a172e06ce7ba88059f0ecc1c693a94f643b67cd97f0d",
-      "release_sha256": "8830805fd5a4767121048a1cc2f6fb31bdb910f0f3f829343cde180017fdc8b6"
+      "source_sha256": "14da7ccc49ca1ac89788a172e06ce7ba88059f0ecc1c693a94f643b67cd97f0d"
     },
     {
       "path": "analysis/benchmarking/salmonella/salmonella_benchmark.py",
-      "source_sha256": "608746273c41d955617fd33fffcc9d3aede82bd27733404da084a4b782f20284",
-      "release_sha256": "a6bf1d3a257ff07991078fe2518c714cc152bdf0134d3ae375314c092d820bc8"
+      "source_sha256": "608746273c41d955617fd33fffcc9d3aede82bd27733404da084a4b782f20284"
     },
     {
       "path": "docs/RELEASE_PLAN.md",
-      "source_sha256": "a99861b9102d514ce59a89b1867ff1aa6aee911edf5e9eae711cc803bd7e8652",
-      "release_sha256": "4e1110d883c38049ef5c474ade66cd072907e98e1cef74caa368f76873eda69b"
+      "source_sha256": "a99861b9102d514ce59a89b1867ff1aa6aee911edf5e9eae711cc803bd7e8652"
     }
   ],
-  "immutable_reference_changes": []
+  "immutable_reference_changes": [],
+  "note": "Source hashes identify original exported inputs. Changed-source list records release adaptations; final artifact hashes are published in SHA256SUMS.txt."
 }

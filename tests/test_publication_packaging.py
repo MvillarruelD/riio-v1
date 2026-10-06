@@ -11,6 +11,7 @@ def test_engine_runners_are_inside_the_installable_package():
         assert path.exists(), path
         assert resources.PACKAGE_DIR in path.parents
     assert (bitacora.PATCH_DIR / "get_blastp_parsed_newv2.pl").is_file()
+    assert (bitacora.PATCH_DIR / "get_blastp_parsed_newv2.pl").read_bytes().startswith(b"#!/usr/bin/perl\n")
 
 
 def test_folding_adapter_is_available_without_a_source_checkout(monkeypatch):

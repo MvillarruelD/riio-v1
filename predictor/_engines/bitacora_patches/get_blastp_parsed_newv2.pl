@@ -1,7 +1,7 @@
+#!/usr/bin/perl
 # SPDX-License-Identifier: GPL-3.0-only
 # Modified BITACORA component; upstream authors retain copyright.
 # Changes: configurable query/subject coverage; inherited from RIO source, packaged 2026-10-06.
-#!/usr/bin/perl
 use strict;
 use warnings;
 
