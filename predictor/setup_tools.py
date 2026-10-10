@@ -70,6 +70,46 @@ def _metalnet_check():
         return False, None
 
 
+def _bitacora_check():
+    # Ask the adapter: it resolves $BITACORA_DIR, $BITACORA_BIN and (on Windows) WSL exactly as the
+    # genome route does, so this row cannot disagree with `tfop genome`.
+    try:
+        from predictor.discovery import bitacora as _b
+        ok, why = _b.engine_available()
+        if ok:
+            ok, why = _b.patch_status()
+        return ok, (str(_b.ENGINE_DIR) if ok else why)
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def _blast_check(tool: str):
+    def _check():
+        base = os.environ.get("BLAST_BIN")
+        if base:
+            for name in (tool, tool + ".exe"):
+                cand = Path(base) / name
+                if cand.exists():
+                    return True, str(cand)
+        p = shutil.which(tool)
+        return (True, p) if p else (False, None)
+    return _check
+
+
+def _datasets_hint() -> str:
+    exe = "datasets.exe" if sys.platform.startswith("win") else "datasets"
+    return ("conda install -n ncbi-datasets -c conda-forge ncbi-datasets-cli, then set $DATASETS_EXE to "
+            f"<env>/bin/{exe} (env/install_linux.sh does this on Linux) -- a separate env keeps the "
+            "solver away from the working one")
+
+
+def _bitacora_hint() -> str:
+    if sys.platform.startswith("win"):
+        return ("BITACORA needs HMMER, which has no Windows build: install it inside WSL Ubuntu -- see "
+                "docs/INSTALL_WINDOWS.md")
+    return "bash env/install_linux.sh  (or see docs/INSTALL_LINUX.md, section BITACORA)"
+
+
 def _mmseqs_hint() -> str:
     if sys.platform.startswith("win"):
         return ("no bioconda win-64 build exists; download mmseqs-win64.zip from "
@@ -81,14 +121,15 @@ def _mmseqs_hint() -> str:
 # (display name, checker() -> (present, detail), required?, purpose, install hint)
 _TOOLS = [
     ("MMseqs2", _mmseqs_check, True, "homolog search / SSN clustering", _mmseqs_hint()),
-    ("BLAST+ blastp", _which_check("blastp"), True, "TF-locus / genome resolution",
+    ("BLAST+ blastp", _blast_check("blastp"), True, "TF-locus / genome resolution",
      "conda install -c bioconda blast"),
-    ("BLAST+ makeblastdb", _which_check("makeblastdb"), True, "per-genome BLAST DB",
+    ("BLAST+ makeblastdb", _blast_check("makeblastdb"), True, "per-genome BLAST DB",
      "conda install -c bioconda blast"),
     ("pyhmmer (Pfam/HMMER)", _pyhmmer_check, True, "Pfam family classification", "pip install pyhmmer"),
     ("NCBI datasets", _which_check("datasets", env_var="DATASETS_EXE"), True, "genome acquisition",
-     "conda install -n ncbi-datasets -c conda-forge ncbi-datasets-cli, then set $DATASETS_EXE to "
-     "<env>/bin/datasets.exe -- a separate env keeps the solver away from the working `data` one"),
+     _datasets_hint()),
+    ("BITACORA", _bitacora_check, "genome", "candidate discovery (`tfop genome`, GUI Genome tab)",
+     _bitacora_hint()),
     ("MetalNet2", _metalnet_check, False, "family-agnostic metal-site gate (inducer source 5)",
      "needs the `metalnet` conda env + the two AutoGluon model bundles -- see docs/ENGINES.md "
      "(section MetalNet2); without it the source abstains and every other verdict is unchanged"),
@@ -123,18 +164,26 @@ def main(argv=None) -> int:
     print("This check covers executable tools used to fetch genomes and run searches.\n")
     print(f"{'engine':<22} {'req':<4} {'status':<9} purpose")
     print("-" * 78)
-    missing = []
+    missing, genome_missing = [], []
     for row in r["rows"]:
         status = "OK" if row["present"] else "MISSING"
-        print(f"{row['name']:<22} {('yes' if row['required'] else 'opt'):<4} {status:<9} {row['purpose']}")
+        req = {True: "yes", False: "opt"}.get(row["required"], "gen")
+        print(f"{row['name']:<22} {req:<4} {status:<9} {row['purpose']}")
         if row["present"] and row.get("path"):
             print(f"{'':<22} {'':<4} {'':<9} -> {row['path']}")
-        if row["required"] and not row["present"]:
+        if row["required"] is True and not row["present"]:
             missing.append(row)
+        elif row["required"] == "genome" and not row["present"]:
+            genome_missing.append(row)
     print("-" * 78)
+    print("req: yes = every run; gen = whole-genome discovery only; opt = optional evidence source")
     print("optional:  " + ", ".join(f"{k}={'OK' if v else '-'}" for k, v in r["optional"].items()))
     print("tokens:    " + ", ".join(f"{k}={'set' if v else '-'}" for k, v in r["tokens"].items())
           + "   (set them in .env; see .env.example)")
+    for row in genome_missing:
+        print(f"\nNOTE: {row['name']} is not ready, so `tfop genome` and the GUI Genome tab cannot "
+              f"discover candidates (single-protein and protein-list runs are unaffected).\n"
+              f"  why: {row['path']}\n  fix: {row['hint']}")
     if missing:
         print("\nMissing REQUIRED engines -- install, then re-run `tfop setup`:")
         seen = set()

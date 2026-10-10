@@ -41,18 +41,15 @@ def _blast_dir() -> Path | None:
 
 
 def _env_file():
-    """The .env carrying the NCBI/biohub tokens, resolved via the central resource registry (repo-local
-    `.env` / `PREDICTOR_ENV_FILE` override, falling back to the legacy 5.8 location). Imported lazily so
-    this module keeps working standalone if resources.py is unavailable."""
-    try:
-        from .. import resources
-    except Exception:
-        try:
-            from predictor import resources
-        except Exception:
-            return Path(__file__).resolve().parents[2].parent / "5.8 Promoters" / "arsr_merr_families" / ".env"
-    return resources.env_file() or (Path(__file__).resolve().parents[2].parent /
-                                    "5.8 Promoters" / "arsr_merr_families" / ".env")
+    """Central settings, with the old developer corpus available only by explicit opt-in."""
+    from predictor import resources
+    current = resources.env_file()
+    if current:
+        return current
+    if resources.legacy_workspace_enabled():
+        legacy = Path(__file__).resolve().parents[2].parent / "5.8 Promoters" / "arsr_merr_families" / ".env"
+        return legacy if legacy.is_file() else None
+    return None
 
 _DNA = set("ACGTNacgtn")
 _OUTFMT = "6 sseqid pident length qlen sstart send evalue bitscore sstrand"

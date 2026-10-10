@@ -56,6 +56,13 @@ def validate_bundle(bundle: Path) -> dict[str, int | str]:
     per_hit = _load_json(bundle / "regulation" / "per_hit_regulation.json").get("per_hit") or []
     af3_jobs = _load_json(bundle / "af3_jobs.json")
     validate_jobs(af3_jobs)
+    if manifest.get("af3_export_contract") == "jobset-v1":
+        _require(manifest.get("schema_minor", 0) >= 1, "AF3 jobset contract requires bundle minor 1")
+        names = [job.get("name") for job in af3_jobs]
+        _require(len(names) == len(set(names)), "duplicate AF3 job names")
+        if af3_jobs:
+            _require(any(len(job.get("sequences", [])) == 1 for job in af3_jobs),
+                     "AF3 jobset is missing the protein-only apo job")
 
     binding_fields, binding_rows = _read_tsv(bundle / "binding_sites.tsv")
     _, regulon_rows = _read_tsv(bundle / "regulon.tsv")

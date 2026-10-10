@@ -189,7 +189,7 @@ def test_family_labels_agree_with_the_pfam_hmm(reference):
         + "\n  ".join(disagreements[:20]))
 
 
-def test_regenerated_references_are_written_with_lf(tmp_path):
+def test_regenerated_references_are_written_with_lf(tmp_path, monkeypatch):
     """Vendored references must be written LF-only, on every platform.
 
     `.gitattributes` checks these files out as LF, but Python text mode translates to CRLF on Windows.
@@ -200,6 +200,7 @@ def test_regenerated_references_are_written_with_lf(tmp_path):
     mangled reference.
     """
     from predictor.annotate import tf_record as TR
+    monkeypatch.setenv("PREDICTOR_ALLOW_LEGACY_WORKSPACE", "1")
 
     faa, jsn = tmp_path / "curated_tfs.faa", tmp_path / "curated_tfs.json"
     src = tmp_path / "curated"

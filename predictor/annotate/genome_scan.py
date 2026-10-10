@@ -177,6 +177,12 @@ def proteins_from_input(path, *, gff=None, verbose=True, return_metadata=False):
         try:
             prots, metadata = proteins_from_gff(path, annotation, return_metadata=True)
             if prots:
+                # Local GenBank normalization preserves annotated translations (e.g. transl_except).
+                # The optional sidecar is generated from that input, not a fetched reference.
+                translations = Path(path).with_suffix(".proteins.faa")
+                if translations.is_file():
+                    supplied = dict(read_fasta(translations))
+                    prots = [(pid, supplied.get(pid, seq).rstrip("*")) for pid, seq in prots]
                 if verbose:
                     print(f"read {len(prots)} annotated protein(s) from {annotation.name} "
                           f"(accessions preserved; no gene call needed)")
@@ -342,7 +348,7 @@ def _copy_source_inputs(out_dir: Path, *, kind: str, source_path=None, annotatio
 
 
 def write_outputs(cands, out_dir, *, kind="proteome", n_proteins=0, source="", predictions=None,
-                  source_path=None, annotation_path=None):
+                  source_path=None, annotation_path=None, engine="pfam_census"):
     """Write the machine-readable data files + a self-contained HTML report for a scan.
 
     predictions (optional, from avenue B): {protein_id: {"inducer":.., "primary_operator":.., "bundle":..}}
@@ -378,7 +384,8 @@ def write_outputs(cands, out_dir, *, kind="proteome", n_proteins=0, source="", p
         "input": source, "input_kind": kind, "proteins_scanned": n_proteins,
         "n_candidates": len(cands),
         "families": dict(family_counts(cands)),
-        "method": "pyhmmer hmmsearch vs packaged tf_pfam.hmm at Pfam gathering thresholds",
+        "method": ("BITACORA with SSN-clade profiles" if engine == "bitacora" else "pyhmmer hmmsearch vs packaged tf_pfam.hmm at Pfam gathering thresholds"),
+        "discovery_engine": engine,
         # Whether protein_id is a real accession decides if these rows can be joined to anything else.
         "protein_ids": {
             "annotated_genome": "the genome's own GFF protein_id -- real accessions, joinable",
@@ -424,7 +431,7 @@ def write_outputs(cands, out_dir, *, kind="proteome", n_proteins=0, source="", p
                 fh.write("\t".join("" if value is None else str(value).replace("\t", " ")
                                    for value in values) + "\n")
     write_scan_report(cands, out_dir / "SCAN_REPORT.html", kind=kind, n_proteins=n_proteins,
-                      source=source, predictions=predictions)
+                      source=source, predictions=predictions, engine=engine)
     return out_dir
 
 
@@ -437,7 +444,7 @@ def _esc(s):
     return escape(str(s), quote=True)
 
 
-def write_scan_report(cands, html_path, *, kind="proteome", n_proteins=0, source="", predictions=None):
+def write_scan_report(cands, html_path, *, kind="proteome", n_proteins=0, source="", predictions=None, engine="pfam_census"):
     """A self-contained, organized HTML report of the candidate-TF census."""
     predictions = predictions or {}
     counts = family_counts(cands)
@@ -531,8 +538,8 @@ def write_scan_report(cands, html_path, *, kind="proteome", n_proteins=0, source
 <header><div class="report-top"><span class="eyebrow">Bacterial regulatory genomics</span>
 <a class="repo-link" href="https://github.com/MvillarruelD/riio-v1">GitHub ↗</a></div>
 <h1>Genome TF census</h1>
-<p class="sub">{_esc(source or '(input)')} · {_esc(kind)} · {n_proteins} proteins screened with the bundled
-Pfam HMM library.</p></header>
+<p class="sub">{_esc(source or '(input)')} · {_esc(kind)} · {n_proteins} proteins screened with
+{_esc("BITACORA SSN-clade profiles" if engine == "bitacora" else "the bundled Pfam HMM library")}.</p></header>
 <div class="cards">
   <div class="card"><div class="k">{len(cands)}</div><div class="l">candidate TFs</div></div>
   <div class="card"><div class="k">{len(counts)}</div><div class="l">families</div></div>

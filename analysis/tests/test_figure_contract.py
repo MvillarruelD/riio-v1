@@ -161,3 +161,74 @@ def test_production_report_has_no_benchmark_dependency():
     assert not imports.intersection({"report_cross_run", "cross_run_tables"})
     assert "F21_regulon_limits" not in source
     assert "benchmarking/" not in source
+
+
+def test_pipeline_builders_share_the_renderer_and_preserve_stems(monkeypatch):
+    import fig_pipeline
+    from reports import build_pipeline_figure
+    assert fig_pipeline.draw_pipeline_figure is build_pipeline_figure.draw_pipeline_figure
+    exports = []
+    monkeypatch.setattr(fig_pipeline, "save", lambda fig, path: exports.append((fig, path.name)))
+    fig_pipeline.graphical_abstract()
+    fig_pipeline.detailed_flowchart()
+    assert [stem for _, stem in exports] == ["F0_pipeline_graphical_abstract", "F1_pipeline_schematic"]
+    import matplotlib.pyplot as plt
+    for fig, _ in exports:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("compact", [False, True])
+def test_pipeline_renderer_contains_modes_exports_and_unclipped_text(compact):
+    from reports.build_pipeline_figure import draw_pipeline_figure
+    import matplotlib.pyplot as plt
+    fig = draw_pipeline_figure(compact=compact)
+    try:
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        labels = {text.get_text() for ax in fig.axes for text in ax.texts}
+        assert {"Single protein", "Protein list", "Genome accession", "Local genome",
+                "Candidate discovery", "Per-TF inference",
+                "Per-TF bundle", "Run report", "AlphaFold 3 hand-off"} <= labels
+        assert "CLI · Python API · browser GUI" in labels
+        # A compact schematic carries states; interface syntax stays in the legend.
+        assert {"Homologue promoters", "Motif", "Genome rescan", "Ranked operators",
+                "Resolve context", "Fused inducer call"} <= labels
+        assert len(fig.axes[0].patches) > 40  # editable state drawings, not embedded images
+        assert not fig.axes[0].images
+        canvas = fig.bbox
+        for ax in fig.axes:
+            for text in ax.texts:
+                bbox = text.get_window_extent(renderer)
+                assert bbox.x0 >= canvas.x0 and bbox.x1 <= canvas.x1, text.get_text()
+                assert bbox.y0 >= canvas.y0 and bbox.y1 <= canvas.y1, text.get_text()
+                assert text.get_fontsize() >= 7, text.get_text()
+        assert fig.get_figwidth() * 25.4 <= 183
+        assert fig.get_figheight() * 25.4 <= 130
+        # The TIFF saver adds matplotlib's default padding around tight content.
+        # Reserve it in the canvas contract so the exported file also fits the page.
+        assert (fig.get_figwidth() + 2 * plt.rcParams["savefig.pad_inches"]) * 25.4 <= 183
+    finally:
+        plt.close(fig)
+
+
+def test_pipeline_schematic_and_legend_do_not_claim_unverified_neutrality():
+    from reports.build_legends import legend_fig1
+    from reports.build_pipeline_figure import draw_pipeline_figure
+    import matplotlib.pyplot as plt
+    fig = draw_pipeline_figure()
+    try:
+        text = " ".join(t.get_text() for ax in fig.axes for t in ax.texts)
+        legend = legend_fig1({})  # schematic must not depend on run numbers
+        for content in (text, legend):
+            assert "unchanged from v1.0" not in content
+            assert "never alter" not in content
+            assert "never read each other's" not in content
+            assert "changes no call" not in content
+            assert "default" in content
+        assert "Single-protein calls enter prediction directly" in legend
+        assert "input and policy fingerprints" in legend
+        assert "run and discovery reports" in legend
+        assert "without boosting their ranking" in legend
+        assert "drawings illustrate states" in legend
+    finally:
+        plt.close(fig)

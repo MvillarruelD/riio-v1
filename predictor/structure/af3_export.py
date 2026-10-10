@@ -129,16 +129,16 @@ class AF3Pick:
     ion: str | None = None
 
 
-def af3_job(name: str, tf_seq: str, dna_top: str, *, copies: int = 2, ion: str | None = None,
+def af3_job(name: str, tf_seq: str, dna_top: str | None = None, *, copies: int = 2, ion: str | None = None,
             ligand_ccd: str | None = None, seeds=(1,)) -> dict:
-    """One alphafoldserver job dict: homodimer protein + dsDNA (two complementary chains) + optional
-    ion/ligand."""
-    dna_top = dna_top.upper()
+    """One server job: protein oligomer plus optional duplex and ion/ligand."""
     # every alphafoldserver entity REQUIRES `count` (the server rejects "failed to find count" otherwise),
     # not just the protein chain -- each dsDNA strand is its own chain with count 1.
-    seqs = [{"proteinChain": {"sequence": tf_seq.upper(), "count": copies}},
-            {"dnaSequence": {"sequence": dna_top, "count": 1}},
-            {"dnaSequence": {"sequence": revcomp(dna_top), "count": 1}}]
+    seqs = [{"proteinChain": {"sequence": tf_seq.upper(), "count": copies}}]
+    if dna_top is not None:
+        dna_top = dna_top.upper()
+        seqs.extend([{"dnaSequence": {"sequence": dna_top, "count": 1}},
+                     {"dnaSequence": {"sequence": revcomp(dna_top), "count": 1}}])
     if ion:
         seqs.append({"ion": {"ion": ion, "count": 1}})
     if ligand_ccd:
@@ -175,9 +175,11 @@ def to_af3_jobs(picks, tf_seq: str, *, genome_seq: str | None = None, length: in
 
 
 def validate_jobs(jobs) -> None:
-    """Raise ValueError on any schema problem the server would reject. Checks: dialect/version,
-    exactly one dimeric proteinChain, exactly two dnaSequence chains that are reverse-complements,
-    [ACGT]-only DNA, and a supported ion code."""
+    """Validate the emitted server subset: protein, optional duplex, allowed ions.
+
+    Job-kind constraints are enforced separately by af3_jobset.validate_job.
+    This is not a replacement for the server's live upload validation.
+    """
     problems = []
     for j in jobs:
         nm = j.get("name", "<unnamed>")
@@ -193,13 +195,16 @@ def validate_jobs(jobs) -> None:
         # the server requires `count` on EVERY entity, not just the protein chain
         for s in seqs:
             for key, ent in s.items():
-                if "count" not in ent:
+                if type(ent.get("count")) is not int or ent["count"] < 1:
                     problems.append(f"{nm}: {key} entity is missing required 'count'")
-        if len(prots) != 1 or prots[0].get("count", 1) < 2:
-            problems.append(f"{nm}: expected one homodimeric proteinChain (count>=2)")
-        if len(dnas) != 2:
+        if len(prots) != 1 or prots[0].get("count", 1) < 1:
+            problems.append(f"{nm}: expected one proteinChain with positive copy count")
+        if prots and (not prots[0].get("sequence") or
+                      any(c not in "ACDEFGHIKLMNPQRSTVWY" for c in prots[0]["sequence"])):
+            problems.append(f"{nm}: invalid protein sequence")
+        if len(dnas) not in (0, 2):
             problems.append(f"{nm}: expected two dnaSequence chains (dsDNA), got {len(dnas)}")
-        else:
+        elif dnas:
             top, bot = dnas[0]["sequence"].upper(), dnas[1]["sequence"].upper()
             if any(b not in "ACGT" for b in top + bot):
                 problems.append(f"{nm}: DNA has non-ACGT characters")
@@ -234,7 +239,7 @@ def write_af3_jobs(jobs, path) -> Path:
 
 # --------------------------------------------------------------------------- self-test
 def _demo() -> None:
-    tf = "MARSKDELTAEQVFKALSDPNRLRILSLLAKGELCVCDL217CNLALSQSTVSHHLKLLREAGLVTGERRGREVYYRLA"
+    tf = "MARSKDELTAEQVFKALSDPNRLRILSLLAKGELCVCDLCNLALSQSTVSHHLKLLREAGLVTGERRGREVYYRLA"
 
     # effector -> ion mapping (Ni2+ -> CO; Cu+ -> CU; metalloid As -> ZN)
     assert map_effector_to_ion("Ni2+") == "CO" and map_effector_to_ion("Cu+") == "CU"

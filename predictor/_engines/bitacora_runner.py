@@ -14,11 +14,11 @@ Ours, not upstream's. It exists because BITACORA's own outputs cannot be joined 
 So the runner emits **full-length records keyed by accession**, with the trim carried as an offset
 annotation, and one row per protein listing every profile that hit it.
 
-Invoked by `predictor/discovery/bitacora.py`, which is what the pipeline calls. On Windows the engine
-runs through WSL (HMMER has no Windows build); this script may run on either side and converts paths
-accordingly.
+Invoked by `predictor/discovery/bitacora.py`, which is what the pipeline calls. On Linux/macOS the
+engine runs natively (`$BITACORA_BIN`, if set, goes first on PATH); on Windows it runs through WSL
+(HMMER has no Windows build) and paths are converted accordingly.
 
-    python env/tools/bitacora_runner.py --genome g.fna --gff g.gff --proteins g.faa \\
+    python -m predictor._engines.bitacora_runner --genome g.fna --gff g.gff --proteins g.faa \\
         --profiles results/bitacora_profiles --engine env/tools/bitacora --out results/bitacora/g
 """
 from __future__ import annotations
@@ -73,7 +73,7 @@ def run_bitacora(*, engine: Path, profiles: Path, proteins: Path, genome: Path |
             "-n", name,
             "-sp", (win2wsl(engine / "Scripts") if on_windows else str(engine / "Scripts")),
             "-t", str(threads), "-e", evalue, "-c", "F"]
-    # The coverage fractions are read by BITACORA's own Perl (see env/tools/bitacora_patches/).
+    # The coverage fractions are read by BITACORA's own Perl (see predictor/_engines/bitacora_patches/).
     # WSL does not inherit the Windows environment, so they have to be exported into the inner shell
     # explicitly -- a variable set on this side and simply assumed to arrive would silently leave
     # upstream's defaults in force, and the run would look configured while behaving as stock.
@@ -85,10 +85,17 @@ def run_bitacora(*, engine: Path, profiles: Path, proteins: Path, genome: Path |
                  f'bash "{win2wsl(script)}" ' + " ".join(f'"{a}"' for a in args))
         cmd = [os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe",
                "-d", _DISTRO, "-e", "bash", "-lc", inner]
+        env = None
     else:
+        # Native (Linux/macOS): BITACORA_BIN, when it names a directory, goes first on PATH -- the same
+        # rule `predictor.discovery.bitacora.native_env` applies, so every engine call sees one install.
         out.mkdir(parents=True, exist_ok=True)
         cmd = ["bash", str(script), *args]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+        env = dict(os.environ)
+        bin_dir = Path(os.path.expandvars(os.path.expanduser(os.environ.get("BITACORA_BIN", ""))))
+        if os.environ.get("BITACORA_BIN") and bin_dir.is_dir():
+            env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
                           cwd=(None if on_windows else str(out)))
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
@@ -101,7 +108,11 @@ def collect(out: Path, proteins: dict[str, str]) -> list[dict]:
     hitting two seed profiles is a real observation about it and collapsing that to one loses it.
     """
     by_acc: dict[str, dict] = {}
-    for trimmed in sorted(Path(out).rglob("*_proteins_trimmed.fasta")):
+    # Path ordering is case-insensitive on Windows but case-sensitive on POSIX. Preserve the
+    # historical Windows profile order explicitly: the first valid match supplies the trim
+    # annotation, so OS-dependent ordering otherwise changes provenance for identical raw hits.
+    paths = Path(out).rglob("*_proteins_trimmed.fasta")
+    for trimmed in sorted(paths, key=lambda p: tuple(part.casefold() for part in p.relative_to(out).parts)):
         profile = trimmed.name.replace("_proteins_trimmed.fasta", "")
         for acc, tseq in read_fasta(trimmed).items():
             base = acc.split()[0]

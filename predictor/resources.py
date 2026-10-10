@@ -21,7 +21,9 @@ Path overrides are locations only; none selects an algorithm:
 ``PREDICTOR_OUTPUT_DIR``
     Run-output root.
 ``PREDICTOR_ESMFOLD_LIB`` / ``PREDICTOR_ENV_FILE``
-    Optional folding adapter and credentials file.
+    Optional folding adapter and settings file. Without an override the settings file is the
+    checkout's ``.env``, then ``<user config dir>/tfop/.env`` (``~/.config/tfop/.env`` on Linux),
+    which is where an installed wheel keeps it.
 
 Run ``python -m predictor.resources`` or ``tfop audit`` to inspect the resolved layout.
 """
@@ -32,7 +34,7 @@ import os
 import re
 from pathlib import Path
 
-from platformdirs import user_cache_path
+from platformdirs import user_cache_path, user_config_path
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO = PACKAGE_DIR.parent
@@ -79,13 +81,24 @@ def esmfold_lib_dir() -> Path | None:
 
 
 # --------------------------------------------------------------------------- CREDENTIALS: the .env tokens
+#: Where an installed (non-checkout) RIIO keeps its `.env`: ~/.config/tfop/.env on Linux,
+#: %LOCALAPPDATA%/tfop/tf-operator-predictor/.env on Windows.
+USER_ENV_FILE = user_config_path("tf-operator-predictor", "tfop") / ".env"
+
+
 def env_file() -> Path | None:
-    """The optional credentials file: explicit override, then a source-checkout ``.env``."""
+    """The optional settings file: explicit override, then a source-checkout ``.env``, then the
+    per-user one (`USER_ENV_FILE`)."""
     env = os.environ.get("PREDICTOR_ENV_FILE")
-    for cand in (Path(env).expanduser() if env else None, REPO / ".env"):
+    for cand in (Path(env).expanduser() if env else None, REPO / ".env", USER_ENV_FILE):
         if cand and cand.is_file():
             return cand
     return None
+
+
+def legacy_workspace_enabled() -> bool:
+    """Explicit maintainer opt-in for unpublished neighbouring source corpora."""
+    return os.environ.get("PREDICTOR_ALLOW_LEGACY_WORKSPACE", "").lower() in {"1", "true", "yes"}
 
 
 _TOKEN_KEYS = ("BIOHUB_TOKEN", "NCBI_TOKEN", "NCBI_API_KEY", "NCBI_EMAIL")
@@ -93,7 +106,31 @@ _TOKEN_KEYS = ("BIOHUB_TOKEN", "NCBI_TOKEN", "NCBI_API_KEY", "NCBI_EMAIL")
 #: PATH. They belong here because the audit and the code that runs the tool must resolve them
 #: identically: `tfop setup` reporting a tool MISSING while the pipeline would happily find it is a
 #: false negative from the one report whose whole job is to say what is missing.
-_PATH_KEYS = ("DATASETS_EXE", "BITACORA_DIR", "BITACORA_BIN", "BITACORA_WSL_DISTRO")
+_PATH_KEYS = ("DATASETS_EXE", "BLAST_BIN", "MMSEQS", "BITACORA_DIR", "BITACORA_BIN", "BITACORA_PY",
+              "BITACORA_WSL_DISTRO", "METALNET_PYTHON", "METALNET2_DIR")
+
+
+def _env_value(txt: str, key: str) -> str:
+    """The value of `key` in a dotenv text: quotes stripped, spaces kept, trailing ` # comment` cut.
+
+    The previous pattern stopped at the first space, so `BITACORA_DIR=/home/me/My Tools/bitacora`
+    silently became `/home/me/My`.
+    """
+    m = re.search(rf"^[ 	]*(?:export[ 	]+)?{key}[ 	]*=[ 	]*(.*?)[ 	]*$", txt, re.MULTILINE)
+    if not m:
+        return ""
+    val = m.group(1)
+    if val.startswith(("\"", "'")):
+        quote = val[0]
+        # Windows backslashes are literal paths, including one before the closing quote.
+        for i in range(1, len(val)):
+            if val[i] == quote:
+                tail = val[i + 1:].strip()
+                if not tail or tail.startswith("#"):
+                    return val[1:i]
+                return ""
+        return ""
+    return re.split(r"[ 	]+#", val, maxsplit=1)[0].strip()
 
 
 def load_tokens(*, override: bool = False) -> dict:
@@ -106,9 +143,9 @@ def load_tokens(*, override: bool = False) -> dict:
             txt = ef.read_text(errors="ignore")
             for k in _TOKEN_KEYS + _PATH_KEYS:
                 if override or not os.environ.get(k):
-                    m = re.search(rf"^{k}\s*=\s*(\S+)", txt, re.MULTILINE)
-                    if m and m.group(1):
-                        os.environ[k] = m.group(1)
+                    val = _env_value(txt, k)
+                    if val:
+                        os.environ[k] = val
         except Exception:
             pass
     return {k: bool(os.environ.get(k)) for k in _TOKEN_KEYS}

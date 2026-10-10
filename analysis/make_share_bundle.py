@@ -9,14 +9,27 @@ import argparse
 import csv
 import datetime as dt
 import json
+import html
+import os
+from urllib.parse import quote, unquote, urlsplit
+from html.parser import HTMLParser
 import shutil
 import sys
 import tempfile
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 import uuid
+import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import manifest as MF
-import run_paths as RP
+if os.environ.get('TFOP_RUN_TAG') or 'run_paths' in sys.modules:
+    import run_paths as RP
+else:
+    RP = None
 from project_config import PREDICTOR_ROOT
 
 if str(PREDICTOR_ROOT) not in sys.path:
@@ -25,8 +38,18 @@ from predictor.report.bundle_contract import contained_file, inventory, validate
 
 HERE = Path(__file__).resolve().parent
 PROJ = HERE.parent
-JOBS = RP.JOBS
-OUT = PROJ / f"SHARE_FOR_AUTHORS_{RP.TAG}"
+JOBS = RP.JOBS if RP is not None else None
+OUT = PROJ / f"SHARE_FOR_AUTHORS_{RP.TAG}" if RP is not None else None
+
+
+def select_run() -> None:
+    """Resolve required single-run context only for single-run publication."""
+    global RP, JOBS, OUT
+    if RP is None:
+        import run_paths
+        RP = run_paths
+        JOBS = RP.JOBS
+        OUT = PROJ / f'SHARE_FOR_AUTHORS_{RP.TAG}'
 
 
 def _existing(*paths: Path) -> Path:
@@ -158,8 +181,12 @@ def copy(src: Path, dst: Path, label: str) -> int:
 
 def assemble(destination: Path, *, no_bundles: bool = False) -> None:
     """Populate a new directory from the selected run."""
+    select_run()
     rows = _rows(_manifest_path())
     copy(RP.REPORT_DOCX, destination / "01_reports" / RP.REPORT_DOCX.name, "report")
+    pdf = RP.REPORT_DOCX.with_suffix('.pdf')
+    if pdf.is_file():
+        copy(pdf, destination / '01_reports' / pdf.name, 'PDF report')
     (destination / "01_reports" / "report_summary.md").write_text(build_summary(), encoding="utf-8")
     for source, name in ((_existing(RP.COMPLEMENT_TSV, RP.RESULTS / "per_regulator_predictions.tsv"),
                           "per_regulator_predictions.tsv"),
@@ -199,14 +226,42 @@ def assemble(destination: Path, *, no_bundles: bool = False) -> None:
         if figure.name.startswith(("F23_", "F24_")):
             copy(figure, destination / "04_manuscript_integration" / figure.name, "composition")
     (destination / "README.md").write_text(build_readme(no_bundles=no_bundles), encoding="utf-8")
+    write_index(destination, rows, no_bundles=no_bundles)
     (destination / "share_manifest.json").write_text(json.dumps({
         "schema_version": 1, "run_tag": RP.TAG, "candidate_count": len(rows),
         "individual_bundles_included": not no_bundles, "artifacts": inventory(destination),
     }, indent=2), encoding="utf-8")
 
 
+def write_index(destination: Path, rows: list[dict], *, no_bundles: bool = False) -> None:
+    """Generate escaped, relative links only to published artifacts."""
+    links = []
+    for folder in ('01_reports', '03_data'):
+        for path in sorted((destination / folder).glob('*')):
+            if path.is_file():
+                rel = path.relative_to(destination).as_posix()
+                links.append(f'<li><a href="{quote(rel)}">{html.escape(path.name)}</a></li>')
+    body = []
+    if not no_bundles:
+        for row in rows:
+            name = row['run_name']
+            rel = f'05_per_regulator/{name}/REPORT.html'
+            if not (destination / rel).is_file():
+                raise FileNotFoundError(f'missing published report: {rel}')
+            body.append('<tr><td><a href="' + quote(rel) + '">' + html.escape(name) +
+                        '</a></td><td>' + html.escape(row.get('family', '')) + '</td></tr>')
+    index = ('<!doctype html><html lang="en"><meta charset="utf-8"><title>RIIO run reports</title>'
+             '<style>body{font:16px Arial,sans-serif;max-width:1100px;margin:40px auto;padding:0 20px}'
+             'td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}table{border-collapse:collapse}</style>'
+             '<h1>RIIO run reports</h1><p>Recorded computational predictions for experimental prioritisation.</p>'
+             '<ul>' + ''.join(links) + '</ul><table><thead><tr><th>Regulator report</th><th>Family</th></tr></thead>'
+             '<tbody>' + ''.join(body) + '</tbody></table></html>')
+    (destination / 'index.html').write_text(index, encoding='utf-8')
+
+
 def publish(*, no_bundles: bool = False) -> Path:
     """Publish after assembly succeeds; preserve any prior release as a sibling backup."""
+    select_run()
     final = OUT.resolve()
     if final.parent != PROJ.resolve() or not final.name.startswith("SHARE_FOR_AUTHORS_"):
         raise ValueError("share output must be a direct child of the project root")
@@ -232,11 +287,138 @@ def publish(*, no_bundles: bool = False) -> Path:
     return final
 
 
+def relocate_run_links(run_dir: Path, key: str) -> None:
+    """Update local report links after bundles move out of a run's jobs directory."""
+    import openpyxl
+    for report in run_dir.glob("*.html"):
+        report.write_text(report.read_text(encoding="utf-8").replace(
+            'jobs/', '../../bundles/' + key + '/'), encoding="utf-8")
+    for path in run_dir.glob("*.xlsx"):
+        workbook = openpyxl.load_workbook(path)
+        for sheet in workbook:
+            for row in sheet:
+                for cell in row:
+                    link = cell.hyperlink
+                    if link and link.target and link.target.startswith("jobs/"):
+                        link.target = "../../bundles/" + key + "/" + link.target[5:]
+        workbook.save(path)
+        workbook.close()
+
+
+def relocate_discovery_links(discovery_dir: Path, key: str) -> None:
+    """The discovery page links predicted candidates as ../jobs/<TF>/; in the share they sit in bundles/."""
+    report = discovery_dir / "DISCOVERY_REPORT.html"
+    if report.is_file():
+        report.write_text(report.read_text(encoding="utf-8").replace(
+            '../jobs/', '../../../bundles/' + key + '/'), encoding="utf-8")
+
+
+def validate_share_links(root: Path) -> list[str]:
+    """Every HTML href/src and workbook hyperlink must resolve inside this package."""
+    root = root.resolve()
+    issues = []
+    def check(path, target):
+        parsed = urlsplit(target)
+        if parsed.scheme in {"http", "https", "mailto", "data"} or not parsed.path:
+            return
+        resolved = (path.parent / unquote(parsed.path)).resolve()
+        if parsed.scheme or parsed.netloc or not resolved.is_relative_to(root):
+            issues.append(f"{path.relative_to(root)}: external local link {target}")
+        elif not resolved.is_file():
+            issues.append(f"{path.relative_to(root)}: missing link {target}")
+    class Links(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            for name, value in attrs:
+                if name in {"href", "src"} and value:
+                    check(self.path, value)
+    for path in sorted(root.rglob("*.html")):
+        parser = Links()
+        parser.path = path
+        parser.feed(path.read_text(encoding="utf-8"))
+    for path in sorted(root.rglob("*.xlsx")):
+        # XLSX external hyperlinks live in worksheet relationships. Reading those
+        # directly avoids instantiating every cell in 238 potentially large tables.
+        # OOXML relationship targets remain relative to the workbook's directory.
+        with zipfile.ZipFile(path) as book:
+            for name in book.namelist():
+                if name.startswith('xl/worksheets/_rels/') and name.endswith('.rels'):
+                    for relationship in ET.fromstring(book.read(name)):
+                        if relationship.get('Type', '').endswith('/hyperlink'):
+                            check(path, relationship.get('Target', ''))
+    return issues
+
+
+def publish_canonical(destination: Path) -> Path:
+    """Rebuild all three runs without changing any source bundle."""
+    destination = destination.expanduser().resolve()
+    if destination.exists():
+        raise FileExistsError(f'canonical share requires a fresh destination: {destination}')
+    cfg = tomllib.loads((HERE / 'canonical_runs.toml').read_text(encoding='utf-8'))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix='.canonical-share-', dir=destination.parent))
+    try:
+        all_rows, run_links = [], []
+        for key, run in cfg['runs'].items():
+            root = Path(run['root'])
+            rows = _rows(HERE / run['manifest'])
+            if len(rows) != run['n_candidates']:
+                raise ValueError(f'{key}: expected {run["n_candidates"]} candidates, found {len(rows)}')
+            for row in rows:
+                source = contained_file(root / 'jobs', row['run_name'])
+                issues = validate_files(source)
+                if issues:
+                    raise ValueError(f'{row["run_name"]}: {issues}')
+                target = staging / 'bundles' / key / row['run_name']
+                shutil.copytree(source, target)
+                all_rows.append((key, row))
+            for name in ('RUN_REPORT.html', 'Supplementary_Table_S1.xlsx', 'Supplementary_Table_S1.tsv'):
+                copy(root / name, staging / 'runs' / key / name, name)
+            # Preserve relative jobs links used by reports without copying a second bundle tree.
+            if (staging / 'runs' / key / 'RUN_REPORT.html').is_file():
+                report = staging / 'runs' / key / 'RUN_REPORT.html'
+                relocate_run_links(report.parent, key)
+                run_links.append(f'<li><a href="runs/{key}/RUN_REPORT.html">{html.escape(key)} run report</a></li>')
+            for folder in ('discovery', 'af3'):
+                if (root / folder).is_dir():
+                    shutil.copytree(root / folder, staging / 'runs' / key / folder)
+                    if folder == 'discovery':
+                        relocate_discovery_links(staging / 'runs' / key / folder, key)
+                    if folder == 'discovery' and (root / folder / 'DISCOVERY_REPORT.html').is_file():
+                        run_links.append(f'<li><a href="runs/{key}/discovery/DISCOVERY_REPORT.html">{html.escape(key)} discovery report</a></li>')
+        overall = PROJ / 'reports'
+        for path in sorted(overall.glob('run_report*.docx')) + sorted(overall.glob('run_report*.pdf')):
+            copy(path, staging / 'overall_report' / path.name, 'overall report')
+            run_links.append(f'<li><a href="overall_report/{quote(path.name)}">{html.escape(path.name)}</a></li>')
+        rows_html = ''.join('<tr><td>' + html.escape(key) + '</td><td><a href="bundles/' + key + '/' +
+                            quote(row['run_name']) + '/REPORT.html">' + html.escape(row['run_name']) +
+                            '</a></td><td>' + html.escape(row.get('family', '')) + '</td></tr>' for key, row in all_rows)
+        (staging / 'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8">'
+            '<title>RIIO canonical reports</title><h1>RIIO canonical reports</h1><p>Predictor ' +
+            html.escape(cfg['provenance']['predictor_commit']) + '; ' + str(len(all_rows)) +
+            ' recorded candidates. Computational predictions.</p><ul>' + ''.join(run_links) +
+            '</ul><table><tr><th>Run</th><th>Regulator report</th><th>Family</th></tr>' + rows_html + '</table></html>', encoding='utf-8')
+        link_issues = validate_share_links(staging)
+        if link_issues:
+            raise ValueError('Broken share links: ' + '; '.join(link_issues[:30]))
+        (staging / 'share_manifest.json').write_text(json.dumps({'schema_version': 1,
+            'candidate_count': len(all_rows), 'predictor_commit': cfg['provenance']['predictor_commit'],
+            'artifacts': inventory(staging)}, indent=2), encoding='utf-8')
+        staging.replace(destination)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    return destination
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-bundles", action="store_true", help="create a summary without individual bundles")
+    parser.add_argument('--canonical', type=Path, help='fresh three-run canonical share destination')
     args = parser.parse_args(argv)
     try:
+        if args.canonical:
+            publish_canonical(args.canonical)
+            return 0
         publish(no_bundles=args.no_bundles)
     except (OSError, ValueError) as exc:
         print(f"Share publication failed: {exc}", file=sys.stderr)

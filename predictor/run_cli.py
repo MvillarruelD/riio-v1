@@ -107,7 +107,7 @@ def cmd_predict(a) -> int:
     from predictor import api
     try:
         source = _resolve_prediction_source(a.seq, offline=a.offline)
-    except ValueError as exc:
+    except (ValueError, OSError) as exc:
         print(f"INPUT ERROR: {exc}")
         return 2
     # Folding is opt-in. Its old environment-dependent default made two users get different bundles
@@ -118,8 +118,14 @@ def cmd_predict(a) -> int:
                                        allow_online=not a.offline), fold)
     print(f"=== predict: {a.name}  [fold={cfg.allow_folds} metalnet={cfg.allow_metalnet} "
           f"af3={cfg.emit_af3_jobs} online={cfg.allow_online}] ===")
-    res = api.predict(source, name=a.name, family=a.family, organism=a.organism, genome_acc=a.genome_acc,
-                      effector=a.effector, cfg=cfg, fold=cfg.allow_folds)
+    try:
+        res = api.predict(source, name=a.name, family=a.family, organism=a.organism, genome_acc=a.genome_acc,
+                          effector=a.effector, cfg=cfg, fold=cfg.allow_folds,
+                          local_genome=a.local_genome, local_gff=a.local_gff, local_contig=a.local_contig,
+                          tf_locus=(int(a.tf_locus[0]), int(a.tf_locus[1]), a.tf_locus[2]) if a.tf_locus else None)
+    except (ValueError, OSError) as exc:
+        print(f"INPUT ERROR: {exc}", file=sys.stderr)
+        return 2
     if not res.ok:
         stage = res.raw.get("failed_stage")
         print(f"\nERROR{f' [{stage}]' if stage else ''}: {res.error}")
@@ -214,11 +220,67 @@ def cmd_genome(a) -> int:
     try:
         out = genome_run.run_genome(a.accession, Path(a.out), jobs=a.jobs, census_fallback=a.census_fallback,
                                     offline=a.offline, fold=a.fold, timeout=a.timeout,
-                                    discover_only=a.discover_only, verbose=a.verbose)
-    except RuntimeError as exc:
+                                    discover_only=a.discover_only, verbose=a.verbose, fasta=a.fasta, gff=a.gff,
+                                    genbank=a.genbank, proteome=a.proteome, organism=a.organism,
+                                    metalnet=not a.no_metalnet, af3=not a.no_af3,
+                                    selected_names=a.select.split(",") if a.select else None)
+    except (RuntimeError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     print(f"\n-> {out}")
+    return _run_exit_status(out)
+
+
+def cmd_batch(a) -> int:
+    from predictor.api import predict_many
+    try:
+        path = predict_many(a.input, a.out, organism=a.organism, jobs=a.jobs, offline=a.offline,
+                           fold=a.fold, timeout=a.timeout, discover_only=a.discover_only,
+                           metalnet=not a.no_metalnet, af3=not a.no_af3,
+                           genome_fasta=a.genome_fasta, genome_gff=a.genome_gff, genome_genbank=a.genome_genbank)
+        print(path)
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return _run_exit_status(path)
+
+
+def _run_exit_status(path) -> int:
+    """An emitted summary remains inspectable even when a candidate failed."""
+    import csv
+    path = Path(path)
+    if path.name != "summary.tsv":
+        return 0
+    with path.open(encoding="utf-8") as handle:
+        return int(any(r.get("status", "").startswith(("failed", "timed out"))
+                       for r in csv.DictReader(handle, delimiter="\t")))
+
+
+def cmd_report(a) -> int:
+    from predictor.report.run_report import write_discovery_report, write_run_report
+    try:
+        path = Path(a.run_dir)
+        if not path.is_dir() or not any((path / marker).exists() for marker in ("manifest.csv", "summary.tsv", "jobs")):
+            raise ValueError("report requires an existing run directory with manifest, summary, or jobs")
+        write_discovery_report(path)
+        print(write_run_report(path))
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def cmd_af3(a) -> int:
+    from predictor.structure import af3_jobset
+    try:
+        path = Path(a.path)
+        if not path.is_dir():
+            raise ValueError("AF3 export requires an existing run or bundle directory")
+        export = af3_jobset.export_bundle if (path / "dossier.json").exists() else af3_jobset.export_run
+        print(export(path, top_n=a.top_n, format=a.format, batch_size=a.batch_size))
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 
@@ -362,6 +424,10 @@ def main(argv=None) -> int:
                    help="do not write the optional AlphaFold-3 hand-off JSONs")
     p.add_argument("--offline", action="store_true",
                    help="no network: no NCBI, no ColabFold, no AFDB (uses the local genome mirror)")
+    p.add_argument("--local-genome", help=argparse.SUPPRESS)
+    p.add_argument("--local-gff", help=argparse.SUPPRESS)
+    p.add_argument("--local-contig", help=argparse.SUPPRESS)
+    p.add_argument("--tf-locus", nargs=3, help=argparse.SUPPRESS)
     p.set_defaults(func=cmd_predict)
 
     psc = sub.add_parser("scan", help="quick Pfam-HMM census of a genome/proteome; --predict adds operators "
@@ -374,7 +440,7 @@ def main(argv=None) -> int:
     psc.add_argument("--predict", action="store_true",
                      help="avenue B: run the operator pipeline on each candidate (heavier)")
     psc.add_argument("--select", default=None,
-                     help="with --predict, run only these candidate protein_ids (comma list) — individual "
+                     help="with --predict, run only these candidate protein_ids (comma list) â€” individual "
                           "selection; combine with --families for by-family")
     psc.add_argument("--organism", default=None,
                      help="genome accession for --predict (homolog + genome resolution)")
@@ -394,7 +460,7 @@ def main(argv=None) -> int:
 
     pg = sub.add_parser("genome", help="whole genome -> candidate TFs (BITACORA) -> a bundle per candidate "
                                        "-> summary.tsv (the production route)")
-    pg.add_argument("accession", help="assembly accession, e.g. GCF_000005845.2 (mirrored or downloaded)")
+    pg.add_argument("accession", nargs="?", help="assembly accession, e.g. GCF_000005845.2 (mirrored or downloaded)")
     pg.add_argument("--out", required=True, help="run directory (manifest, FASTAs, jobs/, logs/, summary.tsv)")
     pg.add_argument("--jobs", type=int, default=1, help="candidates predicted in parallel (default 1)")
     pg.add_argument("--timeout", type=int, default=None, help="per-candidate timeout in seconds")
@@ -404,7 +470,44 @@ def main(argv=None) -> int:
     pg.add_argument("--offline", action="store_true", help="no network (genome must already be mirrored)")
     pg.add_argument("--fold", action="store_true", help="also fold each candidate (off by default)")
     pg.add_argument("-v", "--verbose", action="store_true")
+    inputs = pg.add_mutually_exclusive_group()
+    inputs.add_argument("--fasta", help="local nucleotide genome FASTA")
+    inputs.add_argument("--genbank", help="local GenBank genome (one or more records)")
+    inputs.add_argument("--proteome", help="local protein FASTA for discovery")
+    pg.add_argument("--gff", help="GFF3 annotation for --fasta")
+    pg.add_argument("--organism", help="optional source genome accession")
+    pg.add_argument("--select", help="comma-separated manifest run_names to predict (all candidates remain in reports)")
+    pg.add_argument("--no-metalnet", action="store_true")
+    pg.add_argument("--no-af3", action="store_true")
     pg.set_defaults(func=cmd_genome)
+
+    pb = sub.add_parser("batch", help="predict every protein in multi-FASTA or accession TSV")
+    pb.add_argument("input")
+    pb.add_argument("--out", required=True)
+    pb.add_argument("--organism")
+    context_inputs = pb.add_mutually_exclusive_group()
+    context_inputs.add_argument("--genome-fasta", help="local source genome for supplied proteins")
+    context_inputs.add_argument("--genome-genbank", help="local GenBank source genome")
+    pb.add_argument("--genome-gff", help="annotation for --genome-fasta")
+    pb.add_argument("--jobs", type=int, default=1)
+    pb.add_argument("--timeout", type=int)
+    pb.add_argument("--offline", action="store_true")
+    pb.add_argument("--fold", action="store_true")
+    pb.add_argument("--discover-only", action="store_true")
+    pb.add_argument("--no-metalnet", action="store_true")
+    pb.add_argument("--no-af3", action="store_true")
+    pb.set_defaults(func=cmd_batch)
+
+    pr = sub.add_parser("report", help="rebuild run reports without re-predicting")
+    pr.add_argument("run_dir")
+    pr.set_defaults(func=cmd_report)
+
+    paf = sub.add_parser("af3", help="rebuild AF Server/local jobs outside existing bundles")
+    paf.add_argument("path")
+    paf.add_argument("--top-n", type=int, default=3)
+    paf.add_argument("--format", choices=["server", "local", "both"], default="both")
+    paf.add_argument("--batch-size", type=int, default=30)
+    paf.set_defaults(func=cmd_af3)
 
     pst = sub.add_parser("selftest", help="verify this install by running every module's built-in self-test")
     pst.add_argument("--only", default=None,

@@ -41,6 +41,8 @@ MIRROR_DIR = Path(os.environ.get("PREDICTOR_GENOME_MIRROR",
 
 
 def curated_genome_fastas():
+    if not resources.legacy_workspace_enabled():
+        return []
     return sorted(glob.glob(str(_CURATED_GENOMES / "*" / "*_genomic.fna")))
 
 

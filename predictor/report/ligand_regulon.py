@@ -15,6 +15,7 @@ All best-effort and offline-capable (Ligify touches cached UniProt; regulon reus
 from __future__ import annotations
 
 import re
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 
 # effector element -> product-name keywords that flag a ligand-handling gene
@@ -206,7 +207,10 @@ def _classify_modes(jobs, *, max_workers: int = 6):
     if len(jobs) < 2:
         return [_classify_mode_job(job) for job in jobs]
     try:
-        with ProcessPoolExecutor(max_workers=min(max_workers, len(jobs))) as executor:
+        # "spawn" on every OS: Linux defaults to fork, and forking a process that has threads (the GUI
+        # runs the pipeline in a worker thread) can deadlock the child. Windows already spawns.
+        ctx = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=min(max_workers, len(jobs)), mp_context=ctx) as executor:
             # executor.map preserves input order, so output tables remain deterministic.
             return list(executor.map(_classify_mode_job, jobs))
     except Exception:

@@ -1,62 +1,46 @@
-# External engine setup
+# External engines and settings
 
-Run `tfop setup` after installing RIIO. It reports the resolver used by the pipeline. Use `MMSEQS`
-and `DATASETS_EXE` for tools outside `PATH`; BLAST+ tools should be on `PATH`. `pyhmmer` is installed
-with the predictor, and does not substitute for the HMMER executables needed by BITACORA.
+The Python wheel includes the reference data and pyhmmer classifier. External executables remain separate.
 
-## BITACORA
+| Engine | Purpose | Resolution / setting | Install |
+|---|---|---|---|
+| MMseqs2 | Homolog/SSN collection | `MMSEQS`, vendored engine, PATH | Linux bioconda; Windows official archive |
+| BLAST+ | Locus/genome and BITACORA protein searches | `BLAST_BIN`, PATH | bioconda / official NCBI binary |
+| NCBI Datasets | Genome accession acquisition | `DATASETS_EXE`, PATH | conda-forge `ncbi-datasets-cli` |
+| pyhmmer | Packaged Pfam family classifier | Python dependency | pip dependency |
+| HMMER | BITACORA HMM search/clade models | native PATH or `BITACORA_BIN`; WSL on Windows | bioconda `hmmer` |
+| Perl / patched BITACORA | Production candidate discovery | `BITACORA_DIR`, `BITACORA_BIN`, `BITACORA_WSL_DISTRO` | pinned installer checkout |
+| MetalNet2 | Optional metal-site evidence | `METALNET_PYTHON`, `METALNET2_DIR` | separate compatible model environment |
+| ESMFold adapter | Optional folding | `PREDICTOR_ESMFOLD_LIB`, `BIOHUB_TOKEN` | separate adapter/token |
 
-The canonical source pin is `715950426b70b029279343dcc541115dfee20352`.
-
-```bash
-git -c core.autocrlf=false clone https://github.com/molevol-ub/bitacora bitacora
-git -C bitacora checkout 715950426b70b029279343dcc541115dfee20352
-conda create -n bitacora -c conda-forge -c bioconda hmmer "blast>=2.12"
-export BITACORA_DIR="$PWD/bitacora"
-python -m predictor.discovery.bitacora --check
-```
-
-Run with HMMER/BLAST on `PATH` on Linux. Windows uses WSL: set `BITACORA_WSL_DISTRO` and
-`BITACORA_BIN` to the distribution and directory containing the WSL executables. Configure these
-through real environment variables or the credentials/location file. Preserve LF line endings.
-
-RIIO carries the original pipeline's GPL-3.0-only Perl patch. It makes coverage fractions configurable
-and is copied into the user's BITACORA checkout by the existing adapter. The pipeline's established
-coverage defaults are unchanged. See the packaged patch README and full upstream license.
-The engine itself is installed separately. The runner and patch now survive a wheel installation.
-
-## MetalNet2
-
-The canonical source pin is `73841055b720c25289422e5480afe6f4b19a4dad`.
+Native Linux uses native subprocesses, with `BITACORA_BIN` prepended to PATH.
+Only Windows invokes WSL. The installer pins BITACORA to
+`715950426b70b029279343dcc541115dfee20352` and copies `predictor/_engines/bitacora_patches/*.pl`.
+`tfop setup` checks those files against the installed Scripts directory.
 
 ```bash
-git clone https://github.com/wangchulab/MetalNet2 metalnet2
-git -C metalnet2 checkout 73841055b720c25289422e5480afe6f4b19a4dad
-conda create -n metalnet python=3.9.16
-conda activate metalnet
-python -m pip install "torch==1.13.1" "numpy==1.25.0" "pandas==1.5.3" "scikit-learn==1.2.2" \
-  "scipy==1.10.1" "spacy==3.5.3" "fastai==2.7.12" "lightgbm==3.3.5" "catboost==1.2" \
-  "xgboost==1.7.5" "autogluon.tabular==0.8.0" "fair-esm==2.0.0" "biopython==1.81" \
-  absl-py more-itertools "networkx==3.1" "graphviz==0.20.1" pyyaml
-```
-
-Follow the pinned upstream repository's model-download instructions: both AutoGluon model stacks
-and the ESM checkpoints are required. These multi-GB weights are not in RIIO downloads. Preserve
-their upstream directory layout (`model/train/` and `extra/train/`). Set `METALNET2_DIR` to the
-absolute engine checkout and `METALNET_PYTHON` to the dedicated environment's Python executable.
-Return to the RIIO environment and run:
-
-```bash
-python -m predictor.structure.metalnet --status
+python -c "from predictor.discovery import bitacora; print(bitacora.ensure_patched())"
 tfop setup
 ```
 
-The engine uses an older isolated dependency stack because its serialized models require it.
-The owned subprocess runner is packaged; availability of that runner is distinct from availability
-of the external models. Missing MetalNet2 is reported as unavailable evidence.
+The repair command deliberately updates installed engine scripts; `tfop setup` itself only inspects.
+Clade-model builds use private scratch directories. When a clade model cannot be built, warnings and
+`[pfam_fallback]` profile tags expose the family-model fallback; investigate before comparing candidates.
 
-## Optional folding
+Settings files accept unquoted or quoted values, spaces in quotes, and inline comments outside quotes.
+Read order: explicit `PREDICTOR_ENV_FILE`, checkout `.env`, user configuration file; existing environment
+variables win. Supported keys include:
 
-The active folding adapter is packaged, but folding remains off by default. Biohub credentials and
-service access are external; configure `BIOHUB_TOKEN` only if using `--fold`. No optional structure
-retrieval experiments, FoldX, HomoDB, or their installation programs are included.
+- `MMSEQS`, `BLAST_BIN`, `DATASETS_EXE`, `BITACORA_DIR`, `BITACORA_BIN`, `BITACORA_PY`, `BITACORA_WSL_DISTRO`;
+- `METALNET_PYTHON`, `METALNET2_DIR`;
+- `BIOHUB_TOKEN`, `NCBI_TOKEN`, `NCBI_API_KEY`, `NCBI_EMAIL`.
+
+Path and output overrides include `PREDICTOR_CACHE_DIR`, `PREDICTOR_OUTPUT_DIR`,
+`PREDICTOR_GENOME_MIRROR` and `PREDICTOR_ENV_FILE`; inspect their resolution with `tfop audit`.
+Tokens are optional for public NCBI requests but may affect service rate limits; never share `.env`.
+MetalNet2 requires its model-compatible Python environment and weights; the maintainer record in
+`env/SETUP.md` describes that legacy installation. Folding and MetalNet2 absence remain explicit abstentions.
+
+Unpublished neighbouring `5.8 Promoters` corpora are disabled by default. Only maintainers rebuilding
+source references should set `PREDICTOR_ALLOW_LEGACY_WORKSPACE=1`; ordinary runs use packaged reference bytes.
+This flag does not supply a missing deployed database. See the per-OS installation guides for native paths.

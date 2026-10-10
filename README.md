@@ -1,11 +1,37 @@
-# RIIO v1
+# RIIO v1.1
 
 **Regulator, Inducer & Operator inference**.
 
 RIIO takes a bacterial transcription-factor protein or genome and produces operator, motif,
 inducer and regulon predictions, with evidence and provenance in a portable `REPORT.html` bundle.
 This repository contains the active RIO software and the production analysis companion used by the
-project. Version 1.0.0 preserves the `tfop` commands and `predictor` Python API.
+project. Version 1.1.0 preserves the `tfop` commands and `predictor` Python API.
+
+## v1.1 workflows
+
+The CLI, Python API and browser GUI use the same resumable per-protein runner.
+
+| Starting input | CLI | GUI |
+|---|---|---|
+| One protein sequence, FASTA or accession | `tfop predict protein.faa --name MyTF` | Single TF |
+| Multi-record protein FASTA or accession TSV | `tfop batch proteins.faa --out runs/list` | Protein list |
+| Genome accession | `tfop genome GCF_000005845.2 --out runs/accession` | Genome scan / accession |
+| Local nucleotide genome and annotation | `tfop genome --fasta genome.fna --gff genome.gff --out runs/local` | Genome scan / local files |
+
+Local genome context is copied into the run and reaches each selected protein prediction. GenBank
+and proteome inputs are also supported. Complete predictions from a protein list need an organism
+or resolvable source genome for genomic context. Changed sequences, local files or prediction
+settings require a new output directory. See [entry modes and API examples](docs/ENTRY_POINTS.md).
+
+For native Ubuntu, use [the Linux installer](docs/INSTALL_LINUX.md):
+`bash env/install_linux.sh --with-riio`. It installs the native search environment and pinned
+BITACORA checkout. [Windows installation](docs/INSTALL_WINDOWS.md) uses WSL for BITACORA.
+
+Runs include per-protein `jobs/*/REPORT.html`, `discovery/DISCOVERY_REPORT.html`, `RUN_REPORT.html`
+and `Supplementary_Table_S1.xlsx`/`.tsv`. [Report rebuilding](docs/REPORTS.md) reads existing results
+with `tfop report runs/local`. [Optional AF3 exports](docs/AF3.md) use
+`tfop af3 runs/local --format both`; they do not affect predictions. Keep the complete run tree
+when sharing so relative HTML and spreadsheet links remain usable.
 
 ## Download and install
 
@@ -25,14 +51,14 @@ On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead. If ac
 use `.venv\Scripts\python.exe -m pip` and `.venv\Scripts\tfop.exe` directly.
 
 Alternatively, download the wheel from [Releases](https://github.com/MvillarruelD/riio-v1/releases)
-and install it with `python -m pip install "./tf_operator_predictor-1.0.0-py3-none-any.whl[genome,gui]"`.
+and install it with `python -m pip install "./tf_operator_predictor-1.1.0-py3-none-any.whl[genome,gui]"`.
 The wheel contains the predictor and its reference database. The source archive/Git checkout also
 contains the analysis companion and canonical candidate inputs.
 
-An installation directly from the frozen release is also available:
+After the v1.1.0 release is tagged, installation from that tag is:
 
 ```bash
-python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.0.0"
+python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.1.0"
 ```
 
 ## Install the search tools
@@ -113,7 +139,7 @@ python tools/release_check.py --selftest-timeout 120
 ```
 
 The software checks do not rerun the full multi-hour online prediction batch. See
-[the release audit](docs/RELEASE_AUDIT.md) for exactly what was checked.
+[the v1.1 preparation audit](docs/RELEASE_AUDIT_V1_1.md) for exactly what was checked.
 
 ## Repository contents
 

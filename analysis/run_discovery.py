@@ -151,12 +151,23 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", required=True, help="names the manifest and the FASTA directory")
-    ap.add_argument("--genomes", nargs="*", default=list(GENOMES),
+    ap.add_argument("--genomes", nargs="*", default=None,
                     help="organism accessions (default: the four survey genomes)")
     ap.add_argument("--census-fallback", action="store_true",
                     help="use the Pfam census when the BITACORA engine is unavailable")
     ap.add_argument("--verbose", action="store_true")
+    local = ap.add_mutually_exclusive_group()
+    local.add_argument('--fasta', type=Path, help='local genome FASTA')
+    local.add_argument('--genbank', type=Path, help='local GenBank genome')
+    local.add_argument('--proteome', type=Path, help='local protein FASTA')
+    ap.add_argument('--gff', type=Path, help='annotation for --fasta')
+    ap.add_argument('--organism', help='organism label for local input')
     a = ap.parse_args(argv)
+    if a.gff and not a.fasta:
+        ap.error('--gff requires --fasta')
+    if any((a.fasta, a.genbank, a.proteome)) and a.genomes is not None:
+        ap.error('choose local input or --genomes')
+    a.genomes = list(GENOMES) if a.genomes is None else a.genomes
 
     fasta_root = ANALYSIS / f"tf_fastas_{safe(a.tag)}"
     manifest = ANALYSIS / f"run_manifest_{safe(a.tag)}.csv"
@@ -164,6 +175,34 @@ def main(argv=None) -> int:
         print(f"! {manifest.name} already exists -- pick another tag rather than merging two "
               f"discovery runs into one manifest")
         return 1
+
+    if any((a.fasta, a.genbank, a.proteome)):
+        run_dir = ANALYSIS / f'run_{safe(a.tag)}'
+        discovered = GR.run_genome(None, run_dir, fasta=a.fasta, genbank=a.genbank,
+                                   proteome=a.proteome, gff=a.gff, organism=a.organism,
+                                   discover_only=True, census_fallback=a.census_fallback,
+                                   verbose=a.verbose)
+        with discovered.open(encoding='utf-8', newline='') as handle:
+            rows = list(csv.DictReader(handle))
+        for row in rows:
+            path = Path(row['fasta'])
+            row['fasta'] = (path if path.is_absolute() else run_dir / path).resolve().relative_to(PROJ.resolve()).as_posix()
+            local_genome = run_dir / 'inputs' / 'genome.fna'
+            local_gff = run_dir / 'inputs' / 'genome.gff'
+            if local_genome.is_file() and local_gff.is_file():
+                row['local_genome'] = local_genome.relative_to(PROJ).as_posix()
+                row['local_gff'] = local_gff.relative_to(PROJ).as_posix()
+                row['local_contig'] = row.get('contig', '')
+            row['organism_acc'] = row.get('organism_acc') or row.get('genome') or 'local_input'
+        # Carry explicit run-owned context through the analysis manifest.
+        columns = list(dict.fromkeys(key for row in rows for key in row))
+        with manifest.open('w', encoding='utf-8', newline='') as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f'{len(rows)} local-input candidates -> {manifest}')
+        print(f'next: python analysis/run_pipeline.py --manifest {manifest.name} --all --jobs 4')
+        return 0
 
     rows, engines = [], set()
     for acc in a.genomes:

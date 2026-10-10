@@ -11,3 +11,6 @@ recursive-include tools *.py
 prune runs
 prune results
 global-exclude *.py[cod]
+include env/install_linux.sh
+include env/engines-linux.yml
+recursive-include tests/data *.md *.fna *.gff *.faa

@@ -8,7 +8,7 @@ commit 5815559), but reaching the same answer is not the same as reproducing the
 and reproducing it is the point of this module.
 
 Same bridge pattern as `structure.metalnet`: the engine is an external checkout under `env/tools/`
-(gitignored, user-installed per `docs/ENGINES.md`), `env/tools/bitacora_runner.py` is the thin runner we
+(gitignored, user-installed per `docs/ENGINES.md`), `predictor/_engines/bitacora_runner.py` is the thin runner we
 own, and this adapter is what the pipeline calls. When the engine is absent this module ABSTAINS with
 a stated reason -- it never silently substitutes the census, because the two carry different
 provenance.
@@ -39,6 +39,10 @@ from pathlib import Path
 
 from predictor import resources
 
+# Engine locations may live in the .env (`resources._PATH_KEYS`); read them before the module
+# constants below are computed from os.environ.
+resources.load_tokens()
+
 _REPO = Path(__file__).resolve().parents[2]
 
 #: The upstream checkout. Gitignored and user-installed -- see `docs/ENGINES.md` section BITACORA.
@@ -57,7 +61,7 @@ CACHE_DIR = resources.cache_path("bitacora")
 #: Measured over all four genomes with the E-value held at 1e-5, relaxing only this rule to
 #: 0.50/0.50 recovers 17 more of the survey's candidates for 6 additional proteins the survey does
 #: not list. Loosening the E-value to 1e-3 instead costs 6.9 unlisted proteins per recovery -- about
-#: twenty times worse. See `env/tools/bitacora_patches/README.md`.
+#: twenty times worse. See `predictor/_engines/bitacora_patches/README.md`.
 COVERAGE_QCOV = "0.50"
 COVERAGE_SCOV = "0.50"
 
@@ -67,12 +71,20 @@ COVERAGE_SCOV = "0.50"
 PATCH_DIR = resources.PACKAGE_DIR / "_engines" / "bitacora_patches"
 
 
+def _same_bytes(src: Path, tgt: Path) -> bool:
+    """Compare contents directly: filecmp caches by (size, mtime), and copy2 keeps the source mtime,
+    so a just-repaired script of equal size could still read as unpatched in the same process."""
+    try:
+        return tgt.is_file() and src.read_bytes() == tgt.read_bytes()
+    except OSError:
+        return False
+
+
 def ensure_patched() -> list[str]:
     """Copy tracked patches over the user-installed engine. Returns the files it refreshed.
 
     Silent when the engine is absent -- that is the normal offline state, not an error.
     """
-    import filecmp
     import shutil
     dest = ENGINE_DIR / "Scripts"
     if not dest.is_dir() or not PATCH_DIR.is_dir():
@@ -80,10 +92,22 @@ def ensure_patched() -> list[str]:
     done = []
     for src in sorted(PATCH_DIR.glob("*.pl")):
         tgt = dest / src.name
-        if not tgt.exists() or not filecmp.cmp(src, tgt, shallow=False):
+        if not _same_bytes(src, tgt):
             shutil.copy2(src, tgt)
             done.append(src.name)
     return done
+
+
+def patch_status() -> tuple[bool, str]:
+    """Inspect installed scripts without changing the engine checkout."""
+    expected = sorted(PATCH_DIR.glob("*.pl"))
+    if not expected:
+        return False, "tracked BITACORA patches are missing from this installation"
+    mismatches = [src.name for src in expected
+                  if not _same_bytes(src, ENGINE_DIR / "Scripts" / src.name)]
+    if mismatches:
+        return False, "BITACORA patches not applied: " + ", ".join(mismatches)
+    return True, "tracked coverage patches applied"
 
 #: E-value for BOTH searches -- BITACORA takes a single `-e` and applies it to BLASTP and HMMER
 #: alike, so this is one knob, not two.
@@ -156,12 +180,38 @@ class BitacoraResult:
         return self.status == "ok"
 
 
-#: BITACORA is a Perl/shell pipeline that shells out to BLAST+ and HMMER binaries. HMMER has no
-#: Windows build, so on Windows the engine runs through WSL -- the same bridge pattern Folddisco uses.
-#: `BITACORA_BIN` is the WSL directory holding hmmsearch/blastp (a conda env's bin/ is the no-sudo way
-#: to get them, and is what `docs/ENGINES.md` documents).
+#: BITACORA is a Perl/shell pipeline that shells out to BLAST+ and HMMER binaries.
+#:
+#: * **Linux / macOS** run it natively. `BITACORA_BIN`, when set, is a directory holding
+#:   hmmsearch/hmmalign/hmmbuild/blastp (normally a conda env's `bin/`, which is what
+#:   `env/install_linux.sh` creates); it is put first on PATH for every engine call. Unset, the tools
+#:   must already be on PATH.
+#: * **Windows** has no HMMER build, so the engine runs through WSL. There `BITACORA_BIN` is the
+#:   directory INSIDE WSL, and defaults to the conda env `docs/INSTALL_WINDOWS.md` creates.
+ON_WINDOWS = os.name == "nt"
 _DISTRO = os.environ.get("BITACORA_WSL_DISTRO", "Ubuntu")
 _WSL_BIN = os.environ.get("BITACORA_BIN", "$HOME/miniforge3/envs/bitacora/bin")
+
+
+def native_bin() -> str | None:
+    """The engine tool directory on a native (non-Windows) host, or None when PATH is to be used."""
+    raw = os.environ.get("BITACORA_BIN", "")
+    if ON_WINDOWS or not raw:
+        return None
+    path = Path(os.path.expandvars(os.path.expanduser(raw)))
+    return str(path) if path.is_dir() else None
+
+
+def native_env() -> dict:
+    """os.environ with `BITACORA_BIN` first on PATH: the environment every native engine call gets.
+
+    Without this the runner and the clade-model build could see two different HMMER installs -- the
+    second one read BITACORA_BIN and the first did not.
+    """
+    env = dict(os.environ)
+    if (bin_dir := native_bin()):
+        env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
+    return env
 
 
 def _win2wsl(p) -> str:
@@ -173,6 +223,8 @@ def _win2wsl(p) -> str:
 
 
 def _wsl_exe() -> str | None:
+    if not ON_WINDOWS:                 # inside WSL or on Linux the engine runs natively, never via wsl.exe
+        return None
     for cand in (os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe", "wsl.exe", "wsl"):
         if Path(cand).exists() or cand in ("wsl.exe", "wsl"):
             return cand
@@ -193,6 +245,10 @@ def _wsl_has(tool: str) -> bool:
         return False
 
 
+#: Every binary BITACORA or the clade-model build calls.
+ENGINE_TOOLS = ("blastp", "makeblastdb", "hmmsearch", "hmmalign", "hmmbuild")
+
+
 def engine_available() -> tuple[bool, str]:
     """(installed?, why not). Checked the same way `tfop setup` checks every other engine.
 
@@ -209,12 +265,18 @@ def engine_available() -> tuple[bool, str]:
         return False, f"{ENGINE_DIR} exists but holds no runBITACORA*.sh -- incomplete checkout"
     if not RUNNER.exists():
         return False, f"the runner {RUNNER} is missing from this checkout"
-    missing = [t for t in ("blastp", "hmmsearch")
-               if not shutil.which(t) and not _wsl_has(t)]
+    search_path = native_env().get("PATH")
+    missing = [t for t in ENGINE_TOOLS
+               if not shutil.which(t, path=search_path) and not _wsl_has(t)]
     if missing:
+        where = (f"Neither the Windows PATH nor WSL ({_DISTRO}, PATH={_WSL_BIN}) has them"
+                 if ON_WINDOWS else
+                 f"They are not on PATH{' or in $BITACORA_BIN=' + native_bin() if native_bin() else ''}"
+                 f" (run env/install_linux.sh, or set $BITACORA_BIN to the env's bin/)")
         return False, (f"BITACORA needs {', '.join('`' + m + '`' for m in missing)} (BLAST+ and "
-                       f"HMMER). Neither the Windows PATH nor WSL ({_DISTRO}, PATH={_WSL_BIN}) has "
-                       f"them -- see docs/ENGINES.md section BITACORA")
+                       f"HMMER). {where} -- see docs/ENGINES.md section BITACORA")
+    if not ON_WINDOWS and not shutil.which("perl", path=search_path):
+        return False, "BITACORA is a Perl pipeline and `perl` is not on PATH"
     return True, ""
 
 
@@ -300,6 +362,7 @@ def _write_profile_hmm(profile: str, family: str, dest: Path) -> str:
     override = _os.environ.get(f"BITACORA_HMM_{profile.upper()}")
     if override and Path(override).exists():
         _sh.copyfile(override, target)
+        (dest / f"{profile}_db.hmm.source").write_text("override", encoding="utf-8")
         return f"from ${{BITACORA_HMM_{profile.upper()}}}"
 
     from predictor.annotate.family_db import _PFAM_HMM
@@ -331,7 +394,32 @@ def _write_profile_hmm(profile: str, family: str, dest: Path) -> str:
     # hmmalign the clade against the DBD, then hmmbuild. Measured on that same TetR case, 52 -> 14.
     # Needs nothing but HMMER, which the engine already requires.
     built = _build_clade_hmm(profile, target, dest)
+    (dest / f"{profile}_db.hmm.source").write_text("clade" if built else "pfam_family", encoding="utf-8")
     return built or f"{len(kept)} Pfam model(s) (family-level; clade model not built)"
+
+
+#: Suffix on a candidate's `profile` when the profile that found it ran on the Pfam family model.
+PFAM_FALLBACK_TAG = "[pfam_fallback]"
+
+
+def _warn_fallback(profile: str, why: str) -> None:
+    """Say, on stderr, that a profile is falling back to its family-level Pfam model.
+
+    This used to be silent, and the fallback changes the candidate set (PF00440 alone returns 52 TetRs
+    on H37Rv where the clade model returns 14), so a failed build looked like a different genome.
+    """
+    print(f"WARNING: BITACORA profile {profile}: clade HMM build failed; using the family-level "
+          f"Pfam model, which over-calls. Candidates found by this profile are tagged "
+          f"'{profile}{PFAM_FALLBACK_TAG}' in the manifest. Cause: {why or 'unknown'}",
+          file=sys.stderr, flush=True)
+
+
+def hmm_source(dest: Path, profile: str) -> str:
+    """'clade' | 'pfam_family' | 'override' | '' (a cache written before this was recorded)."""
+    try:
+        return (Path(dest) / f"{profile}_db.hmm.source").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 
 def _build_clade_hmm(profile: str, pfam_hmm: Path, dest: Path) -> str:
@@ -343,23 +431,39 @@ def _build_clade_hmm(profile: str, pfam_hmm: Path, dest: Path) -> str:
     clade_fa = dest / f"{profile}_db.fasta"
     if not clade_fa.exists():
         return ""
-    on_windows = os.name == "nt"
-    sto, tmp_hmm = "/tmp/_tfop_clade.sto", "/tmp/_tfop_clade.hmm"
-    q_hmm = _win2wsl(pfam_hmm) if on_windows else str(pfam_hmm)
-    q_fa = _win2wsl(clade_fa) if on_windows else str(clade_fa)
-    q_out = _win2wsl(dest / f"{profile}_db.hmm") if on_windows else str(dest / f"{profile}_db.hmm")
-    inner = (f'export PATH={_WSL_BIN}:$PATH; '
-             f'hmmalign --amino --trim -o {sto} "{q_hmm}" "{q_fa}" && '
-             f'hmmbuild --amino -n {profile}_clade {tmp_hmm} {sto} >/dev/null && '
-             f'cp {tmp_hmm} "{q_out}"')
-    cmd = ([os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe",
-            "-d", _DISTRO, "-e", "bash", "-lc", inner] if on_windows
-           else ["bash", "-lc", inner])
+    import tempfile
+
+    out_hmm = dest / f"{profile}_db.hmm"
+    work = None
+    if ON_WINDOWS:
+        # One private scratch directory per call, made inside WSL. Fixed /tmp names collided between
+        # concurrent runs and between users, and every collision fell back to the family model.
+        q_hmm, q_fa, q_out = _win2wsl(pfam_hmm), _win2wsl(clade_fa), _win2wsl(out_hmm)
+        inner = (f'export PATH={_WSL_BIN}:$PATH; d=$(mktemp -d) && '
+                 f'hmmalign --amino --trim -o "$d/c.sto" "{q_hmm}" "{q_fa}" && '
+                 f'hmmbuild --amino -n {profile}_clade "$d/c.hmm" "$d/c.sto" >/dev/null && '
+                 f'cp "$d/c.hmm" "{q_out}"; rc=$?; rm -rf "$d"; exit $rc')
+        cmd = [os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe",
+               "-d", _DISTRO, "-e", "bash", "-lc", inner]
+        env = None
+    else:
+        work = Path(tempfile.mkdtemp(prefix="tfop_clade_"))
+        sto, tmp_hmm = work / "c.sto", work / "c.hmm"
+        cmd = ["bash", "-c",
+               f'hmmalign --amino --trim -o "{sto}" "{pfam_hmm}" "{clade_fa}" && '
+               f'hmmbuild --amino -n {profile}_clade "{tmp_hmm}" "{sto}" >/dev/null && '
+               f'cp "{tmp_hmm}" "{out_hmm}"']
+        env = native_env()
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
-    except Exception:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900, env=env)
+    except Exception as exc:
+        _warn_fallback(profile, f"{type(exc).__name__}: {exc}")
         return ""
+    finally:
+        if work is not None:
+            shutil.rmtree(work, ignore_errors=True)
     if proc.returncode != 0:
+        _warn_fallback(profile, (proc.stderr or proc.stdout or "").strip()[-300:])
         return ""
     n = sum(1 for ln in clade_fa.read_text(encoding="utf-8", errors="replace").splitlines()
             if ln.startswith(">"))
@@ -432,8 +536,12 @@ def build_profiles(dest: Path | None = None, *, force: bool = False) -> dict:
         if not target.exists() or force:
             shutil.copyfile(src, target)
             rec["status"] = "written"
-        rec["hmm"] = ("present" if (dest / f"{profile}_db.hmm").exists() and not force
+        # A cached family-level fallback is retried: the failure that caused it (a missing tool, a
+        # scratch collision) is usually gone, and keeping it would make the over-call permanent.
+        cached = (dest / f"{profile}_db.hmm").exists() and hmm_source(dest, profile) != "pfam_family"
+        rec["hmm"] = ("present" if cached and not force
                       else _write_profile_hmm(profile, family, dest))
+        rec["hmm_source"] = hmm_source(dest, profile)
         out[profile] = rec
     return out
 
@@ -529,7 +637,7 @@ def find_candidates(genome_fasta, gff=None, *, profiles=None, out_dir=None,
            "--evalue", os.environ.get("BITACORA_EVALUE", SEARCH_EVALUE),
            "--name", Path(genome_fasta).stem[:24] or "tfop"]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=native_env())
     except subprocess.TimeoutExpired:
         return BitacoraResult(status="failed", genome=str(genome_fasta),
                               reason=f"BITACORA exceeded {timeout}s")
@@ -538,7 +646,24 @@ def find_candidates(genome_fasta, gff=None, *, profiles=None, out_dir=None,
                               reason=(proc.stderr or proc.stdout or "")[-500:])
     res = _parse_runner_output(out_dir, genome=str(genome_fasta))
     res.protein_source = protein_source
+    tag_fallback_profiles(res.candidates, prof_dir)
     return res
+
+
+def tag_fallback_profiles(candidates, prof_dir: Path) -> int:
+    """Mark candidates found by a profile that ran on the Pfam family model. Returns how many.
+
+    The tag rides in `profile`, which the manifest carries as `discovery_profile`, so a fallback is
+    visible in every downstream table instead of looking like an ordinary clade-model hit.
+    """
+    fallback = {pr for pr in SEED_PROFILES if hmm_source(prof_dir, pr) == "pfam_family"}
+    n = 0
+    for c in candidates:
+        if fallback and c.profile and any(pr in fallback for pr in c.profile.split("|")):
+            c.profile = "|".join(pr + PFAM_FALLBACK_TAG if pr in fallback else pr
+                                 for pr in c.profile.split("|"))
+            n += 1
+    return n
 
 
 def _family_of_profiles(profile_field: str) -> str:

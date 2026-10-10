@@ -1,5 +1,29 @@
 # Report file contract
 
+New bundles retain manifest major version 2 and add `schema_minor: 1` plus
+`af3_export_contract: jobset-v1`. `af3_jobs.json` remains an AlphaFold Server
+array. Its jobs now include a protein-only apo oligomer, up to three exact
+operator duplexes, and available metal/metal-plus-DNA recipes. Missing operators
+do not suppress apo/metal jobs. Export errors are reported, never silently used
+to erase the whole valid job set. Oligomer and ion counts are modelling assumptions.
+
+`tfop af3 RUN_DIR` rebuilds server/local exports under `RUN_DIR/af3/`; a single
+bundle rebuild defaults to a sibling `<bundle-name>_af3/` directory. Rebuilds
+never modify existing bundles, preserving every inventoried checksum. The
+sidecar `af3_manifest.tsv` records written/skipped jobs, format, cognate species,
+model ion/count, analogue flag, operator source rank/locus, chemical caveats and
+count assumptions. Local inputs are individual `alphafold3` version 1 objects;
+server inputs are `alphafoldserver` version 1 arrays chunked at a configurable
+packaging size (30 by default, not a promise of account quota).
+
+These formats follow the [official server input specification](https://github.com/google-deepmind/alphafold/blob/main/server/README.md)
+and [local input specification](https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md).
+Local CCD chemistry is recorded with RCSB source links. Arsenite uses AST
+(free AsO3, not an asserted protein-bound As(Cys)3 complex); antimonite local
+export abstains because SB represents bare Sb(III), not the oxyanion. Family
+membership alone does not establish structural Zn or additional Fur sites.
+AF3 export policies do not alter stored inducer calls or operator rankings.
+
 `python -m predictor.report.bundle_contract BUNDLE` performs an installed,
 filesystem-only audit. Its JSON result reports validity, manifest version, assurance
 level, number of hashes checked, whether `REPORT.html` was inspected, and findings.

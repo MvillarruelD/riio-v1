@@ -61,6 +61,10 @@ from pathlib import Path
 
 from predictor import resources
 
+# Engine locations may live in the .env (`resources._PATH_KEYS`); read them before the module
+# constants below are computed from os.environ.
+resources.load_tokens()
+
 _REPO = Path(__file__).resolve().parents[2]
 
 RUNNER = resources.PACKAGE_DIR / "_engines" / "metalnet_runner.py"
