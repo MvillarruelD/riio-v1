@@ -21,6 +21,16 @@ def require_packaged_kb_for_released_data(request):
         pytest.skip("packaged anchor knowledge base is absent")
 
 
+@pytest.fixture
+def require_mmseqs():
+    """These two integration cases search shipped records through an optional engine."""
+    from predictor.annotate.homologs import find_mmseqs
+    try:
+        find_mmseqs()
+    except FileNotFoundError:
+        pytest.skip("MMseqs2 is not installed; engine-dependent released-data case")
+
+
 @pytest.mark.released_data
 def test_anchor_sets_are_populated():
     """Populated and not truncated -- counted the way the KB now stores it.
@@ -127,7 +137,8 @@ def test_family_without_an_ssn_says_so():
 
 
 @pytest.mark.released_data
-def test_true_member_still_assigns():
+@pytest.mark.engine
+def test_true_member_still_assigns(require_mmseqs):
     info = ssn.info_for_cluster("MerR_9")
     _acc, seq = next(ssn.iter_sequences(info))
     a = hs.assign_cluster(seq, ssn.MERR, top_n=30)
@@ -135,7 +146,8 @@ def test_true_member_still_assigns():
 
 
 @pytest.mark.released_data
-def test_unassigned_reasons_are_distinguishable():
+@pytest.mark.engine
+def test_unassigned_reasons_are_distinguishable(require_mmseqs):
     """`cluster_id=None` used to conflate three different situations."""
     assert len({hs.STATUS_NO_SSN, hs.STATUS_NO_HIT, hs.STATUS_LOW_IDENTITY,
                 hs.STATUS_LOW_SUPPORT, hs.STATUS_SMALL_CLUSTER}) == 5

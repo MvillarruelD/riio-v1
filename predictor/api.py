@@ -76,7 +76,7 @@ def _resolve_folds(cfg, fold):
 def predict(seq: str, *, name: str = "query", family: str | None = None, organism: str | None = None,
             genome_acc: str | None = None, effector: str | None = None, fold: bool | None = None,
             cfg=None, verbose: bool = True, **kw) -> Result:
-    """Run the novel-TF pipeline on `seq` (a protein sequence or a FASTA path).
+    """Run the novel-TF pipeline on raw protein, one-record FASTA, or protein accession.
 
     fold: True runs the optional structural branch (ESMFold2 apo oligomer + AlphaFold-DB QC).
         The default is OFF; it enriches the report and changes no prediction. A Biohub token is
@@ -91,6 +91,28 @@ def predict(seq: str, *, name: str = "query", family: str | None = None, organis
         cfg = RunConfig()
     cfg = _resolve_folds(cfg, fold)
     cfg.verbose = verbose
+    from predictor.run_cli import _resolve_prediction_source
+    seq = _resolve_prediction_source(seq, offline=not cfg.allow_online)
     res = pipeline.run_novel(seq, name=name, family=family, organism=organism, genome_acc=genome_acc,
                              effector=effector, cfg=cfg, **kw)
     return Result.from_run(res)
+
+
+def predict_many(source, out_dir, **kwargs):
+    """Predict every supplied protein (multi-FASTA or accession TSV), without discovery filtering."""
+    from predictor.batch import run_batch
+    return run_batch(source, Path(out_dir), **kwargs)
+
+
+def discover(source, **kwargs):
+    """Discover candidate TFs with BITACORA; census fallback is explicit and recorded."""
+    from predictor.genome_run import discover as discover_candidates
+    return discover_candidates(Path(source), **kwargs)
+
+
+def run_genome(accession=None, out_dir=None, **kwargs):
+    """Run accession or local FASTA/GFF, GenBank, or proteome discovery and prediction."""
+    from predictor.genome_run import run_genome as run
+    if out_dir is None:
+        raise ValueError("out_dir is required")
+    return run(accession, Path(out_dir), **kwargs)

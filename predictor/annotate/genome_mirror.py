@@ -79,6 +79,50 @@ def _pick_fna(acc_dir: Path) -> Path | None:
     return fnas[0] if fnas else None
 
 
+def _usable_fasta(path: Path) -> bool:
+    """Require complete, nonempty FASTA records before publishing or reusing a cache file."""
+    try:
+        records, has_sequence = 0, False
+        with Path(path).open(encoding="utf-8") as stream:
+            for raw in stream:
+                line = raw.strip()
+                if not line:
+                    continue
+                if line.startswith(">"):
+                    if not line[1:].strip() or (records and not has_sequence):
+                        return False
+                    records += 1
+                    has_sequence = False
+                else:
+                    if not records:
+                        return False
+                    has_sequence = True
+        return bool(records and has_sequence)
+    except (OSError, UnicodeError):
+        return False
+
+
+def _publish_file(source: Path, destination: Path) -> None:
+    """Publish one completed file atomically so concurrent readers never see a partial copy."""
+    import time
+    with tempfile.NamedTemporaryFile(prefix=f".{destination.name}.", suffix=".tmp",
+                                     dir=destination.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+    try:
+        shutil.copyfile(source, temporary)
+        # Windows can briefly prevent replacement while another reader holds the old file.
+        for attempt in range(5):
+            try:
+                os.replace(temporary, destination)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def ingest_zip(zip_path, *, mirror_dir: Path = MIRROR_DIR) -> list:
     """Unpack a `datasets download genome` zip into the mirror as `<acc>.fna` (+ `<acc>.gff`).
 
@@ -101,10 +145,15 @@ def ingest_zip(zip_path, *, mirror_dir: Path = MIRROR_DIR) -> list:
             fna = _pick_fna(acc_dir)
             if fna is None:
                 continue
-            shutil.copyfile(fna, mirror_dir / f"{acc}.fna")
+            if not _usable_fasta(fna):
+                raise ValueError(f"datasets archive contains an empty or malformed FASTA for {acc}")
             gff = acc_dir / "genomic.gff"
             if gff.exists():
-                shutil.copyfile(gff, mirror_dir / f"{acc}.gff")
+                if not gff.is_file() or not gff.stat().st_size:
+                    raise ValueError(f"datasets archive contains an empty annotation for {acc}")
+                _publish_file(gff, mirror_dir / f"{acc}.gff")
+            # Publish FASTA last: a newly visible sequence has its supplied annotation ready.
+            _publish_file(fna, mirror_dir / f"{acc}.fna")
             ingested.append(acc)
     return ingested
 
@@ -236,20 +285,22 @@ def ensure_genome(accession: str, *, allow_download: bool = True, mirror_dir: Pa
     # the mirror keys on whatever accession was ingested; match by stem prefix for GCF/GCA or exact for nuccore
     for fna in list(mirror_dir.glob(f"{accession}*.fna")) + ([mirror_dir / f"{accession}.fna"]
                                                              if (mirror_dir / f"{accession}.fna").exists() else []):
+        if not _usable_fasta(fna):
+            continue
         gff = fna.with_suffix(".gff")
         return fna, (gff if gff.exists() else None)
     if not allow_download:
         return None, None
     try:
         info = fetch_accession(accession, mirror_dir=mirror_dir)
-    except (FileNotFoundError, RuntimeError):
+    except (FileNotFoundError, RuntimeError, ValueError, zipfile.BadZipFile):
         return None, None
     acc = (info.get("ingested") or [None])[0]
     if not acc:
         return None, None
     fna = mirror_dir / f"{acc}.fna"
     gff = fna.with_suffix(".gff")
-    return (fna if fna.exists() else None), (gff if gff.exists() else None)
+    return (fna if _usable_fasta(fna) else None), (gff if gff.exists() else None)
 
 
 # --------------------------------------------------------------------------- info / rebuild

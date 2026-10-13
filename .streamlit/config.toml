@@ -5,3 +5,10 @@ backgroundColor = "#F5F7F4"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#17231F"
 font = "sans-serif"
+
+# Same defaults as the `tfop-gui` launcher: serve this machine only, send no usage statistics.
+[server]
+address = "localhost"
+
+[browser]
+gatherUsageStats = false

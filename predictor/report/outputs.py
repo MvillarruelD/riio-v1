@@ -682,6 +682,8 @@ def _write_stage_a_contents(dossier: dict, *, d: Path, final: Path, struct: dict
         raise RuntimeError(f"Stage-A staging bundle is missing required artifact(s): {', '.join(missing)}")
     manifest = {
         "schema_version": 2,
+        "schema_minor": 1,
+        "af3_export_contract": "jobset-v1",
         "status": "complete",
         "tf_id": tf,
         "required_artifacts": required,

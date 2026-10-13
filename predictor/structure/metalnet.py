@@ -60,6 +60,11 @@ from functools import lru_cache
 from pathlib import Path
 
 from predictor import resources
+from predictor.input_validation import path_exists
+
+# Engine locations may live in the .env (`resources._PATH_KEYS`); read them before the module
+# constants below are computed from os.environ.
+resources.load_tokens()
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -508,8 +513,8 @@ def main(argv=None) -> int:
         print(json.dumps(status(), indent=2))
         return 0
     s = a.seq
-    if Path(s).exists():
-        s = "".join(l.strip() for l in Path(s).read_text().splitlines() if not l.startswith(">"))
+    if path_exists(s):
+        s = "".join(l.strip() for l in Path(s).read_text(encoding="utf-8").splitlines() if not l.startswith(">"))
     res = predict_site(s, tf_id=a.tf_id, family=a.family, allow_colabfold=a.colabfold,
                        use_cache=not a.no_cache, verbose=True)
     print(json.dumps(res, indent=2))

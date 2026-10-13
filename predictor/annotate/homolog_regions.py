@@ -84,6 +84,10 @@ def collect_homolog_regions(seq, *, n: int = 10, db=None, min_identity: float = 
 
 def _demo() -> None:
     import yaml
+    from predictor import resources
+    if not resources.legacy_workspace_enabled():
+        print("SKIP: developer source-corpus self-test requires PREDICTOR_ALLOW_LEGACY_WORKSPACE=1")
+        return
     root = Path(__file__).resolve().parents[2].parent / "5.8 Promoters" / "arsr_merr_families"
     seq = yaml.safe_load(open(root / "transcription_factors" / "merr" / "AdhR_Bsubtilis.yaml",
                               encoding="utf-8"))["sequence"]["protein"]

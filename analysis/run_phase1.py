@@ -72,6 +72,13 @@ def run_one(r: dict, *, fold: str | None, timeout: int, offline: bool = False) -
     # (online + agnostic of pre-gathered local data) is now the only behaviour there is.
     cmd = [PY, "-m", "predictor.run_cli", "predict", str(PROJ / r["fasta"]),
            "--name", name, "--organism", r["organism_acc"]]
+    if r.get("local_genome"):
+        cmd += ["--local-genome", str(MF.resolve_fasta(r["local_genome"], PROJ)),
+                "--local-gff", str(MF.resolve_fasta(r["local_gff"], PROJ))]
+        if r.get("local_contig"):
+            cmd += ["--local-contig", r["local_contig"]]
+        if r.get("start") and r.get("end"):
+            cmd += ["--tf-locus", str(int(r["start"]) - 1), str(r["end"]), r.get("strand") or "+"]
     if r["family_flag"] != "(auto)":
         cmd += ["--family", r["family_flag"]]
     if fold:

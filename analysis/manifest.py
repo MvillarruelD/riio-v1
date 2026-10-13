@@ -124,6 +124,26 @@ def validate_rows(rows: list[dict], project_root: Path, *,
         if not (row.get("organism_acc") or "").strip():
             issues.append(f"row {row_no}: empty organism_acc ({name or 'unnamed'})")
 
+        context = {key: (row.get(key) or "").strip() for key in ("local_genome", "local_gff")}
+        if bool(context["local_genome"]) != bool(context["local_gff"]):
+            issues.append(f"row {row_no}: local_genome and local_gff must be provided together")
+        for key, raw_context in context.items():
+            if raw_context:
+                if Path(raw_context).is_absolute():
+                    issues.append(f"row {row_no}: {key} must be repository-relative")
+                resolved = resolve_fasta(raw_context, project_root).resolve()
+                if not resolved.is_relative_to(project_root.resolve()):
+                    issues.append(f"row {row_no}: {key} escapes repository root")
+                elif not resolved.is_file():
+                    issues.append(f"row {row_no}: {key} missing: {raw_context}")
+        if context["local_genome"] and (row.get("start") or row.get("end")):
+            try:
+                start, end = int(row["start"]), int(row["end"])
+                if start < 1 or end < start or row.get("strand", "+") not in ("+", "-"):
+                    raise ValueError("invalid interval or strand")
+            except (KeyError, TypeError, ValueError):
+                issues.append(f"row {row_no}: invalid local genomic locus")
+
         raw = (row.get("fasta") or "").strip()
         if not raw:
             issues.append(f"row {row_no}: empty fasta path")

@@ -15,7 +15,33 @@ import matplotlib
 
 matplotlib.use("Agg")
 import cnsplots as cns  # noqa: E402
+import cnsplots._utils as _cns_utils  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+
+
+def _unicode_font_only_when_needed(ax=None, font: str = "DejaVu Sans") -> None:
+    """Replacement for cnsplots' pre-save font switch, which moves EVERY non-ASCII label to DejaVu
+    Sans. Arial and Consolas already carry the arrows, dashes, ellipses and inequality signs these
+    figures use, so that switch mixed two typefaces in one figure (and the TIFF, saved without it,
+    differed from the PNG/PDF/SVG). Here a label changes font only if its own font lacks a glyph."""
+    from matplotlib import font_manager
+    from matplotlib.ft2font import FT2Font
+    ax = ax or plt.gca()
+    texts = [ax.title, ax.xaxis.label, ax.yaxis.label, *ax.get_xticklabels(), *ax.get_yticklabels(),
+             *ax.texts]
+    legend = ax.get_legend()
+    if legend is not None:
+        texts += [legend.get_title(), *legend.get_texts()]
+    for text in texts:
+        label = text.get_text()
+        if label.isascii():
+            continue
+        charmap = FT2Font(font_manager.findfont(text.get_fontproperties())).get_charmap()
+        if any(ord(ch) not in charmap for ch in label if not ch.isspace()):
+            text.set_fontfamily(font)
+
+
+_cns_utils.apply_unicode_font = _unicode_font_only_when_needed
 
 HERE = Path(__file__).resolve().parent
 FIGDIR = HERE / "figures"

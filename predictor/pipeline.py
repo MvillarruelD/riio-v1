@@ -48,7 +48,7 @@ BLAST_HOMOLOG_REGIONS = 12          # homolog promoters requested from the BLAST
 AUTOREG_MAX_DISTANCE_BP = 80        # a rescan hit this close to the TF's own operator window = autoregulation
 REGULON_PVALUE = 1e-4               # per-site p-value for sites that seed the regulon
 PER_HIT_REGULATION_MAX_HITS = 60    # rescan hits annotated with a regulated gene in the report
-AF3_TOP_LOCI = 5                    # distinct loci exported as AlphaFold-3 jobs
+AF3_TOP_LOCI = 3                    # distinct operator duplexes in the AF3 job set
 AF3_OPERATOR_LENGTH = 60            # bp of genomic DNA per exported AF3 job
 if __package__ in (None, ""):                      # support `python predictor/pipeline.py`
     sys.path.insert(0, str(_REPO))
@@ -190,7 +190,7 @@ def _seed_selection_report(decision, trials, construction):
 # --------------------------------------------------------------------------- novel-TF path (0 folds)
 def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
                     organism: str | None = None, genome_acc: str | None = None, tf_locus=None,
-                    effector: str | None = None, cfg=None,
+                    effector: str | None = None, cfg=None, local_genome=None, local_gff=None, local_contig=None,
                     seed_construction: ss.SeedConstruction) -> dict:
     """The cold-start path for a TF that was never folded/curated. Conservation-first discovery, identical
     for every family. Emits operators + motif + mode + design candidate + the job bundle.
@@ -285,7 +285,11 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     # NCBI rather than read out of a mirror that only exists on a development machine.
     acc = genome_acc or organism
     ctx = None
-    if acc:
+    if local_genome:
+        if not local_gff:
+            raise ValueError("local genome prediction requires a GFF annotation")
+        ctx = context.from_gff(local_gff, local_genome, accession=local_contig)
+    if acc and ctx is None:
         # `ensure_genome` is mirror-FIRST: it returns an already-cached genome before it considers
         # downloading, and `allow_download` gates only the download. Gating the whole call on
         # `allow_ncbi` therefore made an offline run refuse a genome sitting in its own cache --
@@ -746,26 +750,12 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
                        for g in ctx.genes if g.end > win[0] and g.start < win[1]],
              "operator": [op_seq_start, op_seq_end]}
 
-    # AF3 hand-off: the top putative operators as TF-dimer + dsDNA jobs (validate the best DNA). Dedupe by
-    # LOCUS first: a near-palindromic operator (e.g. NmtR) is independently detected on BOTH strands at
-    # (near-)identical coordinates -- the same physical dsDNA duplex -- so without this the same site could
-    # consume 2 of the 5 AF3 job slots (and produce duplicate job names). Keep the best-scoring hit per
-    # locus bin (same round(dyad/10) tolerance signals.regulon uses for site dedup), then take the top 5
-    # distinct loci.
+    # AF3 serialization is deferred until the unchanged ranked operator artifact
+    # exists below. The legacy ion field remains independent of export analogues.
     ion = af3_export.map_effector_to_ion(effector)
-    best_by_locus: dict = {}
-    for h in rescan_hits:
-        key = (h.genome_accession, round((h.dyad_center or 0) / 10))
-        if key not in best_by_locus or (h.score or 0) > (best_by_locus[key].score or 0):
-            best_by_locus[key] = h
-    picks = sorted(best_by_locus.values(), key=lambda h: -(h.score or 0))[:AF3_TOP_LOCI] or []
-    af3_jobs = (af3_export.to_af3_jobs(picks, seq, genome_seq=ctx.sequence, length=AF3_OPERATOR_LENGTH, ion=ion,
-                                       name_prefix=name)
-                if (picks and getattr(cfg, "emit_af3_jobs", True)) else [])
-    try:
-        af3_export.validate_jobs(af3_jobs)
-    except Exception:
-        af3_jobs = []
+    # Keep the legacy dossier ion policy above prediction-neutral. Export recipes
+    # (including Fe(II)->Mn server analogues) do not feed inducer inference.
+    af3_jobs = []
 
     # Metal context: the survey's second axis and the anchor support behind the cluster label. Both
     # are already decided by this point and were simply not being written anywhere a reader looks.
@@ -878,6 +868,23 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
         return _failure(name, family, "operators", "no primary operator could be assembled",
                         genome=ctx.accession)
 
+    # Export only after the shared ranked artifact is complete, so fresh exports
+    # and offline bundle rebuilds select operators in exactly the same order.
+    if getattr(cfg, "emit_af3_jobs", True):
+        from predictor.structure.af3_jobset import build_job_set, to_server_json
+        import warnings as _af3_warnings
+        job_set = build_job_set(seq, operators, effector, family, ctx.sequence,
+                                top_n=AF3_TOP_LOCI, name_prefix=name, genome_accession=ctx.accession)
+        for export_job in job_set.jobs:
+            try:
+                af3_jobs.append(to_server_json(export_job))
+            except ValueError as exc:
+                _af3_warnings.warn(f"AF3 {export_job.name} skipped: {exc}", RuntimeWarning)
+        doss_d["af3_jobs"] = af3_jobs
+        for diagnostic in job_set.diagnostics:
+            if diagnostic["kind"] != "metal" or "no verified" in diagnostic["reason"]:
+                _af3_warnings.warn(f"AF3 {name}: {diagnostic['reason']}", RuntimeWarning)
+
     bundle = None
     if write:
         # WS6 Stage-A: the self-contained per-TF folder (structure/ operators/ ligand/ genome/ motif/ regulation/)
@@ -946,7 +953,7 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
 # --------------------------------------------------------------------------- public + benchmark seams
 def run_novel(seq: str, *, name: str = "query", family: str | None = None,
               organism: str | None = None, genome_acc: str | None = None, tf_locus=None,
-              effector: str | None = None, cfg=None) -> dict:
+              effector: str | None = None, cfg=None, local_genome=None, local_gff=None, local_contig=None) -> dict:
     """Run the single production path with the frozen production seed construction."""
     return _run_novel_impl(
         seq,
@@ -957,6 +964,9 @@ def run_novel(seq: str, *, name: str = "query", family: str | None = None,
         tf_locus=tf_locus,
         effector=effector,
         cfg=cfg,
+        local_genome=local_genome,
+        local_gff=local_gff,
+        local_contig=local_contig,
         seed_construction=ss.DEFAULT_CONSTRUCTION,
     )
 

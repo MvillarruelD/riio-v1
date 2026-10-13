@@ -31,6 +31,7 @@ from pathlib import Path
 from predictor import resources
 
 from predictor.annotate.genome_resolver import is_dna, _blast, _run, _write_fasta
+from predictor.input_validation import path_exists
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -71,6 +72,8 @@ class FamilyCall:
 # --------------------------------------------------------------------------- reference build
 def _iter_tf_yamls():
     import yaml
+    if not resources.legacy_workspace_enabled():
+        return
     for src, root in (("operators_db", _OPDB_TFS), ("curated", _CURATED_TFS)):
         for f in sorted(glob.glob(str(root / "**" / "*.yaml"), recursive=True)):
             try:
@@ -367,8 +370,8 @@ def _main(argv):
         print(f"Pfam HMM library: {m} HMMs -> {_PFAM_HMM.name}")
     elif argv and argv[0] == "classify":
         seq = argv[1]
-        if Path(seq).exists():
-            seq = "".join(l.strip() for l in Path(seq).read_text().splitlines()
+        if path_exists(seq):
+            seq = "".join(l.strip() for l in Path(seq).read_text(encoding="utf-8").splitlines()
                           if not l.startswith(">"))
         print(classify_family(seq))
     else:
@@ -376,39 +379,20 @@ def _main(argv):
 
 
 def _demo() -> None:
-    import yaml
-    if not _ALL_FAA.exists():
-        build_reference()
-    have_hmm = _PFAM_HMM.exists()
-    print(f"broad reference present; Pfam HMM library present: {have_hmm}")
-
-    # holistic: a TetR-family TF must classify TetR/AcrR, NOT be forced into the two archetypes
-    tetr = next((d for _s, d in _iter_tf_yamls()
-                 if (d.get("classification") or {}).get("protein_family") == "TetR/AcrR"
-                 and (d.get("sequence") or {}).get("protein")), None)
-    if tetr is None:
-        print("  note: no TetR/AcrR yaml with a sequence found in operators_db/curated -- skipping")
-    else:
-        fc = classify_family(tetr["sequence"]["protein"], exclude_id=tetr["id"])
-        print(f"TetR TF {tetr['id']} -> family={fc.family} via {fc.method} ({fc.evidence})")
-        assert fc.family and "TetR" in fc.family, f"expected TetR/AcrR, got {fc.family}"
-
-    # archetypes still correct
-    adh = yaml.safe_load(open(_CURATED_TFS / "merr" / "AdhR_Bsubtilis.yaml", encoding="utf-8"))
-    fa = classify_family(adh["sequence"]["protein"], exclude_id="AdhR_Bsubtilis")
-    print(f"AdhR -> family={fa.family} via {fa.method} ({fa.evidence})")
-    assert fa.family == "MerR", f"expected MerR, got {fa.family}"
-
-    lys = next((d for _s, d in _iter_tf_yamls()
-                if (d.get("classification") or {}).get("protein_family") == "LysR-type (LTTR)"
-                and (d.get("sequence") or {}).get("protein")), None)
-    if lys is None:
-        print("  note: no LysR-type (LTTR) yaml with a sequence found in operators_db/curated -- skipping")
-    else:
-        fl = classify_family(lys["sequence"]["protein"], exclude_id=lys["id"])
-        print(f"LysR TF {lys['id']} -> family={fl.family} via {fl.method}")
-        assert fl.family and "LysR" in fl.family, f"expected LysR, got {fl.family}"
-    print("OK: holistic family classification across families (TetR, MerR, LysR).")
+    """Classify packaged exemplars; no unpublished source files or reference writes."""
+    from Bio import SeqIO
+    if not _ALL_FAA.is_file() or not _ALL_JSON.is_file() or not _PFAM_HMM.is_file():
+        raise RuntimeError("packaged family reference is incomplete; reinstall RIIO")
+    metadata = json.loads(_ALL_JSON.read_text(encoding="utf-8"))
+    records = {record.id: str(record.seq) for record in SeqIO.parse(str(_ALL_FAA), "fasta")}
+    for family in ("MerR", "TetR/AcrR", "LysR-type (LTTR)"):
+        ident = next((ident for ident in records if metadata.get(ident, {}).get("family") == family), None)
+        if ident is None:
+            raise AssertionError(f"packaged reference has no {family} exemplar")
+        call = classify_family(records[ident], exclude_id=ident)
+        print(f"{ident}: family={call.family} via {call.method}")
+        assert call.family == family, f"expected {family}, got {call.family}"
+    print("OK: packaged family classification across MerR, TetR and LysR.")
 
 
 if __name__ == "__main__":

@@ -1,47 +1,194 @@
-name: release checks
+name: tests
 
 on:
   push:
+    branches: [main, "**"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  source:
-    runs-on: ubuntu-latest
+  pytest:
+    # The vendored SSN member databases and the Pfam HMM library make the checkout ~150 MB, so the
+    # matrix is deliberately small: the suite is pure-Python and platform-independent, and the point
+    # is to catch regressions, not to certify every interpreter.
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12']
+        include:
+          - os: ubuntu-latest
+            python-version: "3.10"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install -e ".[dev,genome,gui]" -r analysis/requirements.txt
-      - name: Search engine used by released-data integration tests
-        run: sudo apt-get update && sudo apt-get install -y mmseqs2
-      - run: python tools/build_data_manifest.py --check
-      - run: python -m ruff check predictor tests tools analysis reports
-      - run: python -m pytest -ra
-      - run: python -m pytest -ra -m released_data
 
-  wheel:
+      - name: Install (editable, with dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,gui]"
+
+      - name: Packaged-data manifest is current
+        # The manifest is the contract for what a release contains, so a data file added without
+        # updating it fails here rather than at release time.
+        run: python tools/build_data_manifest.py --check
+
+      - name: Lint
+        run: ruff check predictor tests tools
+
+      - name: Generic tests
+        # The default marker expression excludes the classified shipped-record/reference reads.
+        run: pytest -q
+
+      - name: Shipped-data integration tests
+        # Separate from the generic gate so its record-reading scope is explicit. This remains
+        # offline; the authoritative UniProt comparison is not part of either gate.
+        run: pytest -q -m released_data
+
+      - name: Console entry point is installed and runnable
+        run: |
+          tfop --help
+          tfop audit || true          # reports how resources resolve; absent engines are not a failure
+
+      - name: Module self-tests
+        # Each module's own --self-test / _demo. Missing engines and network report SKIP, not FAIL.
+        # Not previously gated: a stale assertion in structure.early_structure failed unnoticed until
+        # 2026-09-24 because nothing in CI ran the self-tests.
+        run: tfop selftest
+
+  e2e-linux:
+    # Required real-engine integration, including completed predictions. NCBI genome/homolog
+    # retrieval makes this network-dependent; installation alone cannot make it an offline test.
     runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MPLBACKEND: Agg
+      PREDICTOR_ALLOW_LEGACY_WORKSPACE: "0"
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
+      - name: Scratch locations outside the checkout
+        # The `runner` context is not available in a job-level `env:` (GitHub rejects the whole
+        # workflow file), so the runner's temp directory is exported from a step instead.
+        run: |
+          echo "PREDICTOR_CACHE_DIR=$RUNNER_TEMP/riio-cache" >> "$GITHUB_ENV"
+          echo "PREDICTOR_OUTPUT_DIR=$RUNNER_TEMP/riio-e2e" >> "$GITHUB_ENV"
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: env/engines-linux.yml
+          environment-name: riio-engines
+          cache-environment: true
+          init-shell: bash
+      - name: Install RIIO and pin/patch the real BITACORA engine
+        run: bash env/install_linux.sh --with-riio
+      - name: Readiness and module self-tests
+        run: |
+          tfop setup
+          tfop selftest
+      - name: Real discovery and full single, batch, local-genome and accession predictions
+        run: python tools/linux_e2e.py --out "$PREDICTOR_OUTPUT_DIR" --timeout 1200
+      - name: Retain reports, bundles and per-TF logs even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riio-linux-e2e
+          path: ${{ runner.temp }}/riio-e2e
+          if-no-files-found: warn
+          retention-days: 14
+
+  wheel:
+    # The job above runs from the CHECKOUT, where the working directory and an editable install both
+    # hide packaging defects. This one asks the question that actually matters for distribution:
+    # does a non-editable wheel, installed elsewhere, still find its data and run?
+    #
+    # It became possible when the reference data moved into `predictor/data/`. Before that move the
+    # references lived at the repo root, OUTSIDE the package, so only an editable install worked.
+    # That constraint is gone, and this job is what keeps it gone.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - run: python -m pip install -e ".[dev,genome]" -r analysis/requirements.txt
-      - name: Isolated wheel, source archive, packaged data and CLI
-        run: python tools/release_check.py --skip-tests --selftest-timeout 120
-      - name: Build downloadable artifacts
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install the build frontend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "build>=1.2"
+
+      - name: Build wheel and source distribution
         run: python -m build --wheel --sdist --outdir dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: riio-distributions
-          path: dist/*
+
+      - name: Install the wheel into a clean environment, non-editably
+        run: |
+          python -m venv /tmp/tfop-venv
+          /tmp/tfop-venv/bin/python -m pip install --upgrade pip
+          /tmp/tfop-venv/bin/python -m pip install dist/*.whl
+
+      - name: Installed CLI works OUTSIDE the checkout
+        # `cd` out of the repository first: inside it, the checkout satisfies imports and relative
+        # paths a real installation would not, so a passing check there would prove nothing.
+        run: |
+          mkdir -p /tmp/tfop-work && cd /tmp/tfop-work
+          /tmp/tfop-venv/bin/tfop --version
+          /tmp/tfop-venv/bin/tfop audit
+
+      - name: Every manifest-listed data file survived packaging
+        run: |
+          cd /tmp/tfop-work
+          /tmp/tfop-venv/bin/python - <<'PY'
+          import json, pathlib, sys, predictor
+          data = pathlib.Path(predictor.__file__).parent / "data"
+          manifest = json.loads((data / "MANIFEST.json").read_text(encoding="utf-8"))
+          missing = [e["path"] for e in manifest["files"] if not (data / e["path"]).is_file()]
+          print(f"{len(manifest['files']) - len(missing)}/{len(manifest['files'])} data files present")
+          if missing:
+              print("MISSING:", *missing[:20], sep="\n  ")
+              sys.exit(1)
+          PY
+
+      - name: Representative scan from the installed package
+        # Reads the packaged Pfam HMM and reference sequences -- the part a wheel most easily omits.
+        run: |
+          cd /tmp/tfop-work
+          printf '>smoke_tf\nMSTNPKPQRKTKRNTNRRPQDVKFPGGGQIVGGVYLLPRRGPRLGVRATRKTSERSQPRGRRQPIPKARRPEGRTWAQPGYPWPLYGNEG\n' > smoke.faa
+          PREDICTOR_OUTPUT_DIR=/tmp/tfop-work/results /tmp/tfop-venv/bin/tfop scan smoke.faa --out /tmp/tfop-work/scan
+          test -f /tmp/tfop-work/scan/scan_manifest.json
+
+      - name: Nothing was written inside site-packages
+        # An installed package is read-only: caches belong in the user cache and results under
+        # PREDICTOR_OUTPUT_DIR. A runtime that writes into site-packages breaks any shared install.
+        run: |
+          /tmp/tfop-venv/bin/python - <<'PY'
+          import pathlib, sys, predictor
+          pkg = pathlib.Path(predictor.__file__).parent
+          stray = [p for p in pkg.rglob("*")
+                   if p.is_file() and "__pycache__" not in p.parts
+                   and p.name.endswith((".log", ".sqlite", ".tmp"))]
+          if stray:
+              print("runtime wrote into the installed package:", *stray, sep="\n  ")
+              sys.exit(1)
+          print("installed package is unmodified")
+          PY

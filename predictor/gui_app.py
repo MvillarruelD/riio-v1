@@ -5,16 +5,11 @@ presentation and input guidance only; scientific behavior remains in ``predictor
 """
 from __future__ import annotations
 
-import base64
 import contextlib
 import io
-import mimetypes
 import queue
-import re
-import tempfile
 import threading
 import time
-from dataclasses import asdict
 from pathlib import Path
 
 import streamlit as st
@@ -24,8 +19,8 @@ from predictor.annotate.genome_scan import (PIPELINE_FAMILIES,
                                             POTENTIAL_METALLOREGULATOR_FAMILIES)
 from predictor.config import RunConfig
 from predictor.gui_support import (PIPELINE_RUN_LOCK, available_job_name,
-                                   reserve_output_dir, safe_name)
-from predictor.input_validation import known_families, read_protein
+                                   context_archive, report_preview, reserve_output_dir, safe_name)
+from predictor.input_validation import read_protein
 
 
 APP_TITLE = "TF operator predictor"  # Product-title placeholder: replace when the final project name is chosen.
@@ -147,16 +142,27 @@ def _available_job_name(stem: str) -> str:
 
 
 def _inline_report_assets(text: str, bundle: Path) -> str:
-    """Turn report-relative image paths into data URIs for the embedded same-page preview."""
-    def repl(match):
-        rel = match.group(1)
-        path = bundle / rel
-        if not path.is_file():
-            return match.group(0)
-        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-        return f'src="data:{mime};base64,{encoded}"'
-    return re.sub(r'src="([^":]+)"', repl, text)
+    return report_preview(text, bundle)
+
+
+def _full_download(root: Path, kind: str) -> None:
+    """Build potentially large archives only after an explicit user action."""
+    key = f"context_archive_{kind}_{root.resolve()}"
+    if st.button(f"Prepare full {kind} download", key=f"prepare_{key}"):
+        try:
+            with st.spinner("Preparing saved report files and assets…"):
+                st.session_state[key] = context_archive(root)
+        except (OSError, ValueError) as exc:
+            st.error(f"Could not prepare the download: {exc}")
+            st.session_state.pop(key, None)
+    if key in st.session_state:
+        data, skipped = st.session_state[key]
+        st.download_button(f"Download full {kind} · ZIP", data,
+                           file_name=f"{_safe_name(root.name)}_{kind.replace(' ', '_')}.zip",
+                           mime="application/zip", key=f"download_{key}")
+        st.caption("Extract the ZIP before opening its HTML reports. Prepare again to include newly saved files.")
+        if skipped:
+            st.warning("Linked or temporary paths were omitted: " + ", ".join(skipped))
 
 
 class _LogWriter(io.TextIOBase):
@@ -233,9 +239,11 @@ def _workflow_selector() -> str:
     """Persistent primary navigation. Genome scanning is the first-run default."""
     st.markdown('<div class="mode-title">Start an analysis</div>', unsafe_allow_html=True)
     choice = st.segmented_control(
-        "Analysis type", ("Genome scan", "Single TF"), default="Genome scan",
+        "Analysis type", ("Genome scan", "Protein list", "Single TF"), default="Genome scan",
         key="workflow_choice", label_visibility="collapsed", width="stretch",
     )
+    if choice == "Protein list":
+        return "batch"
     if choice == "Single TF":
         st.caption("Go directly from one protein accession or sequence to operators, possible inducer and regulon.")
         return "predict"
@@ -281,6 +289,8 @@ def _render_prediction(res) -> None:
     st.subheader("Report")
     st.caption("Read the complete report below. Open exports only when you need to reuse the result.")
     with st.expander("Download report & data", expanded=False):
+        _full_download(bundle, "bundle")
+        st.caption("Individual HTML downloads require their saved folder and report assets.")
         downloads = st.columns(2)
         for index, (label, rel, mime) in enumerate((
             ("Report · HTML", "REPORT.html", "text/html"),
@@ -295,6 +305,7 @@ def _render_prediction(res) -> None:
         st.markdown(f'<div class="technical-path">Saved in {bundle}</div>', unsafe_allow_html=True)
 
     if report.is_file():
+        st.caption("Preview: file links are disabled. Use the full bundle download to open linked files.")
         embedded = _inline_report_assets(report.read_text(encoding="utf-8", errors="replace"), bundle)
         st.iframe(embedded, width="stretch", height=1180)
     else:
@@ -497,298 +508,12 @@ def _render_batch_report(rows: list[dict], predictions: dict) -> None:
     metrics[1].metric("Possible inducer", pred.get("inducer") or "Unresolved")
     metrics[2].metric("Primary operator", pred.get("primary_operator") or "Unresolved")
     if report.is_file():
-        st.download_button("Download this full report", report.read_bytes(), file_name=f"{_safe_name(chosen)}_REPORT.html",
+        _full_download(bundle, "bundle")
+        st.caption("Individual HTML requires the saved folder. Preview file links are disabled; use the full bundle ZIP.")
+        st.download_button("Download report HTML", report.read_bytes(), file_name=f"{_safe_name(chosen)}_REPORT.html",
                            mime="text/html")
         embedded = _inline_report_assets(report.read_text(encoding="utf-8", errors="replace"), bundle)
         st.iframe(embedded, width="stretch", height=1050)
-
-
-def _scan_workspace() -> None:
-    scan = st.session_state.get("last_scan")
-    submitted = False
-    if scan:
-        head, action = st.columns([3, 1])
-        with head:
-            st.markdown('<div id="analysis-workspace" class="workspace-head"><div><h2>Genome scan</h2>'
-                        f'<p>{scan.get("source", "Genome")} · candidate census complete</p></div></div>',
-                        unsafe_allow_html=True)
-        with action:
-            if st.button("New genome scan", width="stretch"):
-                st.session_state.pop("last_scan", None)
-                st.session_state.pop("scan_selected_ids", None)
-                st.rerun()
-        _scan_flow(3 if st.session_state.get("scan_selected_ids") else 2)
-    else:
-        st.markdown('<div id="analysis-workspace" class="workspace-head"><div><h2>Scan a genome</h2>'
-                    '<p>Use an NCBI accession for the shortest path, or upload local sequence files.</p>'
-                    '</div></div>', unsafe_allow_html=True)
-        _scan_flow(1)
-        source_method = st.segmented_control(
-            "Genome input", ("NCBI accession", "Upload FASTA"), default="NCBI accession",
-            label_visibility="collapsed", width="stretch",
-        )
-        with st.form("scan_form", border=True):
-            genome_acc, upload, annotation_upload = "", None, None
-            if source_method == "NCBI accession":
-                genome_acc = st.text_input(
-                    "Genome accession", placeholder="GCF_000005845.2 or NC_000913.3",
-                    help="NCBI Datasets fetches the genome and annotation once, then reuses the local cache.",
-                )
-            else:
-                upload = st.file_uploader("Genome or proteome FASTA", type=("fna", "fa", "fasta", "faa"),
-                                          key="scan_upload")
-                annotation_upload = st.file_uploader(
-                    "Genome annotation (optional GFF3)", type=("gff", "gff3"), key="scan_gff_upload",
-                    help="Recommended for nucleotide genomes so source protein accessions, locus tags, genes and products are preserved.")
-            engine_ok, engine_why = _discovery_engine()
-            with st.expander("Advanced scan settings", expanded=not engine_ok):
-                method = st.radio(
-                    "Discovery method", (_PRODUCTION, _QUICK), index=0 if engine_ok else 1,
-                    help="Production is the route the published runs used (`tfop genome`). The Pfam "
-                         "census is faster and reaches nearly the same set, but it is a different method.",
-                )
-                if not engine_ok:
-                    st.caption(f"Production discovery is unavailable here: {engine_why}. "
-                               "See docs/ENGINES.md to install BITACORA.")
-                families = st.multiselect(
-                    "Limit the initial census", sorted(known_families()), placeholder="All TF families",
-                    help="Leave empty to scan every family. Filter and select candidates after the scan.",
-                )
-                out_name = st.text_input(
-                    "Output name (optional)", placeholder="Generated from the accession or filename…",
-                    help="A numeric suffix is added automatically when an earlier scan uses the same name.",
-                )
-            submitted = st.form_submit_button("Find candidate TFs", type="primary", width="stretch")
-
-    if submitted:
-        if source_method == "NCBI accession" and not genome_acc.strip():
-            st.error("Enter a genome accession, such as GCF_000005845.2.")
-            return
-        if source_method == "Upload FASTA" and upload is None:
-            st.error("Choose a genome or proteome FASTA to scan.")
-            return
-        try:
-            from predictor.annotate import genome_scan as GS
-
-            production = method == _PRODUCTION
-
-            def run_scan(source: Path, source_label: str, annotation: Path | None = None):
-                suggested = out_name.strip() or genome_acc.strip() or Path(source_label).stem
-                out = _available_output_path(f"scan_{_safe_name(suggested, 'genome_scan')}")
-                label = ("Searching proteins with BITACORA and the SSN-clade profiles…" if production
-                         else "Scanning proteins against the Pfam TF-family library…")
-                with st.status(label, expanded=True) as status:
-                    if production:
-                        from predictor import genome_run as GR
-                        found, _engine, kind = GR.discover(source, gff=annotation, work_dir=out / "bitacora")
-                        cands, n_proteins = GR.as_census_candidates(found, source, annotation)
-                        if families:
-                            cands = [c for c in cands if c.family in families]
-                    else:
-                        cands, kind, n_proteins = GS.scan(source, gff=annotation,
-                                                          families=set(families) or None)
-                    GS.write_outputs(cands, out, kind=kind, n_proteins=n_proteins,
-                                     source=source_label, source_path=source,
-                                     annotation_path=annotation)
-                    status.update(label=f"Census complete · {len(cands)} candidate TFs",
-                                  state="complete", expanded=False)
-                return cands, kind, n_proteins, out
-
-            if source_method == "NCBI accession":
-                from predictor.annotate import genome_mirror
-                with st.spinner("Fetching the genome and annotation from NCBI (cached after the first run)…"):
-                    source, annotation = genome_mirror.ensure_genome(genome_acc.strip(), allow_download=True)
-                if source is None:
-                    raise RuntimeError(
-                        "The genome could not be fetched. Check the accession and confirm the NCBI "
-                        "Datasets CLI is installed with `tfop audit`."
-                    )
-                cands, kind, n_proteins, out = run_scan(source, genome_acc.strip(), annotation)
-                organism = genome_acc.strip()
-            else:
-                suffix = Path(upload.name).suffix or ".fasta"
-                with tempfile.TemporaryDirectory(prefix="tfop_gui_scan_") as td:
-                    source = Path(td) / f"input{suffix}"
-                    source.write_bytes(upload.getvalue())
-                    annotation = None
-                    if annotation_upload is not None:
-                        annotation = Path(td) / "input.gff3"
-                        annotation.write_bytes(annotation_upload.getvalue())
-                    cands, kind, n_proteins, out = run_scan(source, upload.name, annotation)
-                organism = None
-            st.session_state.last_scan = {
-                "rows": [asdict(c) for c in cands], "out": str(out), "kind": kind,
-                "n_proteins": n_proteins, "source": genome_acc.strip() if organism else upload.name,
-                "organism": organism, "predictions": {}, "logs": {},
-                "method": "production" if production else "pfam_census",
-            }
-            st.session_state.pop("scan_selected_ids", None)
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Scan stopped: {exc}")
-
-    scan = st.session_state.get("last_scan")
-    if not scan:
-        return
-    rows, out = scan["rows"], Path(scan["out"])
-    st.markdown('<div class="result-head"><span class="eyebrow">Completed census</span></div>',
-                unsafe_allow_html=True)
-    located = sum(1 for row in rows if row.get("contig") and row.get("start") is not None)
-    a, b, c, d = st.columns(4)
-    a.metric("Input type", scan["kind"].replace("_", " "))
-    b.metric("Proteins scanned", f"{scan['n_proteins']:,}")
-    c.metric("Candidate TFs", f"{len(rows):,}")
-    d.metric("Located on genome", f"{located:,}")
-    if scan["kind"] == "proteome":
-        st.info("This was a protein-only input, so genomic coordinates are unavailable. Upload the genome FASTA with its GFF3—or use an NCBI genome accession—to map each TF to a locus.")
-    elif scan["kind"] == "genome":
-        st.info("No source annotation was supplied. Loci below are predicted gene coordinates from Pyrodigal; the GFF3/BED outputs preserve that provenance.")
-    else:
-        st.success("Source annotation used: protein accessions and genomic loci were preserved from GFF3.")
-
-    if rows:
-        family_count = len({row.get("family") or "Unresolved" for row in rows})
-        with st.expander(f"Family overview · {family_count} families", expanded=False):
-            _render_family_overview(rows)
-
-        st.markdown('<div class="section-kicker">Step 2</div>', unsafe_allow_html=True)
-        st.markdown("### Choose TFs to analyze")
-        st.caption("Filter by family, then select individual candidates or all supported candidates.")
-        family_values = sorted({r.get("family") or "Unresolved" for r in rows})
-        family_filter = st.multiselect("Show families", family_values, placeholder="All families",
-                                       key=f"scan_family_filter_{out.name}")
-        visible = [r for r in rows if not family_filter or (r.get("family") or "Unresolved") in family_filter]
-        if "scan_selected_ids" not in st.session_state:
-            st.session_state.scan_selected_ids = set()
-        selected = set(st.session_state.scan_selected_ids)
-        st.caption(f"{len(selected)} selected across all filters")
-        controls = st.columns(3)
-        if controls[0].button("Select shown", width="stretch"):
-            st.session_state.scan_selected_ids = selected | {r["protein_id"] for r in visible}
-            st.rerun()
-        if controls[1].button("Select all supported", width="stretch"):
-            st.session_state.scan_selected_ids = {r["protein_id"] for r in rows
-                                                  if r.get("family") in PIPELINE_FAMILIES}
-            st.rerun()
-        if controls[2].button("Clear selection", width="stretch"):
-            st.session_state.scan_selected_ids = set()
-            st.rerun()
-
-        editor_rows = []
-        predictions = scan.get("predictions", {})
-        for row in visible:
-            pred = predictions.get(row["protein_id"], {})
-            editor_rows.append({
-                "run": row["protein_id"] in selected, "protein_id": row["protein_id"],
-                "locus_tag": row.get("locus_tag") or "—", "locus": _locus_label(row),
-                "family": row.get("family") or "Unresolved", "evalue": row["evalue"], "bits": row["bits"],
-                "prediction": (pred.get("status") or "Ready")
-                if row.get("family") in PIPELINE_FAMILIES else "Census only",
-            })
-        edited = st.data_editor(
-            editor_rows, hide_index=True, width="stretch",
-            disabled=["protein_id", "locus_tag", "locus", "family", "evalue", "bits", "prediction"],
-            column_order=("run", "protein_id", "family", "evalue", "bits", "locus_tag", "locus", "prediction"),
-            column_config={
-                "run": st.column_config.CheckboxColumn("Analyze", help="Select this TF for the full operator, inducer and regulon workflow."),
-                "protein_id": st.column_config.TextColumn("Protein"),
-                "locus_tag": st.column_config.TextColumn("Locus tag", help="Stable gene identifier from the source GFF3 when available; predicted ORF id for an unannotated genome."),
-                "locus": st.column_config.TextColumn("Genomic locus", help="Contig and 1-based inclusive coordinates. Hover a value to see the full text."),
-                "family": st.column_config.TextColumn("Family"),
-                "evalue": st.column_config.NumberColumn("E-value", format="%.2e", help="Expected number of equally strong HMM matches by chance. Smaller is more significant."),
-                "bits": st.column_config.NumberColumn("Bits", format="%.1f", help="HMM alignment score in bits. Larger values indicate stronger family-match support."),
-                "prediction": st.column_config.TextColumn("Status", help="Only the 12 supported families can enter the complete workflow."),
-            },
-            key=f"candidate_editor_{out.name}", height=min(520, 38 + 35 * len(editor_rows)),
-        )
-        edited_rows = edited.to_dict("records") if hasattr(edited, "to_dict") else edited
-        visible_ids = {r["protein_id"] for r in visible}
-        selected = (selected - visible_ids) | {r["protein_id"] for r in edited_rows if r.get("run")}
-        st.session_state.scan_selected_ids = selected
-        eligible = [r for r in rows if r["protein_id"] in selected and r.get("family") in PIPELINE_FAMILIES]
-        pending = [r for r in eligible if predictions.get(r["protein_id"], {}).get("status") != "Complete"]
-        unsupported = [r for r in rows if r["protein_id"] in selected and r.get("family") not in PIPELINE_FAMILIES]
-        if unsupported:
-            st.warning(f"{len(unsupported)} selected candidate(s) are census-only and will not be sent to the full pipeline. Their family and locus annotations remain downloadable.")
-
-        st.markdown('<div class="section-kicker">Step 3</div>', unsafe_allow_html=True)
-        st.markdown("### Build complete reports")
-        st.caption("Each selected TF receives an operator, possible-inducer and regulon report in the same format.")
-        with st.expander("Advanced run settings", expanded=False):
-            o1, o2 = st.columns(2)
-            batch_fold = o1.checkbox("Add apo-fold analysis", value=False, key="scan_batch_fold",
-                                     help="Opt-in ESMFold2 enrichment; needs BIOHUB_TOKEN.")
-            batch_metalnet = o2.checkbox("Use MetalNet2 when available", value=True, key="scan_batch_metalnet",
-                                         help="If unavailable, the pipeline records an abstention and continues.")
-            batch_af3 = o1.checkbox("Write optional AF3 jobs", value=True, key="scan_batch_af3",
-                                    help="Writes a manual hand-off file. Nothing reads it back.")
-            batch_offline = o2.checkbox("Use cached data only", value=False, key="scan_batch_offline",
-                                        help="Disables network retrieval.")
-        already_complete = len(eligible) - len(pending)
-        if already_complete:
-            st.caption(f"{already_complete} selected report{'s are' if already_complete != 1 else ' is'} already complete.")
-        if len(pending) > 10:
-            st.info(f"Large batch: {len(pending)} reports run sequentially and may take several hours. "
-                    "You can narrow the family filter or select individual TFs first.")
-        run_batch = st.button(f"Build {len(pending)} complete report{'s' if len(pending) != 1 else ''}",
-                              type="primary", width="stretch", disabled=not pending)
-        if run_batch:
-            from predictor.annotate import genome_scan as GS
-            cfg = RunConfig(allow_online=not batch_offline, allow_folds=batch_fold,
-                            allow_metalnet=batch_metalnet, emit_af3_jobs=batch_af3)
-            predictions = dict(scan.get("predictions", {}))
-            logs = dict(scan.get("logs", {}))
-            progress = st.progress(0, text="Preparing selected TFs…")
-            with st.status(f"Building {len(pending)} complete TF report(s)…", expanded=True) as status:
-                for index, row in enumerate(pending, 1):
-                    pid = row["protein_id"]
-                    progress.progress((index - 1) / len(pending),
-                                      text=f"{index}/{len(pending)} · {pid} · {row.get('family')}")
-                    try:
-                        # Production discovery's family is a routing hint: as in `tfop genome`, the
-                        # pipeline makes its own family call. A census family is passed through, as before.
-                        hint = None if scan.get("method") == "production" else row.get("family")
-                        res, log = _run_with_log(lambda row=row, pid=pid, hint=hint: api.predict(
-                            row["sequence"], name=_available_job_name(f"{out.name}_{pid}"),
-                            family=hint, organism=scan.get("organism"),
-                            fold=batch_fold, cfg=cfg, verbose=True,
-                        ))
-                        logs[pid] = log
-                        predictions[pid] = {
-                            "inducer": res.inducer, "primary_operator": res.primary_operator,
-                            "bundle": str(res.bundle) if res.bundle else None,
-                            "status": "Complete" if res.ok else "Stopped",
-                            "error": None if res.ok else (res.error or "The prediction did not complete."),
-                        }
-                    except Exception as exc:
-                        predictions[pid] = {"inducer": None, "primary_operator": None,
-                                            "bundle": None, "status": "Stopped", "error": str(exc)}
-                progress.progress(1.0, text="Refreshing the combined scan report…")
-                cands = [GS.Candidate(**{k: v for k, v in row.items()
-                                         if k in GS.Candidate.__dataclass_fields__}) for row in rows]
-                GS.write_outputs(cands, out, kind=scan["kind"], n_proteins=scan["n_proteins"],
-                                 source=scan.get("source", ""), predictions=predictions)
-                scan["predictions"], scan["logs"] = predictions, logs
-                st.session_state.last_scan = scan
-                completed = sum(1 for r in pending if predictions[r["protein_id"]]["status"] == "Complete")
-                status.update(label=f"Reports ready · {completed}/{len(pending)} completed",
-                              state="complete" if completed == len(pending) else "error", expanded=False)
-            st.rerun()
-
-        predictions = scan.get("predictions", {})
-        _render_inducer_overview(rows, predictions)
-        _render_batch_report(rows, predictions)
-
-    with st.expander("Exports & reusable files", expanded=False):
-        st.caption("GFF3 is the annotation overlay; BED opens in genome browsers. Predicted labels never overwrite curated source records.")
-        _scan_downloads(out)
-        st.markdown(f'<div class="technical-path">Saved in {out}</div>', unsafe_allow_html=True)
-    report = out / "SCAN_REPORT.html"
-    if report.is_file():
-        preview = st.toggle("Preview combined scan report", value=False,
-                            key=f"preview_scan_report_{out.name}")
-        if preview:
-            st.iframe(report, width="stretch", height=900)
 
 
 def _environment_panel() -> None:
@@ -798,15 +523,107 @@ def _environment_panel() -> None:
             from predictor import setup_tools
             with st.spinner("Checking the same tool paths used by the pipeline…"):
                 result = setup_tools.check()
-            rows = [{"engine": r["name"], "needed": "required" if r["required"] else "optional",
-                     "status": "ready" if r["present"] else "missing", "purpose": r["purpose"]}
+            # `required` is True, False, or "genome" (needed only for genome discovery), as in `tfop setup`.
+            needed = {True: "required", False: "optional"}
+            rows = [{"engine": r["name"], "needed": needed.get(r["required"], "genome discovery only"),
+                     "status": "ready" if r["present"] else "missing", "purpose": r["purpose"],
+                     "how to install": "" if r["present"] else r["hint"]}
                     for r in result["rows"]]
             st.dataframe(rows, width="stretch", hide_index=True)
-            missing = [r["name"] for r in result["rows"] if r["required"] and not r["present"]]
+            missing = [r["name"] for r in result["rows"] if r["required"] is True and not r["present"]]
+            discovery = [r["name"] for r in result["rows"] if r["required"] == "genome" and not r["present"]]
             if missing:
                 st.warning("Install the missing required engines before a full prediction: " + ", ".join(missing))
             else:
                 st.success("All required engines are available.")
+            if discovery:
+                st.info("Genome scans need " + ", ".join(discovery) + "; single-protein and protein-list "
+                        "predictions do not.")
+
+
+def _shared_exports(out: Path) -> None:
+    _full_download(out, "run")
+    st.caption("Individual HTML downloads require the saved run folder, linked job reports and assets.")
+    for name, label in (("discovery/DISCOVERY_REPORT.html", "Discovery report"),
+                        ("RUN_REPORT.html", "Run report"),
+                        ("Supplementary_Table_S1.xlsx", "Supplementary table")):
+        path = out / name
+        if path.is_file():
+            st.download_button(label, path.read_bytes(), file_name=path.name, key=f"shared_{path.name}")
+    if (out / "af3").is_dir():
+        _full_download(out / "af3", "AF3 jobs")
+    if (out / "RUN_REPORT.html").is_file() and st.toggle("Preview run report"):
+        st.caption("Preview: file links are disabled. Extract the full run ZIP to open linked reports and files.")
+        st.iframe(_inline_report_assets((out / "RUN_REPORT.html").read_text(encoding="utf-8"), out), height=950)
+    st.caption(f"Saved in {out}")
+
+
+def _shared_workspace(*, protein_list=False) -> None:
+    """Thin GUI over the same resumable runner and output layout as CLI/API."""
+    import csv
+    from predictor import genome_run as GR
+    st.markdown("### Protein list" if protein_list else "### Genome discovery")
+    source_mode = "Protein list" if protein_list else st.radio(
+        "Starting point", ("Genome accession", "Local genome FASTA", "GenBank", "Proteome"))
+    with st.form("shared_entry_form"):
+        accession = st.text_input("Genome accession (required)" if source_mode == "Genome accession"
+                                  else "Genome accession (optional context)")
+        upload = st.file_uploader("Local sequence file", type=("fna", "fa", "fasta", "faa", "gb", "gbk", "gbff", "tsv"))
+        annotation = None if protein_list else st.file_uploader("GFF3 annotation", type=("gff", "gff3"))
+        name = st.text_input("Output name (optional)")
+        engine = _PRODUCTION if protein_list else st.radio("Discovery engine", (_PRODUCTION, _QUICK))
+        offline = st.checkbox("Use cached data only", value=False)
+        submitted = st.form_submit_button("Read protein list" if protein_list else "Find candidate TFs")
+    key = "last_shared_batch" if protein_list else "last_shared_genome"
+    if submitted:
+        try:
+            out = _available_output_path(_safe_name(name or accession or (upload.name if upload else "run"), "run"))
+            kwargs = {"out_dir": out, "discover_only": True, "offline": offline}
+            if source_mode == "Genome accession":
+                kwargs["accession"] = accession.strip() or None
+            else:
+                if upload is None:
+                    raise ValueError("Choose a local input file")
+                staged = out / "uploads"
+                staged.mkdir(parents=True, exist_ok=True)
+                source = staged / ("input" + Path(upload.name).suffix)
+                source.write_bytes(upload.getvalue())
+                if protein_list:
+                    kwargs["source"] = source
+                else:
+                    kwargs[{"Local genome FASTA": "fasta", "GenBank": "genbank", "Proteome": "proteome"}[source_mode]] = source
+                kwargs["organism"] = accession.strip() or None
+                if annotation and source_mode == "Local genome FASTA":
+                    gff = staged / "input.gff"
+                    gff.write_bytes(annotation.getvalue())
+                    kwargs["gff"] = gff
+            if not protein_list:
+                kwargs.update(census_fallback=engine == _QUICK, census_only=engine == _QUICK)
+            _run_with_log(lambda: (api.predict_many if protein_list else api.run_genome)(**kwargs))
+            st.session_state[key] = str(out)
+        except (ValueError, RuntimeError, OSError) as exc:
+            st.error(str(exc))
+    if st.session_state.get(key):
+        out = Path(st.session_state[key])
+        with (out / "manifest.csv").open(encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        st.dataframe(rows, hide_index=True, width="stretch")
+        selected = st.multiselect("Proteins to predict", [r["run_name"] for r in rows], default=[r["run_name"] for r in rows])
+        jobs = st.number_input("Parallel proteins", min_value=1, max_value=16, value=1)
+        fold = st.checkbox("Add apo-fold analysis", value=False)
+        if st.button("Build selected reports", disabled=not selected):
+            try:
+                # Every surface uses the shared runner; keep unselected discovery rows in the manifest.
+                summary, _log = _run_with_log(lambda: GR.run_candidates(rows, out, jobs=int(jobs), offline=offline,
+                                                       fold=fold, selected_names=selected))
+                from predictor.run_cli import _run_exit_status
+                if _run_exit_status(summary):
+                    st.warning("Some selected predictions failed. Review the run report and per-protein logs.")
+                else:
+                    st.success("Selected reports finished.")
+            except (ValueError, RuntimeError, OSError) as exc:
+                st.error(str(exc))
+        _shared_exports(out)
 
 
 def main() -> None:
@@ -833,12 +650,12 @@ def main() -> None:
 
     mode = _workflow_selector()
     _scope_panel()
-    if mode == "scan":
-        _scan_workspace()
+    if mode in {"scan", "batch"}:
+        _shared_workspace(protein_list=mode == "batch")
     else:
         _prediction_workspace()
     _environment_panel()
-    st.caption("Private research software · Computational predictions require experimental validation · "
+    st.caption("Research software · Computational predictions require experimental validation · "
                "Reference data are versioned · Completed results are never overwritten")
 
 

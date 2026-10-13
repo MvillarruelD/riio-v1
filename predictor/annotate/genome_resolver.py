@@ -28,6 +28,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from predictor.input_validation import path_exists
+
 def _blast_dir() -> Path | None:
     """Directory holding the BLAST+ binaries: `$BLAST_BIN` if set, else wherever `blastn` sits on PATH.
     None when BLAST+ is not installed -- callers degrade rather than shelling out to a missing binary.
@@ -41,18 +43,15 @@ def _blast_dir() -> Path | None:
 
 
 def _env_file():
-    """The .env carrying the NCBI/biohub tokens, resolved via the central resource registry (repo-local
-    `.env` / `PREDICTOR_ENV_FILE` override, falling back to the legacy 5.8 location). Imported lazily so
-    this module keeps working standalone if resources.py is unavailable."""
-    try:
-        from .. import resources
-    except Exception:
-        try:
-            from predictor import resources
-        except Exception:
-            return Path(__file__).resolve().parents[2].parent / "5.8 Promoters" / "arsr_merr_families" / ".env"
-    return resources.env_file() or (Path(__file__).resolve().parents[2].parent /
-                                    "5.8 Promoters" / "arsr_merr_families" / ".env")
+    """Central settings, with the old developer corpus available only by explicit opt-in."""
+    from predictor import resources
+    current = resources.env_file()
+    if current:
+        return current
+    if resources.legacy_workspace_enabled():
+        legacy = Path(__file__).resolve().parents[2].parent / "5.8 Promoters" / "arsr_merr_families" / ".env"
+        return legacy if legacy.is_file() else None
+    return None
 
 _DNA = set("ACGTNacgtn")
 _OUTFMT = "6 sseqid pident length qlen sstart send evalue bitscore sstrand"
@@ -120,7 +119,7 @@ def _clean_acc(sid: str) -> str:
 
 
 def _query_seq(query) -> str:
-    if isinstance(query, (str, os.PathLike)) and Path(str(query)).exists():
+    if isinstance(query, (str, os.PathLike)) and path_exists(query):
         txt = Path(query).read_text(encoding="ascii")
         return "".join(l.strip() for l in txt.splitlines() if not l.startswith(">"))
     return str(query).strip()
@@ -213,9 +212,12 @@ def _ncbi_creds():
     key = os.environ.get("NCBI_API_KEY", "") or os.environ.get("NCBI_TOKEN", "")
     _ef = _env_file()
     if (not email or not key) and _ef and _ef.exists():
-        txt = _ef.read_text(errors="ignore")
-        email = email or (re.search(r"NCBI_EMAIL\s*=\s*(\S+)", txt) or [None, ""])[1]
-        key = key or (re.search(r"NCBI_(?:API_KEY|TOKEN)\s*=\s*(\S+)", txt) or [None, ""])[1]
+        from predictor import resources
+        # The shared dotenv parser: the old `KEY\s*=\s*(\S+)` crossed the newline after an empty
+        # `NCBI_EMAIL=` and returned the next line's first token, and kept the quotes of a quoted value.
+        txt = resources.read_settings(_ef)
+        email = email or resources._env_value(txt, "NCBI_EMAIL")
+        key = key or resources._env_value(txt, "NCBI_API_KEY") or resources._env_value(txt, "NCBI_TOKEN")
     return email or "anonymous@example.com", key or None
 
 

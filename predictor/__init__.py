@@ -5,4 +5,4 @@
 # (`annotate.context` and `predictor.annotate.context`, with separate caches) and exposed generic
 # top-level names such as `schema` and `signals` that could shadow unrelated installed packages.
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

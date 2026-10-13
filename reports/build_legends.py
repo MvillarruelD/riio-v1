@@ -16,7 +16,7 @@ PLACEHOLDER = "[Legend to be written.]"
 
 #: (file stem, label, title, main?) in document order
 FIGURES = [
-    ("fig1_pipeline", "Figure 1", "The genome-to-bundle prediction pipeline", True),
+    ("fig1_pipeline", "Figure 1", "RIIO combines sequence and genomic context to predict operators and inducers", True),
     ("fig2_benchmark", "Figure 2", "Benchmark on E. coli K-12 and S. Typhimurium SL1344", True),
     ("fig3_survey", "Figure 3", "Four-genome survey", True),
     ("fig4_context_structures", "Figure 4", "Operator-bound metalloregulators in genomic context", True),
@@ -108,37 +108,30 @@ def caveat(N: dict) -> str:
 
 
 def legend_fig1(N: dict) -> str:
-    chans = _channel_names(N)
-    struct = "on" if N["provenance"].get("structure") else "off"
     return (
-        "Schematic; no run data are plotted. Each step is drawn as the data it produces; boxed names are "
-        "the established software that runs it (filled: the step's main engine). "
-        "**a**, Candidate discovery, once per genome, in four numbered steps. The proteome is every "
-        "protein of the genome's own annotation (NCBI Datasets). Selected metal-sensing clades of the "
-        "sequence-similarity network (SSN) each give one profile HMM, and BITACORA searches the proteome "
-        "with those HMMs (HMMER) and the clades' sequences (BLAST+) at E ≤ 1e-5. Candidates are the "
-        "proteins caught (dark bars). The profiles resolve clades, not whole Pfam families, so a family "
-        "member outside every selected clade never becomes a candidate. "
-        "**b**, Per-TF prediction, one independent run per candidate. The candidate's locus (regulator "
-        "dark, flanking intergenic DNA shaded) is assigned a family (pyhmmer, BLAST+) and an SSN clade "
-        "(MMseqs2 homologue hits). The operator path (teal) takes the promoter regions of orthologues "
-        "(teal windows; MMseqs2), aligns them to find a conserved inverted repeat (two facing half-sites) "
-        "and builds a PWM from it, rescans the genome's intergenic DNA with that PWM (dashed line: the "
-        "p ≤ 1e-4 cut), and ranks the kept sites; #1 is the primary operator. The regulon and the mode "
-        "of regulation (PromoterCalculator) follow from the ranked sites. "
-        f"The inducer path (blue) runs {w(len(chans))} "
-        "evidence channels: the SSN clade's curated label, the Cys/His coordination motif, a predicted "
-        "metal site (MetalNet2), metal-handling genes in the neighbourhood, and operon chemistry "
-        "(Ligify). Each calls on its own or abstains (a dashed chip); the fused call keeps every call "
-        "with its evidence behind one class and ion. Neither path reads the other's output. They meet "
-        "only afterwards, drawn as the regulator's own locus: does an operator (teal) sit at the TF's "
-        "own promoter, upstream of the regulator (blue), for a call that names an ion? "
-        f"The structure add-on (dashed) is optional and was {struct} in this run: an "
-        "ESMFold2 apo dimer, checked against the AlphaFold DB monomer, which adds a fold and changes no "
-        "call. Each run ends in a per-TF bundle: motif and ranked operators, regulon, the inducer call "
-        "with each channel's evidence, and the run record, plus AlphaFold 3 job files as a hand-off the "
-        "pipeline never runs. Nothing computed later is fed back into the motif or the inducer call; "
-        "every output is an unverified prediction."
+        "Conceptual overview; drawings illustrate states rather than measured data. The TF (a CueR "
+        "dimer), its sequence and its SSN clade (MerR cluster 7) are drawn from E. coli CueR as an "
+        "example; motifs, scan scores and loci are illustrative. **a**, Four input modes are "
+        "available through the CLI, "
+        "Python API or browser GUI. Supplied proteins bypass discovery without a family filter. "
+        "Genome routes obtain a proteome from annotation or gene calls, discover candidates with "
+        "BITACORA against curated sequence-similarity-network (SSN) clade profiles "
+        "(HMMER/BLAST+; default E ≤ 1e-5), and select TFs for prediction. Discovery may stop here. "
+        "**b**, Both routes converge on TF sequence, family, SSN clade and available locus/flanking "
+        "DNA. The teal operator path retrieves orthologue promoters, derives an inverted-repeat "
+        "position-weight matrix (PWM), scans intergenic DNA (default per-site p ≤ 1e-4), and ranks "
+        "candidate operators with regulon and mode annotations. The amber inducer path fuses "
+        "curated SSN-clade labels, Cys/His motifs, optional MetalNet2 sequence/MSA site evidence, "
+        "nearby-gene functions and Ligify ligand evidence. Channels may abstain; ions are named "
+        "only if resolved. Inducer-derived gene labels annotate operator hits without boosting "
+        "their ranking. An apo fold and fold QC are optional (off by default). **c**, Both outputs "
+        "support a regulatory hypothesis linking the TF, candidate operators/targets and putative "
+        "inducer. Solid arrows indicate data flow; dashed links indicate unvalidated biological "
+        "relationships. Per-TF bundles retain predictions and evidence; run and discovery reports "
+        "and Supplementary Table S1 are rebuilt from saved data. AlphaFold 3 apo, DNA and "
+        "metal-context input jobs are exported for server/local submission, never executed. "
+        "Single-protein calls enter prediction directly; list/genome runs check input and policy "
+        "fingerprints to reuse bundles and retry failures. Outputs require experimental validation."
     )
 
 
@@ -402,7 +395,8 @@ def figure_entries(N: dict | None = None) -> list[dict]:
 
 def main() -> int:
     N = json.loads((HERE / "numbers.json").read_text(encoding="utf-8"))
-    L = ["# Figure legends", "", f"Generated from `numbers.json`. {provenance_line(N)}", ""]
+    L = ["# Figure legends", "", (f"Data-bearing figures use `numbers.json`. {provenance_line(N)} "
+         "Figure 1 is a schematic of the v1.1 interfaces; no run data are plotted."), ""]
     for e in figure_entries(N):
         L += [f"## {e['label']} | {e['title']}", "", f"`figures/{e['key']}.*`", "", e["legend"], ""]
     (HERE / "LEGENDS.md").write_text("\n".join(L), encoding="utf-8")

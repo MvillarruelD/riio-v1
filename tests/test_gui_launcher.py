@@ -20,7 +20,7 @@ def test_launcher_applies_the_product_theme(monkeypatch):
 
     monkeypatch.setattr(gui.subprocess, "call", record)
 
-    assert gui.main() == 0
+    assert gui.main([]) == 0
     assert command[:4] == [sys.executable, "-m", "streamlit", "run"]
     assert "--server.headless=true" in command
     assert "--theme.base=light" in command
@@ -28,6 +28,18 @@ def test_launcher_applies_the_product_theme(monkeypatch):
     assert "--theme.backgroundColor=#F5F7F4" in command
     assert "--theme.secondaryBackgroundColor=#FFFFFF" in command
     assert "--theme.textColor=#17231F" in command
+
+
+def test_launcher_serves_this_machine_only_and_forwards_flags(monkeypatch):
+    """No login protects the GUI, so it must not listen on the network unless explicitly asked."""
+    commands = []
+    monkeypatch.setattr(gui.subprocess, "call", lambda argv: commands.append(argv) or 0)
+
+    assert gui.main([]) == 0
+    assert "--server.address=localhost" in commands[0]
+    assert "--browser.gatherUsageStats=false" in commands[0]
+    assert gui.main(["--server.port=8600"]) == 0
+    assert commands[1][-1] == "--server.port=8600", "user flags come last so they override the defaults"
 
 
 def test_source_checkout_uses_the_same_theme():

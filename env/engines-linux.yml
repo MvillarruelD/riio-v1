@@ -1,0 +1,25 @@
+# External engines RIIO shells out to, for Linux (x86-64 / aarch64) and macOS.
+# Created by env/install_linux.sh as the conda env `riio-engines`; the Python package itself installs
+# with pip (see README). These are command-line tools, not Python dependencies:
+#
+#   hmmer              hmmsearch / hmmalign / hmmbuild -- BITACORA's HMM half and the clade-model build
+#   blast              blastp / makeblastdb -- BITACORA's BLASTP half and TF-locus resolution
+#   mmseqs2            homolog search
+#   ncbi-datasets-cli  genome download (`tfop genome <accession>`)
+#   perl               BITACORA is a Perl/shell pipeline
+#   git                to fetch BITACORA at its pinned commit
+#   python + pip       so `install_linux.sh --with-riio` can install RIIO itself into the same env
+#                      (no python3-venv / sudo needed)
+name: riio-engines
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - hmmer>=3.3
+  - blast>=2.14
+  - mmseqs2
+  - ncbi-datasets-cli
+  - perl
+  - git
+  - python=3.12
+  - pip

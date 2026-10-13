@@ -55,6 +55,10 @@ class TFRecord:
 def build_reference(out_faa: Path = _FAA, out_json: Path = _JSON) -> int:
     """Build the curated TF reference (FASTA + metadata JSON) from the YAML records."""
     import yaml
+    if not resources.legacy_workspace_enabled():
+        if out_faa.is_file() and out_json.is_file():
+            return sum(line.startswith(">") for line in out_faa.read_text(encoding="utf-8").splitlines())
+        raise RuntimeError("source-corpus rebuild requires PREDICTOR_ALLOW_LEGACY_WORKSPACE=1; use the packaged reference")
     out_faa.parent.mkdir(parents=True, exist_ok=True)
     meta, records = {}, []
     for f in sorted(glob.glob(str(_CURATED_TFS / "*" / "*.yaml"))):
@@ -159,32 +163,21 @@ def uniprot_lookup(accession: str) -> dict:
 
 # --------------------------------------------------------------------------- self-test
 def _demo() -> None:
-    import yaml
-    n = build_reference()
-    print(f"built curated reference: {n} TFs -> {_FAA.name}, {_JSON.name}")
-
-    # leave-one-out: classify a real MerR TF with itself excluded -> should still call MerR
-    tf_yaml = _CURATED_TFS / "merr" / "AdhR_Bsubtilis.yaml"
-    seq = yaml.safe_load(open(tf_yaml, encoding="utf-8"))["sequence"]["protein"]
-    rec = classify(seq, exclude_id="AdhR_Bsubtilis")
-    print(f"AdhR_Bsubtilis (LOO): family={rec.family} via {rec.nearest_tf} "
-          f"id={rec.nearest_identity:.0%} len={rec.query_len}")
-    assert rec.family == "MerR", f"expected MerR, got {rec.family}"
-    assert rec.nearest_tf != "AdhR_Bsubtilis", "self should be excluded"
-    assert rec.query_len <= 150
-
-    # an ArsR/SmtB TF, leave-one-out -> ArsR/SmtB.
-    # Uses Rv2358 (M. tuberculosis), a genuine ArsR/SmtB. This assertion previously used
-    # "SmtB_Msmegmatis", which is NOT an ArsR/SmtB protein: it hits Pfam FUR at 122 bits vs 16 for the
-    # ArsR-mapped HTH_20, carries the Fur DNA-binding motif, and is only 22% identical to Rv2358. That
-    # record has been re-filed as Fur; the classifier was right and the expectation was wrong.
-    af = _CURATED_TFS / "arsr_smtb" / "Rv2358_Mtuberculosis.yaml"
-    s2 = yaml.safe_load(open(af, encoding="utf-8"))["sequence"]["protein"]
-    r2 = classify(s2, exclude_id="Rv2358_Mtuberculosis")
-    print(f"Rv2358_Mtuberculosis (LOO): family={r2.family} via {r2.nearest_tf} id={r2.nearest_identity:.0%}")
-    assert r2.family == "ArsR/SmtB", f"expected ArsR/SmtB, got {r2.family}"
-
-    print("OK: family classified by nearest curated neighbour.")
+    """Exercise immutable shipped references without accessing developer corpora."""
+    from Bio import SeqIO
+    if not _FAA.is_file() or not _JSON.is_file():
+        raise RuntimeError("packaged curated reference is missing; reinstall RIIO")
+    metadata = json.loads(_JSON.read_text(encoding="utf-8"))
+    records = {record.id: str(record.seq) for record in SeqIO.parse(str(_FAA), "fasta")}
+    for family in ("MerR", "ArsR/SmtB"):
+        ident = next((ident for ident in records if metadata.get(ident, {}).get("family") == family), None)
+        if ident is None:
+            raise AssertionError(f"packaged reference has no {family} exemplar")
+        call = classify(records[ident], exclude_id=ident)
+        print(f"{ident} (shipped-reference LOO): family={call.family} via {call.nearest_tf}")
+        assert call.family == family, f"expected {family}, got {call.family}"
+        assert call.nearest_tf != ident, "self should be excluded"
+    print("OK: packaged family references classified without source-corpus rebuild.")
 
 
 if __name__ == "__main__":

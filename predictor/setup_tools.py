@@ -70,28 +70,85 @@ def _metalnet_check():
         return False, None
 
 
+def _bitacora_check():
+    # Ask the adapter: it resolves $BITACORA_DIR, $BITACORA_BIN and (on Windows) WSL exactly as the
+    # genome route does, so this row cannot disagree with `tfop genome`.
+    try:
+        from predictor.discovery import bitacora as _b
+        ok, why = _b.engine_available()
+        if ok:
+            ok, why = _b.patch_status()
+        return ok, (str(_b.ENGINE_DIR) if ok else why)
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def _blast_check(tool: str):
+    def _check():
+        base = os.environ.get("BLAST_BIN")
+        if base:
+            for name in (tool, tool + ".exe"):
+                cand = Path(base) / name
+                if cand.exists():
+                    return True, str(cand)
+        p = shutil.which(tool)
+        return (True, p) if p else (False, None)
+    return _check
+
+
+# The per-OS installer sets up every engine marked `by_installer` below and records its location in
+# the settings file. The manual routes are per OS too: bioconda has no Windows builds, so a conda hint
+# there would send a Windows user to a command that cannot work.
+_ON_WINDOWS = sys.platform.startswith("win")
+INSTALL_COMMAND = (r"powershell -ExecutionPolicy Bypass -File env\install_windows.ps1" if _ON_WINDOWS
+                   else "bash env/install_linux.sh --with-riio")
+INSTALL_GUIDE = "docs/INSTALL_WINDOWS.md" if _ON_WINDOWS else "docs/INSTALL_LINUX.md"
+
+
+def _datasets_hint() -> str:
+    if _ON_WINDOWS:
+        return ("download datasets.exe from https://ftp.ncbi.nlm.nih.gov/pub/datasets/command-line/v2/win64/ "
+                "and set DATASETS_EXE to its full path in the settings file")
+    return "conda install -c conda-forge ncbi-datasets-cli"
+
+
+def _blast_hint() -> str:
+    if _ON_WINDOWS:
+        return ("extract ncbi-blast-*-x64-win64.tar.gz from "
+                "https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ and set BLAST_BIN to its "
+                "bin folder in the settings file")
+    return "conda install -c conda-forge -c bioconda blast"
+
+
+def _bitacora_hint() -> str:
+    if _ON_WINDOWS:
+        return ("BITACORA needs HMMER and Perl, which have no Windows builds: install WSL, then run "
+                r"powershell -ExecutionPolicy Bypass -File env\install_windows.ps1 -WithWsl "
+                "(docs/INSTALL_WINDOWS.md, step B6), or run RIIO entirely inside WSL")
+    return "see docs/INSTALL_LINUX.md (the installer clones the pinned BITACORA and applies its patches)"
+
+
 def _mmseqs_hint() -> str:
-    if sys.platform.startswith("win"):
-        return ("no bioconda win-64 build exists; download mmseqs-win64.zip from "
-                "https://github.com/soedinglab/MMseqs2/releases and extract to env/tools/mmseqs/ "
-                "(see docs/ENGINES.md), or set $MMSEQS to the exe path")
-    return "conda install -c bioconda mmseqs2"
+    if _ON_WINDOWS:
+        return ("unzip mmseqs-win64.zip from https://github.com/soedinglab/MMseqs2/releases/latest, run its "
+                r"mmseqs.bat once, and set MMSEQS to ...\mmseqs\bin\mmseqs.exe in the settings file")
+    return "conda install -c conda-forge -c bioconda mmseqs2"
 
 
-# (display name, checker() -> (present, detail), required?, purpose, install hint)
+# (display name, checker() -> (present, detail), required?, purpose, manual install route, by_installer?)
 _TOOLS = [
-    ("MMseqs2", _mmseqs_check, True, "homolog search / SSN clustering", _mmseqs_hint()),
-    ("BLAST+ blastp", _which_check("blastp"), True, "TF-locus / genome resolution",
-     "conda install -c bioconda blast"),
-    ("BLAST+ makeblastdb", _which_check("makeblastdb"), True, "per-genome BLAST DB",
-     "conda install -c bioconda blast"),
-    ("pyhmmer (Pfam/HMMER)", _pyhmmer_check, True, "Pfam family classification", "pip install pyhmmer"),
+    ("MMseqs2", _mmseqs_check, True, "homolog search / SSN clustering", _mmseqs_hint(), True),
+    ("BLAST+ blastp", _blast_check("blastp"), True, "TF-locus / genome resolution", _blast_hint(), True),
+    ("BLAST+ makeblastdb", _blast_check("makeblastdb"), True, "per-genome BLAST DB", _blast_hint(), True),
+    ("pyhmmer (Pfam/HMMER)", _pyhmmer_check, True, "Pfam family classification",
+     "a RIIO dependency: reinstall RIIO, or pip install pyhmmer", False),
     ("NCBI datasets", _which_check("datasets", env_var="DATASETS_EXE"), True, "genome acquisition",
-     "conda install -n ncbi-datasets -c conda-forge ncbi-datasets-cli, then set $DATASETS_EXE to "
-     "<env>/bin/datasets.exe -- a separate env keeps the solver away from the working `data` one"),
+     _datasets_hint(), True),
+    ("BITACORA", _bitacora_check, "genome", "candidate discovery (`tfop genome`, GUI Genome tab)",
+     _bitacora_hint(), not _ON_WINDOWS),
     ("MetalNet2", _metalnet_check, False, "family-agnostic metal-site gate (inducer source 5)",
      "needs the `metalnet` conda env + the two AutoGluon model bundles -- see docs/ENGINES.md "
-     "(section MetalNet2); without it the source abstains and every other verdict is unchanged"),
+     "(section MetalNet2); without it the source abstains and every other verdict is unchanged", False),
 ]
 
 
@@ -102,16 +159,19 @@ def check() -> dict:
     # before it would report a tool missing that the pipeline itself would find.
     resources.load_tokens()
     rows = []
-    for name, checker, required, purpose, hint in _TOOLS:
+    for name, checker, required, purpose, manual, by_installer in _TOOLS:
         present, detail = checker()
+        hint = f"{INSTALL_COMMAND} (in the RIIO folder); or {manual}" if by_installer else manual
         rows.append({"name": name, "required": required, "present": present, "path": detail,
-                     "purpose": purpose, "hint": hint})
+                     "purpose": purpose, "hint": hint, "manual": manual, "by_installer": by_installer})
     return {"rows": rows,
             # DeepPBS and FoldX were listed here until 2026-09-02. Nothing in the package calls them
             # any more -- their only consumer was the Stage-B `tfop finalize`, removed with them -- and
             # reporting an engine as "optional" implies some code path would use it if present.
             "optional": {"ESMFold2 adapter": resources.esmfold_lib_dir() is not None},
-            "tokens": resources.load_tokens()}
+            "tokens": resources.load_tokens(),
+            "settings_file": resources.env_file(),
+            "settings_target": resources.settings_file_target()}
 
 
 def main(argv=None) -> int:
@@ -123,25 +183,42 @@ def main(argv=None) -> int:
     print("This check covers executable tools used to fetch genomes and run searches.\n")
     print(f"{'engine':<22} {'req':<4} {'status':<9} purpose")
     print("-" * 78)
-    missing = []
+    missing, genome_missing = [], []
     for row in r["rows"]:
         status = "OK" if row["present"] else "MISSING"
-        print(f"{row['name']:<22} {('yes' if row['required'] else 'opt'):<4} {status:<9} {row['purpose']}")
+        req = {True: "yes", False: "opt"}.get(row["required"], "gen")
+        print(f"{row['name']:<22} {req:<4} {status:<9} {row['purpose']}")
         if row["present"] and row.get("path"):
             print(f"{'':<22} {'':<4} {'':<9} -> {row['path']}")
-        if row["required"] and not row["present"]:
+        if row["required"] is True and not row["present"]:
             missing.append(row)
+        elif row["required"] == "genome" and not row["present"]:
+            genome_missing.append(row)
     print("-" * 78)
+    print("req: yes = every run; gen = whole-genome discovery only; opt = optional evidence source")
     print("optional:  " + ", ".join(f"{k}={'OK' if v else '-'}" for k, v in r["optional"].items()))
     print("tokens:    " + ", ".join(f"{k}={'set' if v else '-'}" for k, v in r["tokens"].items())
-          + "   (set them in .env; see .env.example)")
+          + "   (optional; set them in the settings file)")
+    if r["settings_file"]:
+        print(f"settings:  {r['settings_file']}   (tool locations and tokens are read from here)")
+    else:
+        print(f"settings:  none yet -- to record tool locations or tokens, create {r['settings_target']}\n"
+              "           (template: .env.example in the RIIO repository)")
+    for row in genome_missing:
+        print(f"\nNOTE: {row['name']} is not ready, so `tfop genome` and the GUI Genome tab cannot "
+              f"discover candidates (single-protein and protein-list runs are unaffected).\n"
+              f"  why: {row['path']}\n  fix: {row['hint']}")
     if missing:
-        print("\nMissing REQUIRED engines -- install, then re-run `tfop setup`:")
+        print("\nMissing REQUIRED engines. The quickest fix installs them and records their locations:\n"
+              f"    {INSTALL_COMMAND}\n"
+              f"    (run it in the RIIO folder; step-by-step guide: {INSTALL_GUIDE})\n"
+              "Or install them one by one:")
         seen = set()
         for row in missing:
-            if row["hint"] not in seen:
-                print(f"  - {row['name']:<22} {row['hint']}")
-                seen.add(row["hint"])
+            if row["manual"] not in seen:
+                print(f"  - {row['name']:<22} {row['manual']}")
+                seen.add(row["manual"])
+        print("Then open a new terminal and re-run `tfop setup`.")
         return 1
     print("\nREADY for standard predictions. Run `tfop audit` to see the bundled database, cache, "
           "output, and credential locations.")

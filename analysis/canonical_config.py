@@ -1,4 +1,4 @@
-"""Portable canonical run configuration for the reproduction companion."""
+"""Portable canonical run roots, retaining pinned scientific provenance."""
 from pathlib import Path
 import os
 try:
@@ -11,6 +11,6 @@ def load_canonical():
     cfg = tomllib.loads((project / "analysis/canonical_runs.toml").read_text(encoding="utf-8"))
     base = Path(os.environ.get("RIIO_RUNS_DIR", project / "runs")).expanduser().resolve()
     for run in cfg["runs"].values():
-        root = Path(run["root"])
-        run["root"] = str(root if root.is_absolute() else base / root)
+        path = Path(run["root"])
+        run["root"] = str(path if path.is_absolute() else base / path)
     return cfg

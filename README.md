@@ -1,102 +1,100 @@
-# RIIO v1
+# RIIO v1.1
 
 **Regulator, Inducer & Operator inference**.
 
 RIIO takes a bacterial transcription-factor protein or genome and produces operator, motif,
 inducer and regulon predictions, with evidence and provenance in a portable `REPORT.html` bundle.
-This repository contains the active RIO software and the production analysis companion used by the
-project. Version 1.0.0 preserves the `tfop` commands and `predictor` Python API.
+This repository contains the active RIIO software and the production analysis companion used by the
+project. Version 1.1.0 preserves the `tfop` commands and `predictor` Python API.
 
-## Download and install
+## Quick start
 
-Use Python **3.11 or 3.12** for the complete repository workflow. The predictor package also supports
-Python 3.10. Linux is the simplest platform for installing the external bioinformatics tools.
+RIIO runs on Linux and on Windows 10/11. One installer per system sets up RIIO, its search engines and
+its settings. The step-by-step guides assume no previous experience with the command line tools involved.
+
+**Linux, or Windows through WSL (recommended):** [installation and first steps](docs/INSTALL_LINUX.md)
 
 ```bash
 git clone https://github.com/MvillarruelD/riio-v1.git
 cd riio-v1
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install ".[genome,gui]"
+bash env/install_linux.sh --miniforge --with-riio
+conda activate riio-engines        # or: source ~/miniforge3/bin/activate riio-engines
 ```
 
-On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead. If activation is disabled,
-use `.venv\Scripts\python.exe -m pip` and `.venv\Scripts\tfop.exe` directly.
+**Windows, natively in PowerShell:** [installation and first steps](docs/INSTALL_WINDOWS.md), which also
+covers WSL. Install Python 3.12 and Git first.
 
-Alternatively, download the wheel from [Releases](https://github.com/MvillarruelD/riio-v1/releases)
-and install it with `python -m pip install "./tf_operator_predictor-1.0.0-py3-none-any.whl[genome,gui]"`.
-The wheel contains the predictor and its reference database. The source archive/Git checkout also
-contains the analysis companion and canonical candidate inputs.
-
-An installation directly from the frozen release is also available:
-
-```bash
-python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.0.0"
+```powershell
+git clone https://github.com/MvillarruelD/riio-v1.git
+cd riio-v1
+powershell -ExecutionPolicy Bypass -File env\install_windows.ps1
+.\.venv\Scripts\Activate.ps1
 ```
 
-## Install the search tools
-
-Python installation does not install MMseqs2, NCBI BLAST+, or the NCBI Datasets executable.
-With conda or mamba:
+Then check the installation and predict the operators, inducer and regulon of *E. coli* ZntR, whose
+sequence ships with RIIO (3 to 5 minutes; needs internet access):
 
 ```bash
-conda create -n riio-tools -c conda-forge -c bioconda mmseqs2 blast ncbi-datasets-cli
-conda activate riio-tools
-```
-
-After downloading this repository on Linux/macOS, `conda env create -f environment.yml` provides
-an alternative starter environment with Python, RIIO and the three search/acquisition tools together.
-Activate it with `conda activate riio`. This environment recipe is provided for convenience; the local
-release verification used the Python installation route above.
-
-Run the RIIO commands with these tools available on `PATH`, or configure their executable paths as
-described in [engine setup](docs/ENGINES.md). Windows MMseqs2 needs its upstream Windows distribution;
-BITACORA needs Linux or WSL. Each tool retains its own license.
-
-```bash
-tfop --version
-tfop audit
 tfop setup
-tfop selftest --timeout 120
+tfop selftest
+tfop predict tests/data/mini_tf.faa --name ZntR --organism GCF_000005845.2 --out runs/ZntR
 ```
 
-`audit` checks the packaged database. `setup` identifies missing tools. A skipped optional engine
-means that evidence source is unavailable; installing only Python is not a complete engine setup.
+Open `runs/ZntR/jobs/ZntR/REPORT.html` in a browser. Predictions are computational hypotheses for
+experimental prioritization.
 
-## Run the pipeline
+## Workflows
 
-Launch the graphical workspace:
+The CLI, Python API and browser GUI use the same resumable per-protein runner. Start the GUI with
+`tfop-gui`, then open <http://localhost:8501>.
 
-```bash
-tfop-gui
-```
+| Starting input | CLI | GUI | Needs |
+|---|---|---|---|
+| One protein sequence, FASTA or accession | `tfop predict protein.faa --name MyTF --organism GCF_...` | Single TF | MMseqs2, BLAST+, NCBI Datasets, internet |
+| Multi-record protein FASTA or accession TSV | `tfop batch proteins.faa --organism GCF_... --out runs/list` | Protein list | as above |
+| Genome accession | `tfop genome GCF_000005845.2 --out runs/accession` | Genome scan / accession | as above, plus BITACORA |
+| Local nucleotide genome and annotation | `tfop genome --fasta genome.fna --gff genome.gff --out runs/local` | Genome scan / local files | as above, plus BITACORA |
+| Quick Pfam census of a proteome or genome | `tfop scan proteome.faa` | Genome scan / Quick census | nothing else (offline) |
 
-Or use the command line:
+`--organism` is the NCBI assembly accession of the protein's source genome. Local genome context is
+copied into the run and reaches each selected protein prediction. GenBank and proteome inputs are also
+supported. Complete predictions from a protein list need an organism or resolvable source genome for
+genomic context. Changed sequences, local files or prediction settings require a new output directory.
+`tfop <command> --help` explains every option; see also [entry modes and API examples](docs/ENTRY_POINTS.md).
 
-```bash
-# Protein accession, amino-acid sequence, or a single-record protein FASTA
-tfop predict WP_000240047.1 --name MyTF --organism GCF_000005845.2 --out results/MyTF
+Runs include per-protein `jobs/*/REPORT.html`, `discovery/DISCOVERY_REPORT.html`, `RUN_REPORT.html`
+and `Supplementary_Table_S1.xlsx`/`.tsv`. [Report rebuilding](docs/REPORTS.md) reads existing results
+with `tfop report runs/local`. [Optional AF3 exports](docs/AF3.md) use
+`tfop af3 runs/local --format both`; they do not affect predictions. Keep the complete run tree
+when sharing so relative HTML and spreadsheet links remain usable.
 
-# Candidate census from a genome or proteome
-tfop scan proteins.faa --out results/census
+## Other ways to install
 
-# Genome-first workflow; inspect all options before starting a large batch
-tfop genome --help
-tfop genome GCF_000005845.2 --discover-only --out results/genome
-```
+- **Your own Python environment** (Python 3.10 or newer): install from the RIIO folder in editable
+  mode, `python -m pip install -e ".[genome,gui]"`, so that RIIO reads the folder's settings file. The
+  search engines are separate programs: `tfop setup` lists any that are missing, with install
+  instructions for your system, and [engine setup](docs/ENGINES.md) describes them all.
+- **Conda on Linux or macOS:** in the RIIO folder, `conda env create -f environment.yml` and
+  `conda activate riio` install RIIO with MMseqs2, BLAST+, NCBI Datasets, HMMER and Perl. Genome
+  discovery also needs the pinned BITACORA checkout: `ENV_NAME=riio bash env/install_linux.sh` adds it.
+- **Wheel from [Releases](https://github.com/MvillarruelD/riio-v1/releases):**
+  `python -m pip install "./tf_operator_predictor-1.1.0-py3-none-any.whl[genome,gui]"`. The wheel
+  contains the predictor and its reference database; the source archive/Git checkout also contains the
+  analysis companion, the installers and the canonical candidate inputs. An installed wheel keeps its
+  settings in a per-user file, which `tfop setup` names.
+- **From the release tag**, once v1.1.0 is tagged:
+  `python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.1.0"`.
 
-Open the resulting `REPORT.html` in a browser. Reports retain machine-readable predictions,
-evidence, input/export links, and checksums. The core reference database is included automatically;
-query genomes and online annotations are fetched as needed. Network access is needed for that route.
+## Settings and optional engines
 
-Credentials are optional for installation. Copy `.env.example` to `.env` and fill in the services
-you use. Set `PREDICTOR_ENV_FILE` to its absolute path when running an installed wheel from another
-directory. Never commit `.env`. NCBI requests work without a key at the public rate limit.
+The installers record the engine locations in `.env` in the RIIO folder; `tfop setup` shows the settings
+file in use and `.env.example` documents every key. Credentials are optional: NCBI requests work
+without a key at the public rate limit, and an NCBI API key (`NCBI_TOKEN`) makes large runs faster.
+Never commit `.env`.
 
 MetalNet2 and BITACORA are separately installed integrations. The canonical paper runs enabled
 MetalNet2 and used BITACORA discovery. Follow [the pinned engine setup](docs/ENGINES.md) to reproduce
-that configuration. Folding is optional and off by default.
+that configuration. Folding is optional and off by default. Each external tool retains its own license.
 
 ## Reproduce the project workflow
 
@@ -113,7 +111,7 @@ python tools/release_check.py --selftest-timeout 120
 ```
 
 The software checks do not rerun the full multi-hour online prediction batch. See
-[the release audit](docs/RELEASE_AUDIT.md) for exactly what was checked.
+[the v1.1 preparation audit](docs/RELEASE_AUDIT_V1_1.md) for exactly what was checked.
 
 ## Repository contents
 
@@ -121,6 +119,7 @@ The software checks do not rerun the full multi-hour online prediction batch. Se
 |---|---|
 | `predictor/` | Active CLI, GUI, API, inference modules and packaged reference database |
 | `predictor/_engines/` | Owned engine runners and required adapter helpers |
+| `env/` | Linux and Windows installers and the Linux engine environment |
 | `analysis/` | Production stage drivers, canonical manifests, input FASTAs and contract tests |
 | `analysis/benchmarking/` | Active canonical scoring helpers and required reference inputs |
 | `reports/` | Current report/figure generation programs |

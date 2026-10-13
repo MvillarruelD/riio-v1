@@ -106,7 +106,7 @@ def build_index(out=_INDEX) -> dict:
         fam_of = {k: _canon_family(v.get("family")) for k, v in
                   json.loads(family_db._ALL_JSON.read_text(encoding="utf-8")).items()}
     op_to_tf = {}
-    for root in _TF_DIRS:
+    for root in (_TF_DIRS if resources.legacy_workspace_enabled() else []):
         for f in glob.glob(str(root / "**" / "*.yaml"), recursive=True):
             try:
                 d = yaml.safe_load(open(f, encoding="utf-8"))
@@ -121,7 +121,7 @@ def build_index(out=_INDEX) -> dict:
                 op_to_tf[op] = d.get("id")
 
     by_family, by_tf = {}, {}
-    for root in _OP_DIRS:
+    for root in (_OP_DIRS if resources.legacy_workspace_enabled() else []):
         for f in glob.glob(str(root / "**" / "*.yaml"), recursive=True):
             try:
                 d = yaml.safe_load(open(f, encoding="utf-8"))
