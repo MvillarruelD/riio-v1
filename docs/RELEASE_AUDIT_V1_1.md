@@ -5,8 +5,8 @@ check does not establish experimental biological accuracy or historical predicti
 
 ## Source provenance
 
-- RIO: `c20b2a318434ccbcaa9f7181a00c6142d1dad55b`
-- jjr-ssn-analysis: `18d0baedcf15964559c7f5afb8cf7c10a7aee0d5`
+- RIO: `e44d85e1d6981ba12c3ede67e249c7de33d99aea`
+- jjr-ssn-analysis: `0e553015a4091f76d23579feea2827a6bcfdc179`
 - publication_checkout: `2810de652ab70d150e63c283e7cd3b77b5eb3d8e`
 
 Complete file checksums are in [SOURCE_MANIFEST.json](SOURCE_MANIFEST.json).
@@ -14,6 +14,7 @@ The [v1.0 release audit](RELEASE_AUDIT.md) and `EXPORT_AUDIT.json` are historica
 
 ## Completed checks
 
+- Tested snapshot identity: the checks below ran on the preceding staging, whose registered files are byte-identical to this one except .github/workflows/tests.yml.
 - Predictor source suites: Ruff, generic and released-data pytest passed on Windows Python 3.14.3 for the code of predictor 12cde97; 138 focused CLI, GUI, portability and packaging tests passed at c20b2a3.
 - Analysis release-tooling tests: analysis/tests/test_v11_implementation.py: 18 passed, including the source-archive contract that now requires env/install_windows.ps1.
 - Final staging generic tests (Windows Python 3.12.13, README developer install): 869 passed, 8 skipped, 51 deselected.
@@ -25,6 +26,7 @@ The [v1.0 release audit](RELEASE_AUDIT.md) and `EXPORT_AUDIT.json` are historica
 - Fresh Linux installation (WSL Ubuntu 26.04): env/install_linux.sh --miniforge --with-riio; tfop setup with every engine including BITACORA; tfop selftest 48 ok; bundled ZntR (202 s) and ModE NP_415282.1 (262 aa, which crashed before this fix) predictions completed; the former README accession no longer crashes; tfop-gui listened on 127.0.0.1 only; the environment.yml route was ready; run on the preceding staging, whose Linux installer is byte-identical.
 - Fresh Windows installation (Python 3.12.13, minimal PATH): env/install_windows.ps1 completed in 9 min (venv, MMseqs2 with hard-linked BusyBox, MD5-verified BLAST+ 2.17.0, NCBI Datasets, .env); tfop setup ready; bundled ZntR and ModE predictions completed; tfop-gui answered on 127.0.0.1 only. Its 120 s selftest timed out signals.operator_logo under concurrent load (79 s when run alone); the default is now 300 s.
 - Windows genome discovery through WSL: install_windows.ps1 -WithWsl installed the WSL engine environment and the pinned BITACORA in env/tools/bitacora and recorded BITACORA_DIR, BITACORA_WSL_DISTRO and BITACORA_BIN; tfop setup showed BITACORA OK, and native-Windows discovery on the bundled K-12 fragment returned zntR (NP_417751.1) from profile ecZntR|PbrR.
+- GitHub workflow validation: actionlint 1.7.12 passes .github/workflows/tests.yml; it reproduces the job-level 'runner' context error that made GitHub reject the previously pushed file.
 
 ## Outstanding gates
 

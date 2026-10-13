@@ -1,10 +1,15 @@
 {
   "sources": {
-    "RIO": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
-    "jjr-ssn-analysis": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
+    "RIO": "e44d85e1d6981ba12c3ede67e249c7de33d99aea",
+    "jjr-ssn-analysis": "0e553015a4091f76d23579feea2827a6bcfdc179",
     "publication_checkout": "2810de652ab70d150e63c283e7cd3b77b5eb3d8e"
   },
   "checks": [
+    {
+      "name": "Tested snapshot identity",
+      "status": "passed",
+      "detail": "the checks below ran on the preceding staging, whose registered files are byte-identical to this one except .github/workflows/tests.yml"
+    },
     {
       "name": "Predictor source suites",
       "status": "passed",
@@ -59,6 +64,11 @@
       "name": "Windows genome discovery through WSL",
       "status": "passed",
       "detail": "install_windows.ps1 -WithWsl installed the WSL engine environment and the pinned BITACORA in env/tools/bitacora and recorded BITACORA_DIR, BITACORA_WSL_DISTRO and BITACORA_BIN; tfop setup showed BITACORA OK, and native-Windows discovery on the bundled K-12 fragment returned zntR (NP_417751.1) from profile ecZntR|PbrR"
+    },
+    {
+      "name": "GitHub workflow validation",
+      "status": "passed",
+      "detail": "actionlint 1.7.12 passes .github/workflows/tests.yml; it reproduces the job-level 'runner' context error that made GitHub reject the previously pushed file"
     }
   ],
   "outstanding": [

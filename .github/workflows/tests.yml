@@ -76,14 +76,18 @@ jobs:
     timeout-minutes: 90
     env:
       MPLBACKEND: Agg
-      PREDICTOR_CACHE_DIR: ${{ runner.temp }}/riio-cache
-      PREDICTOR_OUTPUT_DIR: ${{ runner.temp }}/riio-e2e
       PREDICTOR_ALLOW_LEGACY_WORKSPACE: "0"
     defaults:
       run:
         shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
+      - name: Scratch locations outside the checkout
+        # The `runner` context is not available in a job-level `env:` (GitHub rejects the whole
+        # workflow file), so the runner's temp directory is exported from a step instead.
+        run: |
+          echo "PREDICTOR_CACHE_DIR=$RUNNER_TEMP/riio-cache" >> "$GITHUB_ENV"
+          echo "PREDICTOR_OUTPUT_DIR=$RUNNER_TEMP/riio-e2e" >> "$GITHUB_ENV"
       - uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: env/engines-linux.yml

@@ -1,17 +1,17 @@
 {
   "sources": {
-    "RIO": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
-    "jjr-ssn-analysis": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
+    "RIO": "e44d85e1d6981ba12c3ede67e249c7de33d99aea",
+    "jjr-ssn-analysis": "0e553015a4091f76d23579feea2827a6bcfdc179",
     "publication_checkout": "2810de652ab70d150e63c283e7cd3b77b5eb3d8e"
   },
   "source_states": {
     "RIO": {
-      "commit": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
+      "commit": "e44d85e1d6981ba12c3ede67e249c7de33d99aea",
       "dirty": false,
       "status": []
     },
     "jjr-ssn-analysis": {
-      "commit": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
+      "commit": "0e553015a4091f76d23579feea2827a6bcfdc179",
       "dirty": false,
       "status": []
     },
@@ -42,10 +42,10 @@
       "source_repository": "RIO",
       "source_path": ".github/workflows/tests.yml",
       "release_path": ".github/workflows/tests.yml",
-      "source_sha256": "3e2053dba67dc14b642a22ded4ab92c0cbfd0392b686b4b00cf5f371ff75f4f5",
+      "source_sha256": "f74590c843f8ab74132539e5fa0697a479e0c209cb784133e48ec99c370b4b8f",
       "preserved_checkout_sha256": "e639675ed2639466bfeabe990d25aca56df24b7958251ef8324db7482957e4f2",
       "overlay_policy": "new_source",
-      "release_sha256": "3e2053dba67dc14b642a22ded4ab92c0cbfd0392b686b4b00cf5f371ff75f4f5"
+      "release_sha256": "f74590c843f8ab74132539e5fa0697a479e0c209cb784133e48ec99c370b4b8f"
     },
     {
       "source_repository": "RIO",
@@ -7918,14 +7918,14 @@
       "release_path": "docs/RELEASE_AUDIT_V1_1.md",
       "transformation": "release_validation",
       "newline_transformation": "Git text attribute: CRLF to LF",
-      "release_sha256": "d4334699373f30d4e3b51e44fa99e07cff321753373ecc3dbbdf8b26c9a73d99"
+      "release_sha256": "38f0a1626abda48aeb59e9643708ef2ed96b0a1060102738eeeb2e751976cf20"
     },
     {
       "source_repository": "generated",
       "source_path": null,
       "release_path": "docs/RELEASE_AUDIT_V1_1.json",
       "transformation": "release_validation",
-      "release_sha256": "a423bf005eb198114bb3e4a75f28495e59d2d397c377819f6797919cc5fe8ea4"
+      "release_sha256": "879fdaa20028847ed3cbce5eb70cca037251878ca60c9a6a4151f438da2fb89f"
     }
   ]
 }
