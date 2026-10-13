@@ -523,15 +523,22 @@ def _environment_panel() -> None:
             from predictor import setup_tools
             with st.spinner("Checking the same tool paths used by the pipeline…"):
                 result = setup_tools.check()
-            rows = [{"engine": r["name"], "needed": "required" if r["required"] else "optional",
-                     "status": "ready" if r["present"] else "missing", "purpose": r["purpose"]}
+            # `required` is True, False, or "genome" (needed only for genome discovery), as in `tfop setup`.
+            needed = {True: "required", False: "optional"}
+            rows = [{"engine": r["name"], "needed": needed.get(r["required"], "genome discovery only"),
+                     "status": "ready" if r["present"] else "missing", "purpose": r["purpose"],
+                     "how to install": "" if r["present"] else r["hint"]}
                     for r in result["rows"]]
             st.dataframe(rows, width="stretch", hide_index=True)
-            missing = [r["name"] for r in result["rows"] if r["required"] and not r["present"]]
+            missing = [r["name"] for r in result["rows"] if r["required"] is True and not r["present"]]
+            discovery = [r["name"] for r in result["rows"] if r["required"] == "genome" and not r["present"]]
             if missing:
                 st.warning("Install the missing required engines before a full prediction: " + ", ".join(missing))
             else:
                 st.success("All required engines are available.")
+            if discovery:
+                st.info("Genome scans need " + ", ".join(discovery) + "; single-protein and protein-list "
+                        "predictions do not.")
 
 
 def _shared_exports(out: Path) -> None:

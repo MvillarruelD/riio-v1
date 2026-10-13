@@ -29,6 +29,82 @@ def test_env_values_keep_spaces_and_drop_quotes_and_comments():
     assert resources._env_value(txt, "MISSING") == ""
 
 
+def _linux_name_limit(monkeypatch):
+    """Make any OS behave like Linux on Python 3.10-3.13: a >255-byte path component raises."""
+    import errno
+    import os
+    real_stat = os.stat
+
+    def stat(path, *args, **kwargs):
+        if any(len(part) > 255 for part in Path(os.fspath(path)).parts):
+            raise OSError(errno.ENAMETOOLONG, "File name too long", os.fspath(path))
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", stat)
+
+
+def test_long_protein_sequences_are_not_probed_as_file_names(monkeypatch, tmp_path):
+    # The README's 454-aa example crashed `tfop predict` on Linux: TF-locus resolution and the
+    # homolog search asked the filesystem whether the raw sequence was a FASTA path.
+    from predictor.annotate import genome_resolver, homologs
+    from predictor.input_validation import path_exists
+    fasta = tmp_path / "query.faa"
+    fasta.write_text(">q\nMKVLAAGIR\n", encoding="ascii")
+    _linux_name_limit(monkeypatch)
+    seq = "M" + "ACDEFGHIKLMNPQRSTVWY" * 20
+    assert path_exists(seq) is False
+    assert genome_resolver._query_seq(seq) == seq
+    query_fasta, query_id = homologs._as_query_fasta(seq, tmp_path)
+    assert query_id == "query" and query_fasta.read_text(encoding="ascii").split() == [">query", seq]
+    # A real FASTA path is still read as a file.
+    assert path_exists(fasta) is True
+    assert genome_resolver._query_seq(str(fasta)) == "MKVLAAGIR"
+
+
+def test_path_probe_otherwise_behaves_like_path_exists(monkeypatch, tmp_path):
+    import os
+    from predictor.input_validation import path_exists
+    assert path_exists("bad\0name") is False
+    locked = tmp_path / "locked.faa"
+
+    def denied(path, *args, **kwargs):
+        raise PermissionError(13, "Permission denied", os.fspath(path))
+
+    monkeypatch.setattr(os, "stat", denied)
+    try:
+        expected = Path(locked).exists()
+    except PermissionError:  # this Python propagates it, so the probe must not hide it
+        with pytest.raises(PermissionError):
+            path_exists(locked)
+    else:
+        assert path_exists(locked) is expected
+
+
+def test_settings_file_is_utf8_with_or_without_bom(monkeypatch, tmp_path):
+    # Windows editors may add a BOM (it hid the first key) and the locale code page garbled
+    # non-ASCII user folders such as C:/Users/Matías.
+    settings = tmp_path / "settings.env"
+    settings.write_bytes(b"\xef\xbb\xbf" + 'MMSEQS="C:/Users/Matías/riio/mmseqs.exe"\n'.encode("utf-8"))
+    assert resources.read_settings(settings).startswith("MMSEQS=")
+    monkeypatch.delenv("MMSEQS", raising=False)
+    monkeypatch.setenv("PREDICTOR_ENV_FILE", str(settings))
+    resources.load_tokens()
+    assert __import__("os").environ["MMSEQS"] == "C:/Users/Matías/riio/mmseqs.exe"
+    legacy = tmp_path / "legacy.env"
+    legacy.write_bytes('BLAST_BIN=C:/Usuarios/Matías\n'.encode("cp1252"))  # not UTF-8: locale fallback
+    assert resources._env_value(resources.read_settings(legacy), "BLAST_BIN").startswith("C:/Usuarios/Mat")
+
+
+def test_ncbi_credentials_ignore_an_empty_email_line(monkeypatch, tmp_path):
+    from predictor.annotate import genome_resolver
+    settings = tmp_path / "settings.env"
+    settings.write_text('NCBI_EMAIL=\n\n# Engine locations\nNCBI_TOKEN="abc123"\n', encoding="utf-8")
+    for key in ("NCBI_EMAIL", "NCBI_API_KEY", "NCBI_TOKEN"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(resources, "env_file", lambda: settings)
+    assert genome_resolver._ncbi_creds() == ("anonymous@example.com", "abc123")
+
+
 def test_every_engine_location_is_read_from_the_env_file():
     for key in ("MMSEQS", "BLAST_BIN", "DATASETS_EXE", "BITACORA_DIR", "BITACORA_BIN", "BITACORA_PY",
                 "METALNET_PYTHON", "METALNET2_DIR"):

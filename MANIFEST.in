@@ -13,4 +13,5 @@ prune results
 global-exclude *.py[cod]
 include env/install_linux.sh
 include env/engines-linux.yml
+include env/install_windows.ps1
 recursive-include tests/data *.md *.fna *.gff *.faa

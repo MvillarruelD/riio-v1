@@ -1,69 +1,64 @@
 {
   "sources": {
-    "RIO": "5ab06c7d19207293944ddf383d9f6cc14e02efb1",
-    "jjr-ssn-analysis": "174d1a5bafdba8e7ae04bd946d27834c3d9a821b",
-    "publication_checkout": "1840765caa94d5861183651e7347126a2c138799"
+    "RIO": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
+    "jjr-ssn-analysis": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
+    "publication_checkout": "2810de652ab70d150e63c283e7cd3b77b5eb3d8e"
   },
   "checks": [
     {
-      "name": "Export provenance and metadata",
+      "name": "Predictor source suites",
       "status": "passed",
-      "detail": "Clean predictor 5ab06c7 and analysis 174d1a5, preserving publication donor 1840765; all registered file checksums verified, 480 reference data files byte-identical to frozen source, package and citation version 1.1.0, README local links valid"
+      "detail": "Ruff, generic and released-data pytest passed on Windows Python 3.14.3 for the code of predictor 12cde97; 138 focused CLI, GUI, portability and packaging tests passed at c20b2a3"
     },
     {
-      "name": "Python 3.10 generic staging suite",
+      "name": "Analysis release-tooling tests",
       "status": "passed",
-      "detail": "861 passed, 8 explicitly scoped skips, 51 released-data tests deselected"
+      "detail": "analysis/tests/test_v11_implementation.py: 18 passed, including the source-archive contract that now requires env/install_windows.ps1"
     },
     {
-      "name": "Python 3.10 released-data staging suite",
+      "name": "Final staging generic tests (Windows Python 3.12.13, README developer install)",
       "status": "passed",
-      "detail": "48 passed, 3 scoped skips (two unavailable MMseqs fixtures and a non-Git staging check), 869 generic tests deselected"
+      "detail": "869 passed, 8 skipped, 51 deselected"
     },
     {
-      "name": "Static checks",
+      "name": "Final staging released-data tests",
       "status": "passed",
-      "detail": "Both predictor and analysis Ruff scopes and compileall passed; data MANIFEST current"
+      "detail": "48 passed, 3 skipped (two need MMseqs2 on PATH, one needs a Git work tree)"
     },
     {
-      "name": "Isolated package installation",
+      "name": "Ruff and packaged-data manifest",
       "status": "passed",
-      "detail": "Wheel and sdist built; clean non-editable wheel install and outside-checkout CLI passed, 46 installed module selftests passed with 2 missing engine/network skips, no timeouts/failures, outputs outside the read-only installed package"
+      "detail": "ruff check predictor tests tools analysis reports and tools/build_data_manifest.py --check both passed"
     },
     {
-      "name": "Source archive installation closure",
+      "name": "CI install mimic",
       "status": "passed",
-      "detail": "1039 members, Linux installer/environment, Streamlit configuration, environment example and all supplied smoke input files present; no private environment or env/tools files"
+      "detail": "with only .[dev,gui] installed, as the v1.1 workflow does: 867 passed, 10 skipped on the preceding staging, which differs only in docs/INSTALL_LINUX.md, docs/INSTALL_WINDOWS.md, env/install_windows.ps1 and the selftest timeout default in predictor/run_cli.py"
     },
     {
-      "name": "Latest source software verification",
+      "name": "Isolated release check",
       "status": "passed",
-      "detail": "Predictor 5ab06c7: Windows Python 3.12 full suite 718 passed/4 skipped including 45 released-data tests; native Ubuntu Python 3.12 report/GUI/contracts 233 passed/0 skipped, six changed paths synchronized exactly, local environment preserved; software/report verification only"
+      "detail": "tools/release_check.py --skip-tests --selftest-timeout 120 passed in 7.0 min: wheel (36.6 MB) and sdist, clean non-editable install, 479 manifest files, installed CLI selftest 45 ok / 3 engine skips / 0 timed out, outputs outside the package, package left unmodified"
     },
     {
-      "name": "Browser reports and downloads",
+      "name": "Source archive contract",
       "status": "passed",
-      "detail": "Stored prior real K12 fixtures rebuilt with latest software on Windows/native: each full-run ZIP 466 members, 486 HTML/XLSX links, zero broken links/CRC errors, identical member bytes; keyboard numeric sorting and saved per-TF report figure loaded; AF3 ZIP 9 files with 6 jobs per local/server dialect and manifest; no new browser prediction claimed"
+      "detail": "the 1,043-member sdist includes both installers, the Linux engine environment, Streamlit configuration, .env.example, environment.yml and the smoke fixtures"
     },
     {
-      "name": "Compact Figure 1 review artifact",
+      "name": "Fresh Linux installation (WSL Ubuntu 26.04)",
       "status": "passed",
-      "detail": "Approved editable compact Figure 1 and restored drawings included in the separately retained review DOCX; 12 embedded images, exact final Figure 1 PNG bytes and OOXML validation passed; original manuscript DOCX/PDF preserved"
+      "detail": "env/install_linux.sh --miniforge --with-riio; tfop setup with every engine including BITACORA; tfop selftest 48 ok; bundled ZntR (202 s) and ModE NP_415282.1 (262 aa, which crashed before this fix) predictions completed; the former README accession no longer crashes; tfop-gui listened on 127.0.0.1 only; the environment.yml route was ready; run on the preceding staging, whose Linux installer is byte-identical"
     },
     {
-      "name": "Current user Windows environment",
+      "name": "Fresh Windows installation (Python 3.12.13, minimal PATH)",
       "status": "passed",
-      "detail": "Python 3.14.3 at frozen predictor 5ab06c7: 718 passed and 4 skipped in the full software suite including 45 released-data tests; Ruff, compileall and data manifest passed; recorded source, reference and dependency state unchanged; compatibility evidence only, historical dependency identity and prediction neutrality remain unestablished"
+      "detail": "env/install_windows.ps1 completed in 9 min (venv, MMseqs2 with hard-linked BusyBox, MD5-verified BLAST+ 2.17.0, NCBI Datasets, .env); tfop setup ready; bundled ZntR and ModE predictions completed; tfop-gui answered on 127.0.0.1 only. Its 120 s selftest timed out signals.operator_logo under concurrent load (79 s when run alone); the default is now 300 s"
     },
     {
-      "name": "Final canonical share",
+      "name": "Windows genome discovery through WSL",
       "status": "passed",
-      "detail": "238 saved candidates and 18,084 artifacts with zero HTML/XLSX link issues; all 16,946 original bundle files byte-identical before/after final 5ab06c7 renderer refresh; final compact review DOCX copied into a fresh sibling, no new biological predictions"
-    },
-    {
-      "name": "Git checksum portability",
-      "status": "passed",
-      "detail": "Effective checked-in Git attributes normalized 17 text files before release hashing; original source SHA256 retained, all 480 reference files and 238 canonical FASTAs preserved; real commit/clone regression passed for CRLF text, LF shebangs and immutable or binary bytes"
+      "detail": "install_windows.ps1 -WithWsl installed the WSL engine environment and the pinned BITACORA in env/tools/bitacora and recorded BITACORA_DIR, BITACORA_WSL_DISTRO and BITACORA_BIN; tfop setup showed BITACORA OK, and native-Windows discovery on the bundled K-12 fragment returned zntR (NP_417751.1) from profile ecZntR|PbrR"
     }
   ],
   "outstanding": [

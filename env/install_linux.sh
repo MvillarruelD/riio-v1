@@ -8,16 +8,17 @@
 #   3. clones BITACORA at the pinned commit into env/tools/bitacora (or $BITACORA_DIR)
 #   4. writes the engine locations into the settings file (.env) the pipeline reads
 #   5. optionally (--with-riio) pip-installs RIIO itself, with the genome + GUI extras, into that env
-#   6. runs `tfop setup` to show what is ready
+#   6. runs `tfop setup` to show what is ready, then prints how to activate the env
 #
 # It never needs sudo. MetalNet2 (optional, ~2 GB of model weights) is not installed here; see
-# docs/ENGINES.md.
+# docs/ENGINES.md. Step-by-step guide for new users: docs/INSTALL_LINUX.md.
 #
 # Usage:
+#   bash env/install_linux.sh --with-riio     # engines + RIIO in one env (recommended)
+#   bash env/install_linux.sh --miniforge --with-riio   # same, installing Miniforge first if needed
 #   bash env/install_linux.sh                 # engines only (you install the Python package yourself)
-#   bash env/install_linux.sh --with-riio     # engines + RIIO installed in the same env (one env)
-#   bash env/install_linux.sh --miniforge     # also install Miniforge if no conda is found
 #   ENV_NAME=myenv bash env/install_linux.sh  # a different conda env name
+#   bash env/install_linux.sh --settings-file F   # record engine locations in F instead of .env
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,13 +29,20 @@ BITACORA_COMMIT="715950426b70b029279343dcc541115dfee20352"
 BITACORA_DIR="${BITACORA_DIR:-$REPO/env/tools/bitacora}"
 WANT_RIIO=0
 WANT_MINIFORGE=0
-for arg in "$@"; do
-  case "$arg" in
+ENV_FILE=""
+SETTINGS_ONLY_FOR_CALLER=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --with-riio|--venv) WANT_RIIO=1 ;;
     --miniforge) WANT_MINIFORGE=1 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
-    *) echo "unknown option: $arg" >&2; exit 2 ;;
+    # env/install_windows.ps1 -WithWsl runs this script inside WSL on the Windows checkout; the Linux
+    # paths go to a separate file so they never overwrite the Windows settings in the checkout's .env.
+    --settings-file) [ "$#" -ge 2 ] || { echo "--settings-file needs a path" >&2; exit 2; }
+                     ENV_FILE="$2"; SETTINGS_ONLY_FOR_CALLER=1; shift ;;
+    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    *) echo "unknown option: $1 (see: bash env/install_linux.sh --help)" >&2; exit 2 ;;
   esac
+  shift
 done
 
 say() { printf '\n==> %s\n' "$*"; }
@@ -52,6 +60,8 @@ find_conda() {
 CONDA="$(find_conda || true)"
 if [ -z "$CONDA" ]; then
   if [ "$WANT_MINIFORGE" = 1 ]; then
+    command -v curl >/dev/null 2>&1 || {
+      echo "curl is needed to download Miniforge. On Ubuntu: sudo apt install curl" >&2; exit 1; }
     say "Installing Miniforge into ~/miniforge3"
     arch="$(uname -m)"; os="$(uname -s)"
     installer="$(mktemp -d)/miniforge.sh"
@@ -102,12 +112,15 @@ for patch in "$REPO"/predictor/_engines/bitacora_patches/*.pl; do
 done
 
 # ---------------------------------------------------------------- 4. settings (.env)
-# A source checkout reads <repo>/.env; an installed wheel reads ~/.config/tfop/.env. Write the one
-# that applies, keeping every key that is not ours.
-if [ -f "$REPO/pyproject.toml" ] && [ -d "$REPO/predictor" ]; then
+# A source checkout (and an editable install of it) reads <repo>/.env; a pip-installed wheel reads the
+# per-user file ~/.config/tf-operator-predictor/.env. Write the one that applies, keeping every key
+# that is not ours.
+if [ -n "$ENV_FILE" ]; then
+  :
+elif [ -f "$REPO/pyproject.toml" ] && [ -d "$REPO/predictor" ]; then
   ENV_FILE="$REPO/.env"
 else
-  ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/tfop/.env"
+  ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/tf-operator-predictor/.env"
 fi
 mkdir -p "$(dirname "$ENV_FILE")"
 touch "$ENV_FILE"
@@ -139,8 +152,9 @@ if [ -x "$BIN/tfop" ]; then TFOP="$BIN/tfop"; elif command -v tfop >/dev/null; t
 if [ -n "$TFOP" ]; then
   # Apply the tracked scripts, then verify discovery readiness explicitly. `tfop setup`
   # distinguishes genome-only tools from required per-TF tools, so its exit status alone
-  # does not certify the production discovery route.
-  if [ "$WANT_RIIO" = 1 ]; then
+  # does not certify the production discovery route. (RIIO may already be in this env, e.g. from
+  # environment.yml, without --with-riio.)
+  if [ -x "$BIN/tfop" ]; then
     "$BIN/python" - <<'PY'
 from predictor.discovery import bitacora
 bitacora.ensure_patched()
@@ -152,9 +166,40 @@ PY
   fi
   say "tfop setup"
   "$TFOP" setup
-else
-  say "Engines installed. Now install RIIO itself (see README), then run: tfop setup"
 fi
-if [ "$WANT_RIIO" = 1 ]; then
-  say "Done. Activate the env with:  conda activate $ENV_NAME   (micromamba: micromamba activate $ENV_NAME)"
+
+# ---------------------------------------------------------------- 7. how to use it from now on
+# A non-interactive Miniforge install (and many fresh shells) never ran `conda init`, so a bare
+# `conda activate` fails with "command not found"; print a form that works regardless.
+CONDA_BASE="$(dirname "$(dirname "$ENV_PREFIX")")"
+if [ "$(basename "$CONDA")" = micromamba ]; then
+  ACTIVATE="eval \"\$(micromamba shell hook --shell bash)\" && micromamba activate $ENV_NAME"
+  FALLBACK=""
+elif [ -f "$CONDA_BASE/bin/activate" ]; then
+  ACTIVATE="conda activate $ENV_NAME"
+  FALLBACK="source \"$CONDA_BASE/bin/activate\" $ENV_NAME"
+else
+  ACTIVATE="conda activate $ENV_NAME"
+  FALLBACK=""
+fi
+if [ -n "$SETTINGS_ONLY_FOR_CALLER" ]; then
+  say "Engines ready; their locations are in $ENV_FILE"
+elif [ -x "$BIN/tfop" ]; then
+  say "Done. In every NEW terminal, activate the environment before using tfop:"
+  printf '      %s\n' "$ACTIVATE"
+  if [ -n "$FALLBACK" ]; then
+    printf '    If that answers "conda: command not found" or asks you to run "conda init", use:\n'
+    printf '      %s\n' "$FALLBACK"
+    printf '    (or run  "%s/bin/conda" init bash  once, then open a new terminal).\n' "$CONDA_BASE"
+  fi
+  printf '    Then check the install and make a first prediction (about 5 minutes, needs internet):\n'
+  printf '      tfop selftest\n'
+  printf '      tfop predict tests/data/mini_tf.faa --name ZntR --organism GCF_000005845.2 --out runs/ZntR\n'
+  printf '    Step-by-step guide: docs/INSTALL_LINUX.md\n'
+else
+  say "Engines installed in the conda env $ENV_NAME."
+  printf '    To install RIIO into that same env (recommended), re-run:  bash env/install_linux.sh --with-riio\n'
+  printf '    To use another Python environment instead, install RIIO there from this folder in editable\n'
+  printf "    mode so it reads %s:  python -m pip install -e '.[genome,gui]'\n" "$ENV_FILE"
+  printf '    (or set PREDICTOR_ENV_FILE=%s). Then run: tfop setup\n' "$ENV_FILE"
 fi

@@ -26,6 +26,8 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from predictor.input_validation import path_exists
+
 _REPO = Path(__file__).resolve().parents[2]
 _MMSEQS_DIR = _REPO / "env" / "tools" / "mmseqs"
 _DEFAULT_MMSEQS_EXE = _MMSEQS_DIR / "bin" / "mmseqs.exe"     # call the exe directly (no cmd/.bat)
@@ -68,9 +70,11 @@ def find_mmseqs() -> str:
     # ensure BusyBox is installed (bin/bash) before relying on the exe for easy-* workflows.
     # NB: bin/bash is a BusyBox symlink whose .exists() raises WinError 1920 when present -> that
     # error itself means "installed", so only a clean FileNotFound triggers the one-time bootstrap.
+    # env/install_windows.ps1 installs the applets as hard links (bin/bash.exe), which needs no admin.
     if _DEFAULT_MMSEQS_EXE.exists():
         try:
-            has_bash = (_MMSEQS_DIR / "bin" / "bash").exists()
+            has_bash = ((_MMSEQS_DIR / "bin" / "bash").exists()
+                        or (_MMSEQS_DIR / "bin" / "bash.exe").exists())
         except OSError:
             has_bash = True
         if not has_bash and _DEFAULT_MMSEQS_BAT.exists():
@@ -110,7 +114,7 @@ def _write_fasta(path: Path, records) -> None:
 
 def _as_query_fasta(query, tmp: Path) -> tuple[Path, str]:
     """Accept a fasta path or a raw sequence string; return (fasta_path, query_id)."""
-    if isinstance(query, (str, os.PathLike)) and Path(str(query)).exists():
+    if isinstance(query, (str, os.PathLike)) and path_exists(query):
         # read first record id
         with open(query, encoding="ascii") as fh:
             qid = next((l[1:].split()[0].strip() for l in fh if l.startswith(">")), "query")

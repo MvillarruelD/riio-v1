@@ -38,6 +38,7 @@ except ImportError:                                            # run as a script
     from predictor.annotate.family_db import _PFAM_HMM, _PFAM_MAP
     from predictor.annotate.genome_resolver import is_dna
     from predictor.annotate import ssn_clusters as _ssn
+from predictor.input_validation import path_exists
 
 #: Families the downstream pipeline can source SSN-cluster homologs for -- i.e. every family with an SSN.
 #: `scan` reports EVERY family it detects; `--predict` runs the operator pipeline on the candidates in
@@ -357,7 +358,7 @@ def write_outputs(cands, out_dir, *, kind="proteome", n_proteins=0, source="", p
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     predictions = predictions or {}
-    if source_path is None and source and Path(str(source)).is_file():
+    if source_path is None and source and path_exists(source) and Path(str(source)).is_file():
         source_path = source
     previous_manifest = {}
     manifest_path = out_dir / "scan_manifest.json"

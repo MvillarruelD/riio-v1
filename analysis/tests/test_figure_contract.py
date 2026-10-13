@@ -185,15 +185,15 @@ def test_pipeline_renderer_contains_modes_exports_and_unclipped_text(compact):
     try:
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
-        labels = {text.get_text() for ax in fig.axes for text in ax.texts}
+        labels = {" ".join(text.get_text().split()) for ax in fig.axes for text in ax.texts}
         assert {"Single protein", "Protein list", "Genome accession", "Local genome",
-                "Candidate discovery", "Per-TF inference",
-                "Per-TF bundle", "Run report", "AlphaFold 3 hand-off"} <= labels
-        assert "CLI · Python API · browser GUI" in labels
+                "Candidate discovery", "TF context", "Auditable outputs",
+                "S1 · AF3 input jobs", "when available"} <= labels
         # A compact schematic carries states; interface syntax stays in the legend.
-        assert {"Homologue promoters", "Motif", "Genome rescan", "Ranked operators",
-                "Resolve context", "Fused inducer call"} <= labels
-        assert len(fig.axes[0].patches) > 40  # editable state drawings, not embedded images
+        assert {"Homologue promoters", "Inverted-repeat PWM", "Intergenic scan", "Ranked operators",
+                "Fused inducer call", "SSN clade", "Cys/His motifs", "MetalNet2", "sequence + MSA",
+                "Nearby genes", "Ligify", "ion if resolved · channels may abstain",
+                "Regulatory hypothesis", "candidate targets"} <= labels
         assert not fig.axes[0].images
         canvas = fig.bbox
         for ax in fig.axes:
@@ -201,9 +201,13 @@ def test_pipeline_renderer_contains_modes_exports_and_unclipped_text(compact):
                 bbox = text.get_window_extent(renderer)
                 assert bbox.x0 >= canvas.x0 and bbox.x1 <= canvas.x1, text.get_text()
                 assert bbox.y0 >= canvas.y0 and bbox.y1 <= canvas.y1, text.get_text()
-                assert text.get_fontsize() >= 7, text.get_text()
+                # Nature's final-artwork guide: ordinary text 5–7 pt, letters 8 pt.
+                if text.get_text() in {"a", "b", "c"}:
+                    assert text.get_fontsize() == 8
+                else:
+                    assert 6 <= text.get_fontsize() <= 7, text.get_text()
         assert fig.get_figwidth() * 25.4 <= 183
-        assert fig.get_figheight() * 25.4 <= 130
+        assert fig.get_figheight() * 25.4 <= 122
         # The TIFF saver adds matplotlib's default padding around tight content.
         # Reserve it in the canvas contract so the exported file also fits the page.
         assert (fig.get_figwidth() + 2 * plt.rcParams["savefig.pad_inches"]) * 25.4 <= 183
@@ -224,11 +228,62 @@ def test_pipeline_schematic_and_legend_do_not_claim_unverified_neutrality():
             assert "never alter" not in content
             assert "never read each other's" not in content
             assert "changes no call" not in content
-            assert "default" in content
+        assert "default" in legend
         assert "Single-protein calls enter prediction directly" in legend
         assert "input and policy fingerprints" in legend
         assert "run and discovery reports" in legend
         assert "without boosting their ranking" in legend
         assert "drawings illustrate states" in legend
+        assert "CLI, Python API or browser GUI" in legend
+        assert "never executed" in legend
+        assert "require experimental validation" in legend
+        assert "Solid arrows indicate data flow" in legend
+        assert "dashed links indicate unvalidated biological" in legend
     finally:
         plt.close(fig)
+
+
+@pytest.mark.parametrize("compact", [False, True])
+def test_pipeline_schematic_labels_do_not_overlap(compact):
+    """Guard printed-size label legibility without freezing the drawing geometry."""
+    from reports.build_pipeline_figure import draw_pipeline_figure
+    import matplotlib.pyplot as plt
+    fig = draw_pipeline_figure(compact=compact)
+    try:
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        texts = [text for ax in fig.axes for text in ax.texts if text.get_visible()]
+        for i, first in enumerate(texts):
+            a = first.get_window_extent(renderer)
+            for second in texts[i + 1:]:
+                b = second.get_window_extent(renderer)
+                assert not a.overlaps(b), (first.get_text(), second.get_text())
+    finally:
+        plt.close(fig)
+
+
+def test_figure1_artwork_keeps_the_schematic_labels_as_editable_text(tmp_path):
+    """Figure 1 is hand-built SVG; it must say everything the run-scoped renderer says."""
+    import html
+    import re
+    from reports import build_fig1_artwork as art
+    from reports.build_pipeline_figure import draw_pipeline_figure
+    import matplotlib.pyplot as plt
+    svg = tmp_path / "fig1.svg"
+    art.build(svg)
+    source = svg.read_text(encoding="utf-8")
+    texts = [" ".join(html.unescape(t).split()) for t in re.findall(r"<text[^>]*>(.*?)</text>", source, re.S)]
+    fig = draw_pipeline_figure()
+    try:
+        expected = {" ".join(t.get_text().split()) for ax in fig.axes for t in ax.texts}
+    finally:
+        plt.close(fig)
+    printed = " ".join(texts)  # wrapped labels continue in the next text element
+    assert not [label for label in expected if label not in printed]
+    assert "<image" not in source  # vector drawings, not embedded bitmaps
+    assert art.W <= 183 and art.H <= 122
+    for attrs in re.findall(r"<text ([^>]*)>", source):
+        if "transform=" in attrs:
+            continue  # sequence-logo glyphs are scaled drawings, not reading text
+        size_pt = float(re.search(r'font-size="([\d.]+)"', attrs).group(1)) / art.PT
+        assert 5 - 1e-3 <= size_pt <= 8 + 1e-3, attrs

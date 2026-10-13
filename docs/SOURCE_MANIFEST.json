@@ -1,22 +1,22 @@
 {
   "sources": {
-    "RIO": "5ab06c7d19207293944ddf383d9f6cc14e02efb1",
-    "jjr-ssn-analysis": "174d1a5bafdba8e7ae04bd946d27834c3d9a821b",
-    "publication_checkout": "1840765caa94d5861183651e7347126a2c138799"
+    "RIO": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
+    "jjr-ssn-analysis": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
+    "publication_checkout": "2810de652ab70d150e63c283e7cd3b77b5eb3d8e"
   },
   "source_states": {
     "RIO": {
-      "commit": "5ab06c7d19207293944ddf383d9f6cc14e02efb1",
+      "commit": "c20b2a318434ccbcaa9f7181a00c6142d1dad55b",
       "dirty": false,
       "status": []
     },
     "jjr-ssn-analysis": {
-      "commit": "174d1a5bafdba8e7ae04bd946d27834c3d9a821b",
+      "commit": "18d0baedcf15964559c7f5afb8cf7c10a7aee0d5",
       "dirty": false,
       "status": []
     },
     "publication_checkout": {
-      "commit": "1840765caa94d5861183651e7347126a2c138799",
+      "commit": "2810de652ab70d150e63c283e7cd3b77b5eb3d8e",
       "dirty": false,
       "status": []
     }
@@ -26,10 +26,9 @@
       "source_repository": "RIO",
       "source_path": ".env.example",
       "release_path": ".env.example",
-      "source_sha256": "a76dc16bdf857df19e5271bf1f75778c110fe6e1741cfa46e036a4981aeef321",
-      "preserved_checkout_sha256": "5666a0cb47150229d634deceba21771c083fabdb29e6f092848b6bcf0c762451",
-      "overlay_policy": "three_way_merge",
-      "release_sha256": "5666a0cb47150229d634deceba21771c083fabdb29e6f092848b6bcf0c762451"
+      "source_sha256": "3faf6ad9b30fd5bdd4519a9b950a327e7457d96153ed73884d28ff5df370c86a",
+      "preserved_checkout_sha256": "3faf6ad9b30fd5bdd4519a9b950a327e7457d96153ed73884d28ff5df370c86a",
+      "release_sha256": "3faf6ad9b30fd5bdd4519a9b950a327e7457d96153ed73884d28ff5df370c86a"
     },
     {
       "source_repository": "RIO",
@@ -52,9 +51,9 @@
       "source_repository": "RIO",
       "source_path": ".streamlit/config.toml",
       "release_path": ".streamlit/config.toml",
-      "source_sha256": "61abf0340464f41ace1fec52c2084ef0b82c3a58724ed58f02e62dadd8cb3023",
+      "source_sha256": "72592635cf1d1ab00f1b94984a19f680ea12767893029914c41dd94a2d61bf00",
       "preserved_checkout_sha256": "61abf0340464f41ace1fec52c2084ef0b82c3a58724ed58f02e62dadd8cb3023",
-      "release_sha256": "61abf0340464f41ace1fec52c2084ef0b82c3a58724ed58f02e62dadd8cb3023"
+      "release_sha256": "72592635cf1d1ab00f1b94984a19f680ea12767893029914c41dd94a2d61bf00"
     },
     {
       "source_repository": "RIO",
@@ -91,11 +90,10 @@
       "source_repository": "RIO",
       "source_path": "docs/ENGINES.md",
       "release_path": "docs/ENGINES.md",
-      "source_sha256": "dae5e9e3c4d8cc94e53fcdd4ab9635699f650b06d48e10e90a94599c0981feb2",
+      "source_sha256": "655ab9b4dc0f7a889b47f2c74aa5f086a4fd8e04e58a049fade004fa2889d5a6",
       "preserved_checkout_sha256": "b9f08208541f1be1d3885403c07f42c398aaf2b971ea6017ae087c1752334f5a",
       "overlay_policy": "new_source",
-      "newline_transformation": "Git text attribute: CRLF to LF",
-      "release_sha256": "91ff8a3843d34ae1d85dc3fe4d6c8c3ecf86a7352eedf708477f295c519290dc"
+      "release_sha256": "655ab9b4dc0f7a889b47f2c74aa5f086a4fd8e04e58a049fade004fa2889d5a6"
     },
     {
       "source_repository": "RIO",
@@ -109,16 +107,15 @@
       "source_repository": "RIO",
       "source_path": "docs/INSTALL_LINUX.md",
       "release_path": "docs/INSTALL_LINUX.md",
-      "source_sha256": "744295ef694aff79dc0219465c466f73cc576f3697dd90be89b10ea1fadadd8b",
-      "release_sha256": "744295ef694aff79dc0219465c466f73cc576f3697dd90be89b10ea1fadadd8b"
+      "source_sha256": "d610c53e2d03b6c154c26814927de7e3af9fca6352cfd3a37dd555bedf6e3ccd",
+      "release_sha256": "d610c53e2d03b6c154c26814927de7e3af9fca6352cfd3a37dd555bedf6e3ccd"
     },
     {
       "source_repository": "RIO",
       "source_path": "docs/INSTALL_WINDOWS.md",
       "release_path": "docs/INSTALL_WINDOWS.md",
-      "source_sha256": "88b51188a272e33d34f2a493ecc3b840508792b4538f7ab14397fb5cd472b448",
-      "newline_transformation": "Git text attribute: CRLF to LF",
-      "release_sha256": "8bf302fc1fa75a8f8a1e2b8b965af7e510e29b2ed7d8e243b905d51f861cfde0"
+      "source_sha256": "0ddbb6a90e21b67d9a57c764675a079d70ba1b2b9579b82f933a20363d695a57",
+      "release_sha256": "0ddbb6a90e21b67d9a57c764675a079d70ba1b2b9579b82f933a20363d695a57"
     },
     {
       "source_repository": "RIO",
@@ -168,8 +165,15 @@
       "source_repository": "RIO",
       "source_path": "env/install_linux.sh",
       "release_path": "env/install_linux.sh",
-      "source_sha256": "f31a4ef9db4c09f0d4efeaf5a7377c69dccff10c02e80fbfb2068ead0ba77252",
-      "release_sha256": "f31a4ef9db4c09f0d4efeaf5a7377c69dccff10c02e80fbfb2068ead0ba77252"
+      "source_sha256": "e45a3708337ddffa189c025a9b7a83e20d7f189c1b5aabb4142ef610e20064c1",
+      "release_sha256": "e45a3708337ddffa189c025a9b7a83e20d7f189c1b5aabb4142ef610e20064c1"
+    },
+    {
+      "source_repository": "RIO",
+      "source_path": "env/install_windows.ps1",
+      "release_path": "env/install_windows.ps1",
+      "source_sha256": "e11ad9cb45f8355fa2e8658583757b9bacc13fb1864031bc4881eb3f5f32f822",
+      "release_sha256": "e11ad9cb45f8355fa2e8658583757b9bacc13fb1864031bc4881eb3f5f32f822"
     },
     {
       "source_repository": "RIO",
@@ -347,9 +351,9 @@
       "source_repository": "RIO",
       "source_path": "predictor/annotate/family_db.py",
       "release_path": "predictor/annotate/family_db.py",
-      "source_sha256": "3233c36c7f77364db52c1099d0c0d9eda62d80bb8b5ba7c677fb3b33d8f768f3",
+      "source_sha256": "72867fb59595fac61eaa53dc927513b435b40726943336e51681dd9484100019",
       "preserved_checkout_sha256": "feb684b75c64044994705015c72a7199094e337ebed21ecd88c05c9475d892f0",
-      "release_sha256": "3233c36c7f77364db52c1099d0c0d9eda62d80bb8b5ba7c677fb3b33d8f768f3"
+      "release_sha256": "72867fb59595fac61eaa53dc927513b435b40726943336e51681dd9484100019"
     },
     {
       "source_repository": "RIO",
@@ -379,18 +383,18 @@
       "source_repository": "RIO",
       "source_path": "predictor/annotate/genome_resolver.py",
       "release_path": "predictor/annotate/genome_resolver.py",
-      "source_sha256": "f8fd14d116d441f1a90a62788e1d6e46308ea5c02b6a7211f658ed3568e2a9de",
+      "source_sha256": "0ce2f3fb1398fbf45bf143adaa90218272f003f51575353abe71429d40d6edde",
       "preserved_checkout_sha256": "40842ce507f138071d987374c14327683848c4f1a49eca48c84efdc56ecefb56",
-      "release_sha256": "f8fd14d116d441f1a90a62788e1d6e46308ea5c02b6a7211f658ed3568e2a9de"
+      "release_sha256": "0ce2f3fb1398fbf45bf143adaa90218272f003f51575353abe71429d40d6edde"
     },
     {
       "source_repository": "RIO",
       "source_path": "predictor/annotate/genome_scan.py",
       "release_path": "predictor/annotate/genome_scan.py",
-      "source_sha256": "c7df8604d3ca6287279d3a1d1e98e72049e7b7b90de528588666a1af6e5c4235",
+      "source_sha256": "b24f5e445586273c51c718eba0671d7186929e2df3fbc553d61bd4eda8a36678",
       "preserved_checkout_sha256": "a0d1507f99f1e186830a190c24b029b43fa53811b963411aa29775bb14a2205b",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "c7df8604d3ca6287279d3a1d1e98e72049e7b7b90de528588666a1af6e5c4235"
+      "release_sha256": "b24f5e445586273c51c718eba0671d7186929e2df3fbc553d61bd4eda8a36678"
     },
     {
       "source_repository": "RIO",
@@ -412,9 +416,10 @@
       "source_repository": "RIO",
       "source_path": "predictor/annotate/homologs.py",
       "release_path": "predictor/annotate/homologs.py",
-      "source_sha256": "16c5c8cb2233626101e84bf00bcbf042f01a3ff420d39cdb54ff91c9c86a08ba",
+      "source_sha256": "d3e40d60b91195919224c3a27b3dca54519ab9f8eab6cdbb55d690b382b7d04d",
       "preserved_checkout_sha256": "16c5c8cb2233626101e84bf00bcbf042f01a3ff420d39cdb54ff91c9c86a08ba",
-      "release_sha256": "16c5c8cb2233626101e84bf00bcbf042f01a3ff420d39cdb54ff91c9c86a08ba"
+      "overlay_policy": "three_way_merge",
+      "release_sha256": "d3e40d60b91195919224c3a27b3dca54519ab9f8eab6cdbb55d690b382b7d04d"
     },
     {
       "source_repository": "RIO",
@@ -4339,10 +4344,10 @@
       "source_repository": "RIO",
       "source_path": "predictor/discovery/bitacora.py",
       "release_path": "predictor/discovery/bitacora.py",
-      "source_sha256": "ec51cc431fcbbd14aef1456d4e374d7acb87b07db32c2cc26296bf014b980d49",
+      "source_sha256": "87f19e4be440326525458f9f7ed817221fac6ad38846a27cd06a8ef34aba996f",
       "preserved_checkout_sha256": "8d7d0e1e79e276fa699a5d83234915ee8b4eba6116ff77484500e5c2dc6c2e59",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "ec51cc431fcbbd14aef1456d4e374d7acb87b07db32c2cc26296bf014b980d49"
+      "release_sha256": "87f19e4be440326525458f9f7ed817221fac6ad38846a27cd06a8ef34aba996f"
     },
     {
       "source_repository": "RIO",
@@ -4421,18 +4426,18 @@
       "source_repository": "RIO",
       "source_path": "predictor/gui.py",
       "release_path": "predictor/gui.py",
-      "source_sha256": "975394ae1562e63653388e12da882fc5036b8430471918362e39d3f783ec0331",
+      "source_sha256": "489508fbd7f03bbef81a98eaf21e80b63268675ea71e168867da571a8959c92b",
       "preserved_checkout_sha256": "975394ae1562e63653388e12da882fc5036b8430471918362e39d3f783ec0331",
-      "release_sha256": "975394ae1562e63653388e12da882fc5036b8430471918362e39d3f783ec0331"
+      "release_sha256": "489508fbd7f03bbef81a98eaf21e80b63268675ea71e168867da571a8959c92b"
     },
     {
       "source_repository": "RIO",
       "source_path": "predictor/gui_app.py",
       "release_path": "predictor/gui_app.py",
-      "source_sha256": "a0d8676b515be8c6f3bc458db26724ed01ea3c1b0ce1b70a028a80dd1c806d56",
+      "source_sha256": "bd0bea4a188c056039167cd3428ec42ca3861e6cff84473c617b16f45ec20b15",
       "preserved_checkout_sha256": "5b1fb417d114e34edeb5dc1c18d07c44f3bf71a0261b9d560a74103d8ccc25a4",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "a0d8676b515be8c6f3bc458db26724ed01ea3c1b0ce1b70a028a80dd1c806d56"
+      "release_sha256": "bd0bea4a188c056039167cd3428ec42ca3861e6cff84473c617b16f45ec20b15"
     },
     {
       "source_repository": "RIO",
@@ -4446,9 +4451,9 @@
       "source_repository": "RIO",
       "source_path": "predictor/input_validation.py",
       "release_path": "predictor/input_validation.py",
-      "source_sha256": "9aab7813caa1a81d2e6e33628209de0a8d7f59aa21bea4688e0cfd98e94296a7",
+      "source_sha256": "bb85e234fa523fbe57ef76ece85435a58c2e07840901618f622519459e3a51b5",
       "preserved_checkout_sha256": "9aab7813caa1a81d2e6e33628209de0a8d7f59aa21bea4688e0cfd98e94296a7",
-      "release_sha256": "9aab7813caa1a81d2e6e33628209de0a8d7f59aa21bea4688e0cfd98e94296a7"
+      "release_sha256": "bb85e234fa523fbe57ef76ece85435a58c2e07840901618f622519459e3a51b5"
     },
     {
       "source_repository": "RIO",
@@ -4620,18 +4625,18 @@
       "source_repository": "RIO",
       "source_path": "predictor/resources.py",
       "release_path": "predictor/resources.py",
-      "source_sha256": "9341c2c028a6a1653576c67c5c46d4c61edac4912e5591f7962637a6fd4c34ed",
+      "source_sha256": "44a45d03f6e84a28e5aa1756e1b3ae3a928b707bf2f86682f2f0bee2ad970e1e",
       "preserved_checkout_sha256": "fc83622ba702ee14baf78534ea95ee4f538aef8ad01fbf0013c9d3d141eefa67",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "9341c2c028a6a1653576c67c5c46d4c61edac4912e5591f7962637a6fd4c34ed"
+      "release_sha256": "44a45d03f6e84a28e5aa1756e1b3ae3a928b707bf2f86682f2f0bee2ad970e1e"
     },
     {
       "source_repository": "RIO",
       "source_path": "predictor/run_cli.py",
       "release_path": "predictor/run_cli.py",
-      "source_sha256": "9f151bf8a0994c55653fdd44f8efaed0d0b089ec61aa2d46746fd1b68727db23",
+      "source_sha256": "b4df5516ab1558f936e9ddbdf3184e26010c9aa7453279aa42bce7770ae1a42f",
       "preserved_checkout_sha256": "197ab482d2a7457b9ee1f6edc6a487e69df8fa6e913b57d90ea620277ca72baf",
-      "release_sha256": "9f151bf8a0994c55653fdd44f8efaed0d0b089ec61aa2d46746fd1b68727db23"
+      "release_sha256": "b4df5516ab1558f936e9ddbdf3184e26010c9aa7453279aa42bce7770ae1a42f"
     },
     {
       "source_repository": "RIO",
@@ -4645,10 +4650,10 @@
       "source_repository": "RIO",
       "source_path": "predictor/setup_tools.py",
       "release_path": "predictor/setup_tools.py",
-      "source_sha256": "6efaa22ff3a4edb3e7c66547343393c243b7bdd4b4b2ad4c7c0780fe87df2983",
+      "source_sha256": "00fc7eb15be4802c515cabb82180b2120b948d7aa54dd919550a6d3da8748c4a",
       "preserved_checkout_sha256": "ed0b82f6c1bd50dbaa43a305c446ea6706631d3ed27ed1f5af3639235579e1cd",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "6efaa22ff3a4edb3e7c66547343393c243b7bdd4b4b2ad4c7c0780fe87df2983"
+      "release_sha256": "00fc7eb15be4802c515cabb82180b2120b948d7aa54dd919550a6d3da8748c4a"
     },
     {
       "source_repository": "RIO",
@@ -4780,18 +4785,18 @@
       "source_repository": "RIO",
       "source_path": "predictor/structure/metal_site.py",
       "release_path": "predictor/structure/metal_site.py",
-      "source_sha256": "1f8b7a56b6574024689570d89975d65ce17e1cb691b05c5870261a4bfefd09d7",
+      "source_sha256": "8ed19aca62f15c966cd68d67ed6826fc3e03c5eb6b501ae6c78cdf50f225a5b5",
       "preserved_checkout_sha256": "1f8b7a56b6574024689570d89975d65ce17e1cb691b05c5870261a4bfefd09d7",
-      "release_sha256": "1f8b7a56b6574024689570d89975d65ce17e1cb691b05c5870261a4bfefd09d7"
+      "release_sha256": "8ed19aca62f15c966cd68d67ed6826fc3e03c5eb6b501ae6c78cdf50f225a5b5"
     },
     {
       "source_repository": "RIO",
       "source_path": "predictor/structure/metalnet.py",
       "release_path": "predictor/structure/metalnet.py",
-      "source_sha256": "44cc45ca55623a861946971277a999f13324fab092c24c7f845939d2ae0d8113",
+      "source_sha256": "0f3637d36438ceb9485c2ff4a9774938e5b594588271b5960eeda9a49cb49f91",
       "preserved_checkout_sha256": "07500fec7fc89a501c0e891c9e5b01366e776f03d65b116fd76a6c953380d687",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "44cc45ca55623a861946971277a999f13324fab092c24c7f845939d2ae0d8113"
+      "release_sha256": "0f3637d36438ceb9485c2ff4a9774938e5b594588271b5960eeda9a49cb49f91"
     },
     {
       "source_repository": "RIO",
@@ -4953,9 +4958,9 @@
       "source_repository": "RIO",
       "source_path": "tests/test_gui_launcher.py",
       "release_path": "tests/test_gui_launcher.py",
-      "source_sha256": "77dba8d774536b86fd6a6959f665329473004563111530e5f8fcc9813657b87a",
+      "source_sha256": "cc50dbe9b5c10f4c99bc7b84df8b036dfc559e281c6bdba8470c5ff59a8ca54c",
       "preserved_checkout_sha256": "77dba8d774536b86fd6a6959f665329473004563111530e5f8fcc9813657b87a",
-      "release_sha256": "77dba8d774536b86fd6a6959f665329473004563111530e5f8fcc9813657b87a"
+      "release_sha256": "cc50dbe9b5c10f4c99bc7b84df8b036dfc559e281c6bdba8470c5ff59a8ca54c"
     },
     {
       "source_repository": "RIO",
@@ -4985,8 +4990,8 @@
       "source_repository": "RIO",
       "source_path": "tests/test_linux_portability.py",
       "release_path": "tests/test_linux_portability.py",
-      "source_sha256": "205e1769676cd8d8a54dfce4fc4838b467a19b7a1db595269e3ee5ab9d3cc9b7",
-      "release_sha256": "205e1769676cd8d8a54dfce4fc4838b467a19b7a1db595269e3ee5ab9d3cc9b7"
+      "source_sha256": "c5c2c263282089a8d4a975dd67d5cc87b7889a2d848f4de4c83ad4197fa92951",
+      "release_sha256": "c5c2c263282089a8d4a975dd67d5cc87b7889a2d848f4de4c83ad4197fa92951"
     },
     {
       "source_repository": "RIO",
@@ -5494,9 +5499,9 @@
       "source_repository": "jjr-ssn-analysis",
       "source_path": "analysis/tests/test_figure_contract.py",
       "release_path": "analysis/tests/test_figure_contract.py",
-      "source_sha256": "6786c587a836817bdd702e1b2ce4929c512c2cc4e41bd7b0051c50c06bdf71c1",
+      "source_sha256": "26c926743df1916dbbe6d19f0c76d5c74bf50482f9f54f2278b0b4a6604b8fe9",
       "preserved_checkout_sha256": "513e89641c463cb5a2e6738bb5c2726c10bc9f073ab12050467aebb0e0443f7e",
-      "release_sha256": "6786c587a836817bdd702e1b2ce4929c512c2cc4e41bd7b0051c50c06bdf71c1"
+      "release_sha256": "26c926743df1916dbbe6d19f0c76d5c74bf50482f9f54f2278b0b4a6604b8fe9"
     },
     {
       "source_repository": "jjr-ssn-analysis",
@@ -7481,10 +7486,10 @@
       "source_repository": "jjr-ssn-analysis",
       "source_path": "reports/build_legends.py",
       "release_path": "reports/build_legends.py",
-      "source_sha256": "4074938b0047aa0c8297ddcab0bd3494797a79cdca1af531c1fc5c30f8aa4d3f",
+      "source_sha256": "b1d37e5257aad91b7f6db43490183257f32a80c97c22c6dcbc2e6bce962a533a",
       "preserved_checkout_sha256": "8a0ebf6b3b8bc9e21a13fad1dd43e723792538ba61c2f31915d5a574d6fb1cb9",
       "overlay_policy": "three_way_merge",
-      "release_sha256": "4bd96869bfec4cb4987bbaa48b854d88ef460e98a7f8804362837c8643b029d7"
+      "release_sha256": "0c83ef91a571d13a22a868044fe7da3b47b72df53b0132532b975e73dc8fe4a7"
     },
     {
       "source_repository": "jjr-ssn-analysis",
@@ -7506,8 +7511,17 @@
       "source_repository": "jjr-ssn-analysis",
       "source_path": "reports/build_pipeline_figure.py",
       "release_path": "reports/build_pipeline_figure.py",
-      "source_sha256": "c06d6c09084f1694418d2affa2b4211afd64484a174e8f7a34b48490ee830070",
-      "release_sha256": "c06d6c09084f1694418d2affa2b4211afd64484a174e8f7a34b48490ee830070"
+      "source_sha256": "13e1fbc32d6ac72731d7630556d8b7d38d48661b57925a2ee9012868da1f8233",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "ed2f842ea100b2582bf9cf388dee95e100375dfcc6db4ef8fbda50cded40c87a"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/build_fig1_artwork.py",
+      "release_path": "reports/build_fig1_artwork.py",
+      "source_sha256": "3303d6e3b78907cb9ecc243846eafaf56e0104a94ecb13dd31bc70b2a63e9511",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "d2c3c3b3fc7b15ac4791c0c63b6fba6b7b377e29612f31ee268610243a730466"
     },
     {
       "source_repository": "jjr-ssn-analysis",
@@ -7537,6 +7551,60 @@
       "source_sha256": "b87d42e3d1acc007ea5db8b12ac17dfe4711b01e85e5f1de957f06933506de36",
       "newline_transformation": "Git text attribute: CRLF to LF",
       "release_sha256": "9fccf96f4b9dd200a2083ac23dc4d34c08ccefbcacb1f5bcaa1b488dc0874012"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/cuer_complex.svg",
+      "release_path": "reports/fig1_assets/cuer_complex.svg",
+      "source_sha256": "e8d694f3e40b9c1d62e5b8d2bdc822cb269003ecf2ef50c4f9cbef078b9aaf05",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "7154b43cbad4f28cd9db2e2027dd3c7dbad9265751a0904a2884adc0cedd5e78"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/cuer_protein.svg",
+      "release_path": "reports/fig1_assets/cuer_protein.svg",
+      "source_sha256": "ef3d0a69f561cd68362fa33fc71ce717e5674c32fbdd2408e55fdf3ea22b3b20",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "dcc3da74f68796034c3328fcd6bf018b118b7980b907faeefa010e4b944faf10"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/dna_long.svg",
+      "release_path": "reports/fig1_assets/dna_long.svg",
+      "source_sha256": "304e8be2230e4e51e4dcd012cb37d1f26339a9a1ace7b0d4aea400c3accbf61c",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "c6712f74c902abda9cb0f99ec6b83d64dd52b94f6a9b251c995ba76e6379fea3"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/dna_medium.svg",
+      "release_path": "reports/fig1_assets/dna_medium.svg",
+      "source_sha256": "3bfa9e6cd4e1bcf52e728a438117a21620b5bd1eb1fb462d7c17029d40663d48",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "5b7964fc9027c431b45f0200d8723de3cd8fdb547df017aff29c3c0434f6b178"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/dna_short.svg",
+      "release_path": "reports/fig1_assets/dna_short.svg",
+      "source_sha256": "b03002550acd22905191330c45b132a725681c0d5adc78c5cc88a246808171f2",
+      "newline_transformation": "Git text attribute: CRLF to LF",
+      "release_sha256": "0a0eeb49ebe6ecf93ecd3c2b90ac4b9c9deacd9858b5f2f5440ca593fb472fa6"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/extract_assets.py",
+      "release_path": "reports/fig1_assets/extract_assets.py",
+      "source_sha256": "1d48cca68df3c489c3cc5929a2184ad63c8f515058675dd8856d37c1280915c2",
+      "release_sha256": "1d48cca68df3c489c3cc5929a2184ad63c8f515058675dd8856d37c1280915c2"
+    },
+    {
+      "source_repository": "jjr-ssn-analysis",
+      "source_path": "reports/fig1_assets/merr_clade7.json",
+      "release_path": "reports/fig1_assets/merr_clade7.json",
+      "source_sha256": "b003129d5b1e27bb81a0e4f7a5895ba8e7d94d717cc807b0a7580516d8237ebc",
+      "release_sha256": "b003129d5b1e27bb81a0e4f7a5895ba8e7d94d717cc807b0a7580516d8237ebc"
     },
     {
       "source_repository": "jjr-ssn-analysis",
@@ -7695,17 +7763,17 @@
       "source_repository": "publication_checkout",
       "source_path": "README.md",
       "release_path": "README.md",
-      "source_sha256": "5c7871e2a807579641808a0e76172c7d2e15a3cc16f0b981224684729fca305e",
-      "preserved_checkout_sha256": "5c7871e2a807579641808a0e76172c7d2e15a3cc16f0b981224684729fca305e",
-      "release_sha256": "18adbd725c45a613b15a542cb54500570c34cd6fd0bf40f6230195000af3792e"
+      "source_sha256": "c5abce67091e4509b1c3bda913103cef78a6898a28ad776e4b836a4af098aed7",
+      "preserved_checkout_sha256": "c5abce67091e4509b1c3bda913103cef78a6898a28ad776e4b836a4af098aed7",
+      "release_sha256": "c5abce67091e4509b1c3bda913103cef78a6898a28ad776e4b836a4af098aed7"
     },
     {
       "source_repository": "publication_checkout",
       "source_path": "CHANGELOG.md",
       "release_path": "CHANGELOG.md",
-      "source_sha256": "838150a0ba5c81bed8a674120be0736d7b215806368d0fba9e477600886d2334",
-      "preserved_checkout_sha256": "838150a0ba5c81bed8a674120be0736d7b215806368d0fba9e477600886d2334",
-      "release_sha256": "05ed674f867ae442977433054044653efc3be8dd1ec816213bd7ec33af205784"
+      "source_sha256": "427eb4211353aab8bf1b8ede00115f0f06db6b4e00a6eb4e7e119532ab658aea",
+      "preserved_checkout_sha256": "427eb4211353aab8bf1b8ede00115f0f06db6b4e00a6eb4e7e119532ab658aea",
+      "release_sha256": "427eb4211353aab8bf1b8ede00115f0f06db6b4e00a6eb4e7e119532ab658aea"
     },
     {
       "source_repository": "publication_checkout",
@@ -7753,7 +7821,7 @@
       "release_path": "MANIFEST.in",
       "source_sha256": "f921412cdd2d0557d3e99f49facd0ec78c1e1e37da312d4443ea066319565449",
       "preserved_checkout_sha256": "f921412cdd2d0557d3e99f49facd0ec78c1e1e37da312d4443ea066319565449",
-      "release_sha256": "60d02282e492e85c1b4212e288efd26a22298c4175f9de9d9670445ed9f8135c"
+      "release_sha256": "ae2dd497c57cd4a94ee8d4ff57a91fe66b2b62a0d436a94ebb83e17452725d02"
     },
     {
       "source_repository": "publication_checkout",
@@ -7767,9 +7835,9 @@
       "source_repository": "publication_checkout",
       "source_path": "environment.yml",
       "release_path": "environment.yml",
-      "source_sha256": "505aea9d1b255363d9029db91a712e86de5ab30c28a5f3f87f10c5eb87fad5a3",
-      "preserved_checkout_sha256": "505aea9d1b255363d9029db91a712e86de5ab30c28a5f3f87f10c5eb87fad5a3",
-      "release_sha256": "505aea9d1b255363d9029db91a712e86de5ab30c28a5f3f87f10c5eb87fad5a3"
+      "source_sha256": "37431dd46cbc8a2cc797bb441e1cc39bc2f7a4f9d76112f70eaf8226afe33c11",
+      "preserved_checkout_sha256": "37431dd46cbc8a2cc797bb441e1cc39bc2f7a4f9d76112f70eaf8226afe33c11",
+      "release_sha256": "37431dd46cbc8a2cc797bb441e1cc39bc2f7a4f9d76112f70eaf8226afe33c11"
     },
     {
       "source_repository": "publication_checkout",
@@ -7850,14 +7918,14 @@
       "release_path": "docs/RELEASE_AUDIT_V1_1.md",
       "transformation": "release_validation",
       "newline_transformation": "Git text attribute: CRLF to LF",
-      "release_sha256": "7fd9225dfa9469c335091a937a69dde4a58d5fdfeb62f8e435dfa802d9a362ab"
+      "release_sha256": "d4334699373f30d4e3b51e44fa99e07cff321753373ecc3dbbdf8b26c9a73d99"
     },
     {
       "source_repository": "generated",
       "source_path": null,
       "release_path": "docs/RELEASE_AUDIT_V1_1.json",
       "transformation": "release_validation",
-      "release_sha256": "6a01dbeaea23a983d8f5fb3088c88f912d0647f142a537d1c3c79bbb9b30cf36"
+      "release_sha256": "a423bf005eb198114bb3e4a75f28495e59d2d397c377819f6797919cc5fe8ea4"
     }
   ]
 }

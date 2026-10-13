@@ -25,6 +25,8 @@ import argparse
 import re
 from pathlib import Path
 
+from predictor.input_validation import path_exists
+
 _REPO = Path(__file__).resolve().parents[2]
 
 # C-X(7,8)-C reactive cysteine pair (the MerR metal gate); also the generic divalent-Cys pair detector.
@@ -744,8 +746,8 @@ def main(argv=None):
         _self_test()
         return
     s = a.seq
-    if Path(a.seq).exists():
-        s = "".join(l.strip() for l in Path(a.seq).read_text().splitlines() if not l.startswith(">"))
+    if path_exists(a.seq):
+        s = "".join(l.strip() for l in Path(a.seq).read_text(encoding="utf-8").splitlines() if not l.startswith(">"))
     print(coordination_gate(s, a.family))
 
 

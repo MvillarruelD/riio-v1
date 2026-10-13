@@ -187,7 +187,8 @@ class BitacoraResult:
 #:   `env/install_linux.sh` creates); it is put first on PATH for every engine call. Unset, the tools
 #:   must already be on PATH.
 #: * **Windows** has no HMMER build, so the engine runs through WSL. There `BITACORA_BIN` is the
-#:   directory INSIDE WSL, and defaults to the conda env `docs/INSTALL_WINDOWS.md` creates.
+#:   directory INSIDE WSL; `env/install_windows.ps1 -WithWsl` records it in the settings file. The
+#:   fallback below is the original maintainer layout (a WSL conda env named `bitacora`).
 ON_WINDOWS = os.name == "nt"
 _DISTRO = os.environ.get("BITACORA_WSL_DISTRO", "Ubuntu")
 _WSL_BIN = os.environ.get("BITACORA_BIN", "$HOME/miniforge3/envs/bitacora/bin")

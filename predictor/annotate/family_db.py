@@ -31,6 +31,7 @@ from pathlib import Path
 from predictor import resources
 
 from predictor.annotate.genome_resolver import is_dna, _blast, _run, _write_fasta
+from predictor.input_validation import path_exists
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -369,8 +370,8 @@ def _main(argv):
         print(f"Pfam HMM library: {m} HMMs -> {_PFAM_HMM.name}")
     elif argv and argv[0] == "classify":
         seq = argv[1]
-        if Path(seq).exists():
-            seq = "".join(l.strip() for l in Path(seq).read_text().splitlines()
+        if path_exists(seq):
+            seq = "".join(l.strip() for l in Path(seq).read_text(encoding="utf-8").splitlines()
                           if not l.startswith(">"))
         print(classify_family(seq))
     else:

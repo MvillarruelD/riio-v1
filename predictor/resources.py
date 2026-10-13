@@ -22,8 +22,8 @@ Path overrides are locations only; none selects an algorithm:
     Run-output root.
 ``PREDICTOR_ESMFOLD_LIB`` / ``PREDICTOR_ENV_FILE``
     Optional folding adapter and settings file. Without an override the settings file is the
-    checkout's ``.env``, then ``<user config dir>/tfop/.env`` (``~/.config/tfop/.env`` on Linux),
-    which is where an installed wheel keeps it.
+    checkout's ``.env`` (source/editable installs), then the per-user :data:`USER_ENV_FILE`
+    (``~/.config/tf-operator-predictor/.env`` on Linux), which is where an installed wheel keeps it.
 
 Run ``python -m predictor.resources`` or ``tfop audit`` to inspect the resolved layout.
 """
@@ -81,8 +81,8 @@ def esmfold_lib_dir() -> Path | None:
 
 
 # --------------------------------------------------------------------------- CREDENTIALS: the .env tokens
-#: Where an installed (non-checkout) RIIO keeps its `.env`: ~/.config/tfop/.env on Linux,
-#: %LOCALAPPDATA%/tfop/tf-operator-predictor/.env on Windows.
+#: Where an installed (non-checkout) RIIO keeps its `.env`: ~/.config/tf-operator-predictor/.env on
+#: Linux ($XDG_CONFIG_HOME if set), %LOCALAPPDATA%/tfop/tf-operator-predictor/.env on Windows.
 USER_ENV_FILE = user_config_path("tf-operator-predictor", "tfop") / ".env"
 
 
@@ -94,6 +94,12 @@ def env_file() -> Path | None:
         if cand and cand.is_file():
             return cand
     return None
+
+
+def settings_file_target() -> Path:
+    """Where a NEW settings file belongs: the checkout's ``.env`` when this package runs from a source
+    checkout (editable install), else the per-user `USER_ENV_FILE`. `env_file()` reads both."""
+    return REPO / ".env" if (REPO / "pyproject.toml").is_file() else USER_ENV_FILE
 
 
 def legacy_workspace_enabled() -> bool:
@@ -133,6 +139,18 @@ def _env_value(txt: str, key: str) -> str:
     return re.split(r"[ 	]+#", val, maxsplit=1)[0].strip()
 
 
+def read_settings(path: Path) -> str:
+    """Text of a settings file: UTF-8, dropping the BOM some Windows editors add (it would otherwise hide
+    the first key), else the locale encoding. Decoding UTF-8 explicitly keeps a non-ASCII path such as
+    ``C:/Users/Matías/...`` intact on Windows, whose locale code page would garble it."""
+    data = Path(path).read_bytes()
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        import locale
+        return data.decode(locale.getpreferredencoding(False), errors="ignore")
+
+
 def load_tokens(*, override: bool = False) -> dict:
     """Populate os.environ with the API tokens from `env_file()` (so BOTH the ESMFold2 `_lib` token loader
     and `genome_resolver._ncbi_creds` see them regardless of where the .env lives). Existing env vars win
@@ -140,7 +158,7 @@ def load_tokens(*, override: bool = False) -> dict:
     ef = env_file()
     if ef is not None:
         try:
-            txt = ef.read_text(errors="ignore")
+            txt = read_settings(ef)
             for k in _TOKEN_KEYS + _PATH_KEYS:
                 if override or not os.environ.get(k):
                     val = _env_value(txt, k)
@@ -203,9 +221,9 @@ def audit() -> dict:
         {"resource": "ESMFold2 _lib (folding tool)", "kind": "tool",
          "path": (str(lib) if lib else None), "present": lib is not None,
          "source": ("override/checkout" if lib else "absent")},
-        {"resource": "API tokens (.env)", "kind": "credentials", "path": (str(ef) if ef else None),
+        {"resource": "settings file (.env)", "kind": "settings", "path": str(ef or settings_file_target()),
          "present": ef is not None,
-         "source": ("override/checkout" if ef else "absent")},
+         "source": ("override/checkout/user" if ef else "absent; create it at path")},
     ]
     return {"rows": rows, "tokens": tokens, "database": database_info(),
             "production_data_agnostic": refs_ok and ssn_ok,

@@ -7,13 +7,23 @@ regulation, inducer, AF3 hand-off). Wraps `predictor.pipeline.run_novel` with se
 a labelled map of every file it produced.
 
 USAGE
-  # predict from a sequence or FASTA (production = online + agnostic of local data; the default):
+  # first time: check the engines, the bundled data, then every module's self-test:
+  tfop setup
+  tfop audit
+  tfop selftest
+
+  # predict from a sequence, a one-record FASTA, or a protein accession (online by default):
   tfop predict mytf.fasta --name MyTF
+  tfop predict NP_417751.1 --name ZntR --organism GCF_000005845.2 --out runs/ZntR
   tfop predict MARSADKQ... --name MyTF --family ArsR/SmtB --organism GCF_000013425.1
+
+  # several proteins (multi-record FASTA, or a TSV with an `accession` column):
+  tfop batch proteins.faa --organism GCF_000005845.2 --out runs/list
 
   # OR go genome-first (the production route): BITACORA discovery -> one bundle per candidate:
   tfop genome GCF_000005845.2 --out runs/ecoli --jobs 4    # -> runs/ecoli/summary.tsv + jobs/<TF>/
   tfop genome GCF_000005845.2 --out runs/ecoli --discover-only   # stop after manifest.csv
+  tfop genome --fasta genome.fna --gff genome.gff --out runs/local   # a local genome + annotation
 
   # a quick Pfam-HMM census of a proteome or genome (not the production discovery route):
   tfop scan proteome.faa                                   # -> candidate TFs by family (fast)
@@ -22,8 +32,9 @@ USAGE
   # optionally add an apo-dimer fold (off by default; needs BIOHUB_TOKEN):
   tfop predict mytf.fasta --name MyTF --fold
 
-  # check that every external resource resolves (production stays data-agnostic):
-  tfop audit
+  # after a run: rebuild its HTML/XLSX reports, or export the optional AlphaFold 3 jobs:
+  tfop report runs/ecoli
+  tfop af3 runs/ecoli --format both
 
 (You can equivalently run `python -m predictor.run_cli <cmd>`.)
 """
@@ -391,6 +402,13 @@ def cmd_setup(_a) -> int:
 
 
 def main(argv=None) -> int:
+    # Output redirected on Windows (`tfop predict ... > log.txt`) is encoded with the ANSI code page;
+    # escape a character it cannot represent (e.g. in a gene product name) instead of crashing the run.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="backslashreplace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -409,7 +427,8 @@ def main(argv=None) -> int:
     p.add_argument("--family", default=None, help="TF family (else auto-classified)")
     p.add_argument("--organism", default=None, help="RefSeq/GCF accession of the source genome (optional; "
                                                     "it can also be found from the sequence via NCBI)")
-    p.add_argument("--genome-acc", dest="genome_acc", default=None)
+    p.add_argument("--genome-acc", dest="genome_acc", default=None,
+                   help="genome assembly accession to use; takes precedence over --organism")
     p.add_argument("--effector", default=None, help="known inducer ion/ligand (else inferred)")
     p.add_argument("--fold", action="store_true",
                    help="add the optional apo-dimer ESMFold2 fold (OFF by default; needs BIOHUB_TOKEN)")
@@ -440,11 +459,12 @@ def main(argv=None) -> int:
     psc.add_argument("--predict", action="store_true",
                      help="avenue B: run the operator pipeline on each candidate (heavier)")
     psc.add_argument("--select", default=None,
-                     help="with --predict, run only these candidate protein_ids (comma list) â€” individual "
+                     help="with --predict, run only these candidate protein_ids (comma list) -- individual "
                           "selection; combine with --families for by-family")
     psc.add_argument("--organism", default=None,
                      help="genome accession for --predict (homolog + genome resolution)")
-    psc.add_argument("--genome-acc", dest="genome_acc", default=None)
+    psc.add_argument("--genome-acc", dest="genome_acc", default=None,
+                     help="with --predict, genome assembly accession; takes precedence over --organism")
     psc.add_argument("--limit", type=int, default=0, help="with --predict, cap the number of candidates")
     psc.set_defaults(func=cmd_scan)
 
@@ -469,7 +489,8 @@ def main(argv=None) -> int:
     pg.add_argument("--discover-only", action="store_true", help="stop after writing manifest.csv")
     pg.add_argument("--offline", action="store_true", help="no network (genome must already be mirrored)")
     pg.add_argument("--fold", action="store_true", help="also fold each candidate (off by default)")
-    pg.add_argument("-v", "--verbose", action="store_true")
+    pg.add_argument("-v", "--verbose", action="store_true",
+                    help="print candidate-discovery (BITACORA / gene-calling) progress details")
     inputs = pg.add_mutually_exclusive_group()
     inputs.add_argument("--fasta", help="local nucleotide genome FASTA")
     inputs.add_argument("--genbank", help="local GenBank genome (one or more records)")
@@ -477,42 +498,47 @@ def main(argv=None) -> int:
     pg.add_argument("--gff", help="GFF3 annotation for --fasta")
     pg.add_argument("--organism", help="optional source genome accession")
     pg.add_argument("--select", help="comma-separated manifest run_names to predict (all candidates remain in reports)")
-    pg.add_argument("--no-metalnet", action="store_true")
-    pg.add_argument("--no-af3", action="store_true")
+    pg.add_argument("--no-metalnet", action="store_true",
+                    help="skip the optional MetalNet2 metal-site gate; that evidence source abstains")
+    pg.add_argument("--no-af3", action="store_true", help="do not write the optional AlphaFold-3 hand-off JSONs")
     pg.set_defaults(func=cmd_genome)
 
     pb = sub.add_parser("batch", help="predict every protein in multi-FASTA or accession TSV")
-    pb.add_argument("input")
-    pb.add_argument("--out", required=True)
-    pb.add_argument("--organism")
+    pb.add_argument("input", help="multi-record protein FASTA, or a TSV whose header has an 'accession' column")
+    pb.add_argument("--out", required=True, help="run directory (manifest, FASTAs, jobs/, logs/, summary.tsv)")
+    pb.add_argument("--organism", help="source genome accession (e.g. GCF_000005845.2) for genomic context")
     context_inputs = pb.add_mutually_exclusive_group()
     context_inputs.add_argument("--genome-fasta", help="local source genome for supplied proteins")
     context_inputs.add_argument("--genome-genbank", help="local GenBank source genome")
     pb.add_argument("--genome-gff", help="annotation for --genome-fasta")
-    pb.add_argument("--jobs", type=int, default=1)
-    pb.add_argument("--timeout", type=int)
-    pb.add_argument("--offline", action="store_true")
-    pb.add_argument("--fold", action="store_true")
-    pb.add_argument("--discover-only", action="store_true")
-    pb.add_argument("--no-metalnet", action="store_true")
-    pb.add_argument("--no-af3", action="store_true")
+    pb.add_argument("--jobs", type=int, default=1, help="proteins predicted in parallel (default 1)")
+    pb.add_argument("--timeout", type=int, help="per-protein timeout in seconds")
+    pb.add_argument("--offline", action="store_true", help="no network; accession lookups are refused")
+    pb.add_argument("--fold", action="store_true", help="also fold each protein (off by default)")
+    pb.add_argument("--discover-only", action="store_true", help="stop after writing manifest.csv")
+    pb.add_argument("--no-metalnet", action="store_true",
+                    help="skip the optional MetalNet2 metal-site gate; that evidence source abstains")
+    pb.add_argument("--no-af3", action="store_true", help="do not write the optional AlphaFold-3 hand-off JSONs")
     pb.set_defaults(func=cmd_batch)
 
     pr = sub.add_parser("report", help="rebuild run reports without re-predicting")
-    pr.add_argument("run_dir")
+    pr.add_argument("run_dir", help="an existing run directory (holds manifest.csv, summary.tsv or jobs/)")
     pr.set_defaults(func=cmd_report)
 
     paf = sub.add_parser("af3", help="rebuild AF Server/local jobs outside existing bundles")
-    paf.add_argument("path")
-    paf.add_argument("--top-n", type=int, default=3)
-    paf.add_argument("--format", choices=["server", "local", "both"], default="both")
-    paf.add_argument("--batch-size", type=int, default=30)
+    paf.add_argument("path", help="a run directory (exports every jobs/* bundle) or one TF bundle")
+    paf.add_argument("--top-n", type=int, default=3, help="DNA jobs for up to this many top operators (default 3)")
+    paf.add_argument("--format", choices=["server", "local", "both"], default="both",
+                     help="AF Server JSON, local AlphaFold 3 JSON, or both (default both)")
+    paf.add_argument("--batch-size", type=int, default=30, help="jobs per AF Server batch file (default 30)")
     paf.set_defaults(func=cmd_af3)
 
     pst = sub.add_parser("selftest", help="verify this install by running every module's built-in self-test")
     pst.add_argument("--only", default=None,
                      help="comma-separated substrings; run only matching modules (e.g. 'metal_site,inducer')")
-    pst.add_argument("--timeout", type=int, default=120, help="per-module timeout in seconds (default 120)")
+    # 300 s, not 120: signals.operator_logo's EM alignment alone takes ~80 s on an idle desktop, so a
+    # slower or busy computer timed out a working module (seen in fresh Windows installs).
+    pst.add_argument("--timeout", type=int, default=300, help="per-module timeout in seconds (default 300)")
     pst.add_argument("-v", "--verbose", action="store_true", help="list passing modules too")
     pst.set_defaults(func=cmd_selftest)
 

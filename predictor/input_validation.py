@@ -7,9 +7,28 @@ were a valid query.
 """
 from __future__ import annotations
 
+import errno
 import json
 import re
 from pathlib import Path
+
+
+def path_exists(value) -> bool:
+    """``Path(value).exists()`` for an input that may be a file path OR a raw sequence.
+
+    Linux refuses a path component longer than 255 bytes with ``OSError(ENAMETOOLONG)``, and on
+    Python 3.10-3.13 ``Path.exists()`` raises that error instead of returning False. Probing a
+    protein longer than 255 aa therefore crashed there (Windows and Python 3.14 return False).
+    Such a string cannot name a file, so it is reported absent; every other error still raises.
+    """
+    try:
+        return Path(str(value)).exists()
+    except ValueError:  # an embedded NUL byte cannot be a path either
+        return False
+    except OSError as exc:
+        if exc.errno == errno.ENAMETOOLONG:
+            return False
+        raise
 
 
 _PROTEIN_ALPHABET = frozenset("ACDEFGHIKLMNPQRSTVWYBXZJUO")

@@ -16,7 +16,7 @@ PLACEHOLDER = "[Legend to be written.]"
 
 #: (file stem, label, title, main?) in document order
 FIGURES = [
-    ("fig1_pipeline", "Figure 1", "Four entry modes and the shared prediction workflow", True),
+    ("fig1_pipeline", "Figure 1", "RIIO combines sequence and genomic context to predict operators and inducers", True),
     ("fig2_benchmark", "Figure 2", "Benchmark on E. coli K-12 and S. Typhimurium SL1344", True),
     ("fig3_survey", "Figure 3", "Four-genome survey", True),
     ("fig4_context_structures", "Figure 4", "Operator-bound metalloregulators in genomic context", True),
@@ -109,29 +109,29 @@ def caveat(N: dict) -> str:
 
 def legend_fig1(N: dict) -> str:
     return (
-        "Schematic; drawings illustrate states rather than measured data. **a**, Four inputs are "
-        "available through the CLI, Python API and browser GUI: single proteins (`tfop predict`, "
-        "`predict()`), protein lists (`tfop batch`, `predict_many()`), genome accessions and local "
-        "genomes (`tfop genome`, `run_genome()`). A source genome can accompany supplied proteins. "
-        "**b**, Genome routes obtain a proteome from annotation or Pyrodigal gene calls. BITACORA "
-        "searches it against packaged SSN-clade profiles with HMMER and BLAST+ (default E ≤ 1e-5), "
-        "retaining candidate sequences, loci, a manifest and raw search evidence. Candidates can be "
-        "selected for prediction, or discovery can stop here; Pfam discovery is an explicit "
-        "alternative or fallback. Supplied proteins skip discovery without a family filter. "
-        "**c**, List/genome runs check input and policy fingerprints, reuse complete bundles and "
-        "retry failures. Single-protein calls enter prediction directly. Each TF resolves "
-        "family (pyhmmer Pfam/BLAST+), SSN clade (MMseqs2) and available genomic context. The blue "
-        "operator lane retrieves orthologue promoters, derives an inverted-repeat PWM, rescans "
-        "intergenic DNA (default per-site p ≤ 1e-4), and ranks operators with regulon and mode "
-        "annotations (PromoterCalculator). The rose inducer lane fuses SSN-clade labels, Cys/His "
-        "motifs, MetalNet2 sites, nearby genes and Ligify evidence. Channels may abstain; ions are "
-        "named only when resolved. Inducer-derived gene labels annotate operator hits without "
-        "boosting their ranking. Evidence depends on context and enabled engines; an ESMFold2 apo "
-        "oligomer and fold QC are optional (off by default). **d**, Outputs retain per-TF HTML, "
-        "figures, dossiers, ranked sites and checksummed bundles; run and discovery reports "
+        "Conceptual overview; drawings illustrate states rather than measured data. The TF (a CueR "
+        "dimer), its sequence and its SSN clade (MerR cluster 7) are drawn from E. coli CueR as an "
+        "example; motifs, scan scores and loci are illustrative. **a**, Four input modes are "
+        "available through the CLI, "
+        "Python API or browser GUI. Supplied proteins bypass discovery without a family filter. "
+        "Genome routes obtain a proteome from annotation or gene calls, discover candidates with "
+        "BITACORA against curated sequence-similarity-network (SSN) clade profiles "
+        "(HMMER/BLAST+; default E ≤ 1e-5), and select TFs for prediction. Discovery may stop here. "
+        "**b**, Both routes converge on TF sequence, family, SSN clade and available locus/flanking "
+        "DNA. The teal operator path retrieves orthologue promoters, derives an inverted-repeat "
+        "position-weight matrix (PWM), scans intergenic DNA (default per-site p ≤ 1e-4), and ranks "
+        "candidate operators with regulon and mode annotations. The amber inducer path fuses "
+        "curated SSN-clade labels, Cys/His motifs, optional MetalNet2 sequence/MSA site evidence, "
+        "nearby-gene functions and Ligify ligand evidence. Channels may abstain; ions are named "
+        "only if resolved. Inducer-derived gene labels annotate operator hits without boosting "
+        "their ranking. An apo fold and fold QC are optional (off by default). **c**, Both outputs "
+        "support a regulatory hypothesis linking the TF, candidate operators/targets and putative "
+        "inducer. Solid arrows indicate data flow; dashed links indicate unvalidated biological "
+        "relationships. Per-TF bundles retain predictions and evidence; run and discovery reports "
         "and Supplementary Table S1 are rebuilt from saved data. AlphaFold 3 apo, DNA and "
-        "metal-context jobs are exported for server/local submission, never executed. RIIO runs "
-        "natively on Linux and on Windows (BITACORA through WSL). Outputs remain unverified predictions."
+        "metal-context input jobs are exported for server/local submission, never executed. "
+        "Single-protein calls enter prediction directly; list/genome runs check input and policy "
+        "fingerprints to reuse bundles and retry failures. Outputs require experimental validation."
     )
 
 
