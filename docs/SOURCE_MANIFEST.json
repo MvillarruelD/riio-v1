@@ -7789,7 +7789,8 @@
       "release_path": "CITATION.cff",
       "source_sha256": "92d2c103adbc6ad9661e090ddcb1ad07ffc2dbff2c35a6ec10ad03e65aad78f9",
       "preserved_checkout_sha256": "92d2c103adbc6ad9661e090ddcb1ad07ffc2dbff2c35a6ec10ad03e65aad78f9",
-      "release_sha256": "7e84bd4bcedde6ace39ccd51a528e0fcf9ed0ae4277321e76a8b9c67708cc8b7"
+      "release_sha256": "f1ff91cf0b01721ed6cf99aefd7dfc689555c8839f3f55981bc861666f815842",
+      "transformation": "release_date_stamp"
     },
     {
       "source_repository": "publication_checkout",

@@ -3,6 +3,7 @@ message: "Please cite this software version and the associated paper when availa
 type: software
 title: "RIIO: Regulator, Inducer & Operator inference"
 version: 1.1.0
+date-released: "2026-10-13"
 authors:
   - family-names: "Villarruel Dujovne"
     given-names: "Matías"
