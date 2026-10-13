@@ -10,6 +10,17 @@
 - Export optional server/local AF3 job sets separately from prediction and report rebuilding.
 - Retain the frozen Figure 4 recipe and pinned canonical reference data. Software/export checks
   and prediction-neutrality comparisons remain distinct validation steps.
+- Fix `tfop predict` on Linux with Python 3.10-3.13 for proteins longer than 255 amino acids (also the
+  README example): a raw sequence was probed as a file name, which Linux rejects with an error.
+- Add `env/install_windows.ps1`, a native Windows installer for RIIO, MMseqs2, BLAST+ and NCBI Datasets
+  that needs no administrator rights; `-WithWsl` adds BITACORA genome discovery through WSL.
+- Rewrite the Linux and Windows installation guides for new users, with a first prediction on the
+  bundled ZntR sequence, and replace the README example accession, which was not a TF.
+- Give `tfop setup` installation hints that work on each OS and print the settings file it reads;
+  read settings files as UTF-8 (byte-order mark ignored) so non-ASCII user folders survive on Windows.
+- Serve `tfop-gui` on this computer only and without usage statistics; extra Streamlit flags pass
+  through. Document every CLI option and correct the per-user settings path on Linux.
+- Make `environment.yml` install this checkout instead of the 1.0.0 tag.
 
 ## 1.0.0 — 2026-10-06
 

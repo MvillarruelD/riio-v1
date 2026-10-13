@@ -1,4 +1,11 @@
-# Linux/macOS starter environment. MetalNet2 and BITACORA have separate setup instructions.
+# Conda alternative to env/install_linux.sh for Linux/macOS users who manage conda themselves.
+# Run it in the RIIO folder, then activate the environment:
+#     conda env create -f environment.yml
+#     conda activate riio
+# It installs RIIO from this folder (editable, so RIIO reads this folder's .env) with its search tools.
+# Genome discovery also needs the pinned BITACORA checkout, which this file cannot fetch; add it with
+#     ENV_NAME=riio bash env/install_linux.sh
+# Bioconda has no Windows builds: on Windows use env\install_windows.ps1 (docs/INSTALL_WINDOWS.md).
 name: riio
 channels:
   - conda-forge
@@ -9,5 +16,8 @@ dependencies:
   - mmseqs2
   - blast
   - ncbi-datasets-cli
+  - hmmer
+  - perl
+  - git
   - pip:
-      - "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.0.0"
+      - -e ".[genome,gui]"
