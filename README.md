@@ -5,7 +5,7 @@
 RIIO takes a bacterial transcription-factor protein or genome and produces operator, motif,
 inducer and regulon predictions, with evidence and provenance in a portable `REPORT.html` bundle.
 This repository contains the active RIIO software and the production analysis companion used by the
-project. Version 1.2.0 preserves the `tfop` commands and `predictor` Python API.
+project. Version 1.2.1 preserves the `tfop` commands and `predictor` Python API.
 
 ## Quick start
 
@@ -78,12 +78,12 @@ when sharing so relative HTML and spreadsheet links remain usable.
   `conda activate riio` install RIIO with MMseqs2, BLAST+, NCBI Datasets, HMMER and Perl. Genome
   discovery also needs the pinned BITACORA checkout: `ENV_NAME=riio bash env/install_linux.sh` adds it.
 - **Wheel from [Releases](https://github.com/MvillarruelD/riio-v1/releases):**
-  `python -m pip install "./tf_operator_predictor-1.2.0-py3-none-any.whl[genome,gui]"`. The wheel
+  `python -m pip install "./tf_operator_predictor-1.2.1-py3-none-any.whl[genome,gui]"`. The wheel
   contains the predictor and its reference database; the source archive/Git checkout also contains the
   analysis companion, the installers and the canonical candidate inputs. An installed wheel keeps its
   settings in a per-user file, which `tfop setup` names.
-- **From the release tag**, once v1.2.0 is tagged:
-  `python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.2.0"`.
+- **From the release tag**, once v1.2.1 is tagged:
+  `python -m pip install "tf-operator-predictor[genome,gui] @ git+https://github.com/MvillarruelD/riio-v1.git@v1.2.1"`.
 
 ## Settings and optional engines
 

@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Please cite this software version and the associated paper when available. Software authorship metadata is provisional pending the project authors' update."
 type: software
 title: "RIIO: Regulator, Inducer & Operator inference"
-version: 1.2.0
+version: 1.2.1
 date-released: "2026-11-23"
 authors:
   - family-names: "Villarruel Dujovne"
