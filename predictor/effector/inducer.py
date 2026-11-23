@@ -18,7 +18,8 @@ Several independent signals say what the cognate inducer is:
     class only where our own chemistry is silent AND MetalNet found no site, and never against a
     negative family gate. Measured worth on the survey's 150: it is the only metal evidence for
     exactly ONE candidate, and corroborates 12 (analysis/benchmarking/discovery/);
-  * **ligify** -- effector.ligify operon-chemistry (optional; needs genome context);
+  * **operon_chem** -- effector.operon_chemistry, the TF's divergent-operon chemistry (optional; needs
+    genome context). Renamed from "ligify" in EXP066; readers below accept both names for one release;
     (enzyme-reaction-only) misses and GO can't resolve;
 
 Per the design: agreement across sources strengthens the call, but disagreement leaves all candidates
@@ -31,20 +32,44 @@ Run `python -m predictor.effector.inducer --tf CueR_Ecoli --family MerR`.
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict, is_dataclass, replace
 import json
 from pathlib import Path
 
 from predictor import resources
 
 _REPO = Path(__file__).resolve().parents[2]
+from predictor import schema as _schema                                           # noqa: E402
 from predictor.schema import InducerCall, InducerConsensus                        # noqa: E402
+from predictor.effector import chemical_identity as _identity                     # noqa: E402
 from predictor.annotate import homolog_selection as hsel     # noqa: E402
 from predictor.structure import metal_site                                        # noqa: E402
 
 _METAL_ROLES = {"metal"}
-#: A Ligify (operon-chemistry) call whose gate weight falls below this is SUPPRESSED: it is noted as
+#: The operon-chemistry source string, with its former name. The route was renamed "ligify" ->
+#: "operon_chem" in EXP066, but every bundle already on disk (the 238 canonical + the 239 unknown-cluster
+#: re-runs) stores "ligify", so every guard and reader matches BOTH for one release -- changing the
+#: emitted string without this would un-suppress the route for every metalloregulator (EXP065 sec. 4).
+#: Drop "ligify" once all bundles are regenerated.
+_OPERON_CHEM_SOURCES = ("operon_chem", "ligify")
+#: An operon-chemistry call whose gate weight falls below this is SUPPRESSED: it is noted as
 #: down-weighted and, when the coordination gate says metal, cannot hold the headline.
 LIGIFY_SUPPRESSED_WEIGHT = 0.5
+
+
+def _portable(value):
+    """Copy acquired evidence into JSON primitives, including injected synthetic candidates."""
+    if is_dataclass(value):
+        value = asdict(value)
+    elif hasattr(value, "__dict__"):
+        value = vars(value)
+    if isinstance(value, dict):
+        return {str(k): _portable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_portable(v) for v in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise TypeError(f"non-portable chemistry evidence: {type(value).__name__}")
 
 
 # --------------------------------------------------------------------------- member-level inducer
@@ -161,7 +186,7 @@ def curated_member_ion(seq: str, family: str, *, min_identity: float = 0.5) -> d
 def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow_ncbi: bool = False,
                   ligify_fn=None, metalnet=None, metalnet_fn=None, protein_acc: str | None = None,
                   tf_id=None, allow_colabfold: bool = False, fold_cif: str | None = None,
-                  op_cif: str | None = None, verbose: bool = False) -> InducerConsensus:
+                  op_cif: str | None = None, verbose: bool = False, entry_fetcher=None) -> InducerConsensus:
     """Fuse inducer sources into a gated, source-retaining consensus.
 
     Sources (each retained side-by-side): SSN cluster consensus, the metal-coordination gate, MetalNet2's
@@ -171,8 +196,13 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
 
     `metalnet` accepts an already-computed `structure.metalnet.predict_site` result (or a bool); pass
     `metalnet_fn` to inject one, or leave both None to have it resolved here. The engine is optional --
-    when it is not installed the source abstains and every verdict is exactly what it was before."""
+    when it is not installed the source abstains and every verdict is exactly what it was before.
+    ``entry_fetcher(protein_id)->raw dict|None`` optionally injects an annotation callback;
+    its provenance is labelled injected_unverified. Default acquisition records the new
+    annotation envelope once, passing only its raw entry into chemistry parsing."""
     calls: list[InducerCall] = []
+    chemistry_snapshot = {"version": 1, "status": "not_attempted", "availability": "not_attempted", "candidates": [],
+                          "annotations": [], "reason": "local chemistry requires genome context and online permission"}
 
     # --- source 1: SSN cluster consensus inducer (sequence-assigned) ---
     try:
@@ -180,7 +210,7 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
         if assign.cluster_id and assign.info:
             ligand, role = assign.info.inducer, assign.info.role
             ev = {"cluster": assign.cluster_id, "identity": round(assign.top_identity, 2),
-                  "representative": assign.info.representative}
+                  "representative": assign.info.representative, "raw_cluster_label": ligand}
             # MEMBER-LEVEL override: the query's nearest CURATED ion-bearing ortholog names the ion
             # directly. SSN clusters are often lumped/polyspecific and their plurality label can be wrong
             # for a specific member (the canonical CueR/Cu+ -> Cd/Hg-labelled MerR_1 failure). When a
@@ -203,7 +233,7 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
                 # the override flipped the headline to Co2+ at identity 1.00. The alternative is not
                 # lost: it stays in `candidates`.
                 _aset = assign.info.anchor_set
-                _cluster_ions = set(_aset.distinct_inducers) if _aset else set()
+                _cluster_ions = set(_identity.anchor_names(_aset)) if _aset else set()
                 if mem["ion"] != ligand and mem["ion"] in _cluster_ions and ligand in _cluster_ions:
                     # A genuine TIE, and it is reported as one. Both ions are tier-1 anchors of the
                     # cluster the query was assigned to, and identity to the nearest binder is not a
@@ -246,6 +276,7 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
                     "n_distinct_inducers": aset.n_distinct_inducers,
                     "consensus": aset.inducer_consensus,
                 }
+                ev["anchor_records"] = _portable(aset.anchors)
                 if aset.conflict:
                     # Penalise a disagreement about the CLASS, not about the ion. When every
                     # conflicting anchor names a metal, the class is certain and only the ion is
@@ -256,8 +287,7 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
                     # 0.632 built on two genes -- `arsA`/`arsB1` -- from an operator scan whose
                     # measured precision is ~2%. The pipeline reported As3+ for the archetypal iron
                     # sensor.
-                    from predictor.effector import inducer_vocab as _v
-                    _classes = {_v.inducer_class_of(x) for x in aset.distinct_inducers}
+                    _classes = {_identity.chemistry(x)[0] for x in _identity.anchor_names(aset)}
                     _classes.discard(None)
                     if len(_classes) > 1:
                         confidence = round(assign.support * aset.agreement, 2)
@@ -279,17 +309,16 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
             # leaves the ion to `candidates` below; a cross-class split asserts nothing and rides entirely
             # in `candidates`. This only fills a blank -- it never overrides a stated label.
             if not ligand and aset is not None:
-                from predictor.effector import inducer_vocab as _vfix
                 _role_of = {"metal": "metal", "redox": "redox", "organic": "non-metal"}
-                _di = aset.distinct_inducers
-                if len(_di) == 1 and not aset.real_conflict:
+                _di = _identity.anchor_names(aset)
+                if len(_di) == 1:
                     ligand = _di[0]
-                    _nr = _role_of.get(_vfix.inducer_class_of(ligand))
+                    _nr = _role_of.get(_identity.chemistry(ligand)[0])
                     if _nr and role in (None, "", "unknown"):
                         role = _nr
                     ev["ligand_from"] = "anchor_consensus"
                 elif len(_di) > 1:
-                    _cls = {_vfix.inducer_class_of(x) for x in _di}
+                    _cls = {_identity.chemistry(x)[0] for x in _di}
                     _cls.discard(None)
                     if len(_cls) == 1:                       # ion open, but the class is unanimous
                         _nr = _role_of.get(next(iter(_cls)))
@@ -303,25 +332,42 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
             # set can carry several distinct inducers for a genuinely mixed clade. Emit the components
             # so the fusion can credit a source whose mixture CONTAINS the headline, instead of
             # counting a flattened label as disagreeing with one of its own members.
-            from predictor.effector import inducer_vocab as _vocab
-            candidates = _vocab.parse_mixture(ligand)
-            if aset is not None and aset.real_conflict:
-                # the anchors themselves disagree: the cluster is assigned to several species, and
-                # that set IS the claim
-                candidates = tuple(dict.fromkeys(tuple(aset.distinct_inducers) + tuple(candidates)))
+            candidates = _identity.parse_components(ligand)
+            anchor_sets = []
+            if aset is not None:
+                # Read raw anchor states; the legacy distinct_inducers view can collapse ion charge.
+                anchor_sets = [_identity.parse_components(a.inducer) for a in aset.anchors
+                               if a.inducer and a.is_literature]
+                candidates = tuple(x for group in anchor_sets for x in group) + tuple(candidates)
+            if unresolved_with:
+                candidates = tuple(candidates) + (unresolved_with,)
+            ev["raw_components"] = list(candidates)
+            # EXP070: a bare element symbol (`Fe`, the anchor KB's spelling) is subsumed by an explicit
+            # ion of the same element (`Fe2+`, the cluster label's) -- one species, not an ambiguity.
+            candidates = _identity.subsume_bare_elements(_identity.unique_names(candidates))
+            cosensed = (len(candidates) > 1 and bool(anchor_sets)
+                        and all({_identity.identity_key(x) for x in group}
+                                == {_identity.identity_key(x) for x in candidates}
+                                for group in anchor_sets))
             if len(candidates) > 1:
                 ev["cluster_assigned_to"] = list(candidates)
                 if verbose:
                     print(f"  ssn_cluster: {assign.cluster_id} is assigned to "
                           f"{', '.join(candidates)} -- carried as a candidate set, not one label")
-            if unresolved_with and unresolved_with not in candidates:
-                candidates = tuple(candidates) + (unresolved_with,)
+            unresolved_with = unresolved_with if len(candidates) > 1 else None
+            if len(candidates) == 1:
+                ligand = candidates[0]
             calls.append(InducerCall(
-                source="ssn_cluster", ligand=ligand, confidence=confidence,
+                source="ssn_cluster", ligand=(None if len(candidates) > 1 and not cosensed else ligand), confidence=confidence,
                 role=role, evidence=ev,
                 candidates=candidates if len(candidates) > 1 else (),
-                mixture_kind=("unresolved" if unresolved_with else
-                              ("co_sensed" if len(candidates) > 1 else ""))))
+                mixture_kind=("unresolved" if unresolved_with or (len(candidates) > 1 and not cosensed) else
+                              ("co_sensed" if cosensed else "")),
+                identity_status=("unresolved" if len(candidates) > 1 and not cosensed else
+                                 "co_sensed" if cosensed else _identity.chemistry(ligand)[1]),
+                sensor_class={"metal": "metal", "redox": "redox", "non-metal": "organic",
+                              "multidrug": "organic"}.get(role),
+                class_evidence={"basis": "ssn_source_role", "cluster": assign.cluster_id}))
         else:
             # An abstention is a result, and it has a reason. `homolog_selection` computes and names
             # that reason -- low identity, no hit, no SSN for the family -- and it used to be printed
@@ -476,33 +522,152 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
     except Exception:                                       # noqa: BLE001
         _ldb_rec = None
     if _ldb_rec is not None and _ldb_rec.ligand:
+        _ldb_ligs = _identity.subsume_bare_elements(_ldb_rec.ligands)       # EXP070 notation rule
         calls.append(InducerCall(
-            source="ligify_db", ligand=_ldb_rec.ligand,
+            source="ligify_db", ligand=_ldb_ligs[0] if len(_ldb_ligs) == 1 else None,
             confidence=round(max(0.0, _lw * float(_ldb_rec.rank or 0) / 100.0), 2),
-            role="", candidates=tuple(_ldb_rec.ligands),
-            mixture_kind=("co_sensed" if len(_ldb_rec.ligands) > 1 else ""),
+            role="", candidates=tuple(_ldb_ligs),
+            mixture_kind=("unresolved" if len(_ldb_ligs) > 1 else ""),
+            identity_status=("unresolved" if len(_ldb_ligs) > 1 else
+                             _identity.chemistry(_ldb_ligs[0])[1]),
             evidence={"refseq": _ldb_rec.refseq, "matched_by": _ldb_rec.matched_by,
                       "their_rank": _ldb_rec.rank, "their_metrics": _ldb_rec.rank_metrics,
                       "rhea": _ldb_rec.rhea_id, "equation": _ldb_rec.equation,
                       "annotation": _ldb_rec.annotation,
+                      "ligand_detail": _portable(_ldb_rec.ligand_detail),
                       "weight": _lw, "weight_reason": _lw_reason,
                       "source_db": "groov-bio/ligify-ui (MIT)"}))
         if verbose:
             print(f"  ligify_db: published prediction '{_ldb_rec.ligand}' "
                   f"(their rank {_ldb_rec.rank}, matched by {_ldb_rec.matched_by})")
 
+    # 4a'. Published records of HOMOLOGOUS proteins (EXP071, revised EXP072). Each is Ligify's
+    # context-derived PREDICTION for another genome, not a validated inducer. Two tiers:
+    #   * >= 99 % identity (>= 90 % coverage): may VOTE, for ORGANIC ligands only. Homologous records
+    #     share an exact published ligand ~89 % of the time at this identity, and for organic effectors
+    #     the SSN has no comparable handle. The vote is the exact record's own formula scaled by that
+    #     concordance, and it obeys the same identity rules -- an unmapped name still cannot be a headline.
+    #   * 50-99 %: context. Listed for the reader, never a candidate, never counted.
+    # A metal or monatomic-ion ligand is dropped from both tiers and the drop is logged: ions are the
+    # SSN's business, and a homologue's operon neighbourhood is no evidence about which metal is sensed.
+    try:
+        from predictor.effector import ligify_db as _ldb
+        _hom = _ldb.homologs(seq, exclude_refseq=[x for x in (protein_acc, getattr(_ldb_rec, "refseq", None)) if x],
+                             min_identity=min(_ldb.HOMOLOG_CONTEXT_MIN_IDENTITY, _ldb.HOMOLOG_MIN_IDENTITY))
+    except Exception:                                       # noqa: BLE001
+        _hom = []
+    if _hom:
+        _hom_rows, _hom_dropped, _vote, _best_seen = [], [], None, False
+        _own_record = bool(_ldb_rec is not None and _ldb_rec.ligand)
+        for r, idn, qc, tc in _hom:
+            _kept = []
+            for d in r.ligand_detail:
+                if not isinstance(d, dict):
+                    continue
+                _why = _ldb.inorganic_reason(d.get("name"), d.get("smiles"))
+                if _why:
+                    _hom_dropped.append({"refseq": r.refseq, "name": d.get("name"), "reason": _why})
+                else:
+                    _kept.append({"name": d.get("name"), "smiles": d.get("smiles")})
+            _tier = "vote" if idn >= _ldb.HOMOLOG_MIN_IDENTITY else "context"
+            _hom_rows.append({"refseq": r.refseq, "identity": idn, "qcov": qc, "tcov": tc, "tier": _tier,
+                              "organism": r.organism, "their_rank": r.rank, "rhea": r.rhea_id,
+                              "equation": r.equation, "ligands": _kept})
+            # Only the BEST voting-tier hit may vote (prereg section 4); if all of its ligands were
+            # inorganic there is no vote -- it is not passed down to the next hit. And a protein with its
+            # own exact published record does not also vote through a homologue: that would count one
+            # database twice and let a neighbour's prediction outbid the protein's own (EXP072 review).
+            if _tier == "vote" and not _best_seen:
+                _best_seen = True
+                if any(x["name"] for x in _kept) and not _own_record:
+                    _vote = (r, idn, tuple(x["name"] for x in _kept if x["name"]))
+        _hom_ligs = _identity.subsume_bare_elements(_vote[2]) if _vote else ()
+        calls.append(InducerCall(
+            source="ligify_db_homolog",
+            ligand=_hom_ligs[0] if len(_hom_ligs) == 1 else None,
+            confidence=(round(max(0.0, _lw * float(_vote[0].rank or 0) / 100.0
+                                  * _ldb.HOMOLOG_VOTE_CONCORDANCE), 2) if _vote else 0.0),
+            role="", candidates=tuple(_hom_ligs),
+            mixture_kind=("unresolved" if len(_hom_ligs) > 1 else ""),
+            identity_status=("" if not _hom_ligs else "unresolved" if len(_hom_ligs) > 1 else
+                             _identity.chemistry(_hom_ligs[0])[1]),
+            evidence={"votes": bool(_vote), "min_identity": _ldb.HOMOLOG_MIN_IDENTITY,
+                      "context_min_identity": _ldb.HOMOLOG_CONTEXT_MIN_IDENTITY,
+                      "min_coverage": _ldb.HOMOLOG_MIN_COVERAGE,
+                      "vote_from": _vote[0].refseq if _vote else None,
+                      "vote_withheld_exact_record": bool(_own_record and _best_seen),
+                      "vote_concordance": _ldb.HOMOLOG_VOTE_CONCORDANCE if _vote else None,
+                      "weight": _lw, "weight_reason": _lw_reason,
+                      "homologs": _hom_rows, "dropped_inorganic": _hom_dropped,
+                      "source_db": "groov-bio/ligify-ui (MIT)"}))
+
     # 4b. The local derivation, for everything else -- which is the great majority.
     # NB: effectors_from_context(ctx, tf_gene) -- NOT predict_effector(seq); the network UniProt fetch
     # is gated on allow_ncbi, so an offline run still gets SSN + coordination (+ ligify_db above).
     if ligify_fn is not None or (genome_ctx is not None and tf_gene is not None and allow_ncbi):
         try:
-            from predictor.effector import ligify
+            from predictor.effector import operon_chemistry as _oc
+            chemistry_snapshot.update(status="recorded", availability="not_requested", reason="",
+                                      route="injected" if ligify_fn else "operon_chem")
+
+            def recorded_entry(protein_id):
+                rec = {"protein_id": protein_id}
+                chemistry_snapshot["annotations"].append(rec)
+                try:
+                    if entry_fetcher is not None:
+                        entry = entry_fetcher(protein_id)
+                        if entry is not None and not isinstance(entry, dict):
+                            raise TypeError("entry_fetcher must return a raw dictionary or None")
+                        entry = entry or None
+                        rec["availability"] = "injected_unverified" if entry else "injected_empty"
+                    else:
+                        from predictor.effector import annotation as _annotation, ligand as _ligand
+                        provenance = _annotation.annotation_record(protein_id, cache_dir=_ligand._CACHE_DIR)
+                        entry = _annotation.raw_entry(provenance)
+                        rec.update(availability=provenance["state"], annotation=_portable(provenance))
+                    rec.update(status="returned" if entry else "empty", entry=_portable(entry))
+                    rec["chemistry_status"] = ("unavailable" if entry is None else
+                                               "no_catalytic_annotation" if not _oc.is_enzyme(entry) else
+                                               "reactions_available" if _oc.candidate_ligands(entry) else
+                                               "no_usable_reaction_participants")
+                    return entry
+                except Exception as exc:
+                    rec.update(status="error", error=type(exc).__name__)
+                    rec.setdefault("availability", "unavailable")
+                    rec["chemistry_status"] = "derivation_error" if rec.get("entry") else "unavailable"
+                    raise
+                finally:
+                    acquired = chemistry_snapshot["annotations"]
+                    usable = sum(rec.get("entry") is not None for rec in acquired)
+                    chemistry_snapshot["availability"] = ("available" if usable == len(acquired) else
+                                                          "partial" if usable else "unavailable")
+
             cands = (ligify_fn(genome_ctx, tf_gene) if ligify_fn is not None
-                     else ligify.effectors_from_context(genome_ctx, tf_gene))
-            top = cands[0] if cands else None
+                     else _oc.effectors_from_context(genome_ctx, tf_gene, entry_fetcher=recorded_entry))
+            chemistry_snapshot["candidates"] = _portable(cands)
+            # EXP072: `rank_tie` is one enzyme's participant set (the Ligify rank cannot separate it);
+            # `tied` is the part the within-tie signals leave standing. Nothing is deleted -- the full
+            # list stays in `evidence.candidates` and the losers are named in `evidence.tie_break`.
+            top, rank_tie, tied = _oc.operative_tie(cands)
             if top is not None:
+                # EXP070 A2: a generic participant (`AH2`, headline_eligible=False) stays in the raw
+                # `evidence.candidates` but is not a member of the operative tie -- it cannot be the
+                # answer, so counting it only widened the set the headline had to abstain over. The
+                # eligibility test therefore moves from `top` (an arbitrary tie member) to the names.
+                names = _identity.subsume_bare_elements(tuple(dict.fromkeys(
+                    getattr(c, "ligand", None) for c in tied)))
+                _rank_names = tuple(dict.fromkeys(
+                    getattr(c, "ligand", None) for c in rank_tie
+                    if getattr(c, "ligand", None) and getattr(c, "headline_eligible", True)))
+                # `Cu(+)(in)` is the copper ion as a transporter's equation writes it. The compartment
+                # is part of the reaction, not of what the regulator senses, and left in the headline it
+                # is read downstream as an unknown organic name. Monatomic metal ions only: for an
+                # organic ligand the tag separates import from export and is kept (EXP072).
+                names = tuple(dict.fromkeys(_identity.plain_metal_ion(n) or n for n in names))
+                status = "unresolved" if len(names) > 1 else _identity.chemistry(names[0] if names else None)[1]
+                exact = len(names) == 1 and status == "resolved"
                 calls.append(InducerCall(
-                    source="ligify", ligand=getattr(top, "ligand", None),
+                    source="operon_chem", ligand=names[0] if exact else None,
                     # `confidence` is documented [0,1] (schema.InducerCall) but Ligify can return a
                     # NEGATIVE rank, which put an out-of-range value in the field. Clamp to the contract.
                     # This does NOT change who votes: `from_calls` enfranchises `confidence > 0`, so a
@@ -512,14 +677,21 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
                     # `_finalize`, not here.
                     confidence=round(max(0.0, _lw * float(getattr(top, "rank", 50)) / 100.0), 2),
                     role="",
+                    candidates=names, mixture_kind="unresolved" if len(names) > 1 else "",
+                    identity_status=status,
                     evidence={"enzyme": getattr(top, "enzyme", None), "rhea": getattr(top, "rhea", None),
                               "equation": getattr(top, "equation", None),
-                              "weight": _lw, "weight_reason": _lw_reason}))
+                              "weight": _lw, "weight_reason": _lw_reason,
+                              "candidates": _portable(cands), "operative_tie": list(names),
+                              "tie_break": {"signals": list(_oc.TIE_BREAK_SIGNALS),
+                                            "rank_tie": list(_rank_names),
+                                            "dropped": [n for n in _rank_names if n not in names]}}))
                 if verbose:
-                    print(f"  ligify: '{getattr(top, 'ligand', None)}' x weight {_lw:.2f} ({_lw_reason})")
+                    print(f"  operon_chem: '{getattr(top, 'ligand', None)}' x weight {_lw:.2f} ({_lw_reason})")
         except Exception as e:
+            chemistry_snapshot.update(status="unavailable", reason=f"{type(e).__name__}: chemistry acquisition/derivation failed")
             if verbose:
-                print(f"  ligify source skipped ({type(e).__name__}: {e})")
+                print(f"  operon_chem source skipped ({type(e).__name__}: {e})")
 
     # --- source 4 (removed): structural classifier -------------------------------------------------
     # Folddisco structural retrieval was a fourth source. It is gone, and not as a judgement call:
@@ -528,15 +700,105 @@ def infer_inducer(seq: str, family: str, *, genome_ctx=None, tf_gene=None, allow
     # completeness" cost a WSL bridge, a Foldseek index and two modules.
 
     sensor_cls, _cls_why = metal_site.inducer_class(seq, family, g, mn)
-    return _finalize(calls, gate_metal, gate_name=g.get("gate"), gate_chem=g.get("chemistry"),
-                     sensor_class=sensor_cls)
+    # The existing helper's final default organic is absence of evidence, not a biological class.
+    # A NEGATIVE family gate is not that default: the gate ran and found the family's metal ligands
+    # absent (`metal_site.inducer_class` rule 4, the non-metal MerR clades and the FrmR branch). It is
+    # kept apart as a FALLBACK class -- used only when no accepted source carries a class of its own, so
+    # a clade that says metal (KmtR, the arsenic ArsRs) is never overruled by it.
+    _gate_negative = (g.get("has_site") is False
+                      and any(f in (family or "") for f in metal_site.SENSOR_FAMILIES))
+    _fallback_why = _cls_why if (sensor_cls == "organic" and _gate_negative) else None
+    if sensor_cls == "organic" and not any(f in (family or "") for f in metal_site.LIGAND_FAMILIES):
+        sensor_cls = None
+    cons = _finalize(calls, gate_metal, gate_name=g.get("gate"), gate_chem=g.get("chemistry"),
+                     sensor_class=sensor_cls, class_reason=_cls_why, gate_negative_reason=_fallback_why)
+    cons.chemistry_snapshot = chemistry_snapshot
+    return cons
 
 
-def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class=None) -> InducerConsensus:
+def _surviving_organic_call(calls):
+    """A named alternative after a guard rejects operon chemistry (EXP067).
+
+    Existing calls use `non-metal`/`multidrug` roles (schema.InducerCall); only ligify_db has a known
+    empty-role organic emitter above. Its published prediction is eligible, not privileged over other
+    surviving sources. Keep unresolved mixtures and class placeholders out of this named fallback.
+    """
+    from predictor.effector import inducer_vocab as _vocab
+
+    eligible = [c for c in calls
+                if _identity.exact_eligible(c) and c.source not in _OPERON_CHEM_SOURCES
+                and (c.role in ("non-metal", "multidrug")
+                     or (c.role == "" and c.source in ("ligify_db", "ligify_db_homolog")))
+                and c.mixture_kind != "unresolved"
+                and c.ligand.strip().lower() not in _vocab._CLASS_LEVEL_CALLS
+                and _identity.chemistry(c.ligand)[0] == "organic"]
+    return min(eligible, key=_schema.precedence_key, default=None)      # EXP072: source, then confidence
+
+
+def _gate_split_ssn(calls, gate_metal):
+    """EXP070 C: let the protein's OWN family-specific coordination gate split a cross-class clade set.
+
+    The precedence is the one already stated at the RcnR guard in `_finalize`: a family-specific site
+    (or its documented absence) is direct evidence about THIS protein, while a clade's set is a property
+    of the group it was assigned to. When an unresolved SSN set spans the metal and organic classes and
+    the gate has an opinion, the members of the class the gate rules out are dropped. Same-class sets
+    (Cu+/Au(I), As(III)/antimonite) are untouched -- the gate says nothing about WHICH metal -- and so is
+    any set holding a redox or unclassified member. Returns (effective calls, the split call or None);
+    the raw call is retained by the caller in `calls`."""
+    if gate_metal is None:
+        return list(calls), None
+    out, split = [], None
+    for c in calls:
+        if (split is None and c.source == "ssn_cluster" and c.mixture_kind == "unresolved"
+                and (c.confidence or 0) > 0 and len(c.candidates) > 1):
+            classes = {n: _identity.chemistry(n)[0] for n in c.candidates}
+            # A NEGATIVE gate also splits a set of metal members plus members the vocabulary cannot
+            # class (ArsR_c9: `SpdC or Ni(II)`): the gate rules the metal out for THIS protein, and
+            # what is left is not a metal. The mirror case (positive gate, unclassed members) is left
+            # alone -- a positive gate does not say an unclassed name is wrong.
+            unclassed_split = (gate_metal is False and set(classes.values()) == {"metal", None})
+            if set(classes.values()) == {"metal", "organic"} or unclassed_split:
+                want = "metal" if gate_metal else "organic"
+                kept = tuple(n for n in c.candidates
+                             if (classes[n] != "metal" if unclassed_split else classes[n] == want))
+                one = len(kept) == 1
+                split = replace(
+                    c, ligand=kept[0] if one else None, candidates=() if one else kept,
+                    mixture_kind="" if one else "unresolved",
+                    identity_status=_identity.chemistry(kept[0])[1] if one else "unresolved",
+                    role="metal" if gate_metal else "non-metal", sensor_class=want, class_status="",
+                    class_evidence={"basis": "coordination_gate_split", "gate": bool(gate_metal),
+                                    "cluster": (c.evidence or {}).get("cluster")},
+                    evidence={**(c.evidence or {}), "gate_split": {
+                        "gate_metal": bool(gate_metal), "kept": list(kept),
+                        "dropped": [n for n in c.candidates if n not in kept]}})
+                out.append(split)
+                continue
+        out.append(c)
+    return out, split
+
+
+def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class=None,
+              class_reason=None, gate_negative_reason=None) -> InducerConsensus:
     """Fuse the per-source calls into a consensus and apply the gate policy + class-level fallback.
     Used by `infer_inducer`; kept separate so the gate notes and the never-silent fallback live in
     one place rather than being duplicated at the call site."""
+    raw_calls = list(calls)
+    calls, split_call = _gate_split_ssn(raw_calls, gate_metal)
     cons = InducerConsensus.from_calls(calls, coordination_gate=gate_metal)
+    cons.calls = raw_calls                       # raw source output retained; the split is policy
+    if sensor_class is not None and sensor_class not in _identity.SENSOR_CLASSES:
+        cons.class_evidence["policy_input"] = sensor_class
+        sensor_class = None
+    operative = list(cons.accepted_calls)
+
+    def reject(call):
+        operative[:] = [c for c in operative if c is not call]
+    # Recover the family before interpreting a retained structural-site call. The same caveat must
+    # govern both class recovery here and the effective structural verdict used by the guards below.
+    coord_call = next((c for c in cons.calls if c.source == "coordination"), None)
+    fam_name = ((coord_call.evidence or {}).get("family") or "") if coord_call else ""
+    struct_caveat = metal_site.structural_site_caveat(fam_name)
 
     # Recover the redox verdict when the caller did not supply sensor_class. A caller that re-fuses
     # without recomputing it (it needs the sequence) would otherwise see a reactive-species sensor's
@@ -546,10 +808,15 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     # [2Fe-2S]/reactive-Cys cluster) IS that signal, so honour it. Metal/organic roles are untouched.
     if sensor_class is None and any((c.role or "") == "redox" for c in calls):
         sensor_class = "redox"
+    # Re-fusion has no sequence, but the retained family still identifies the existing organic-site
+    # caveat. Recover that class too, so an operon metal proposal cannot evade the organic-family guard
+    # merely because the caller omitted sensor_class. The redox verdict above retains precedence.
+    if sensor_class is None and gate_metal is None and struct_caveat:
+        sensor_class = "organic"
     # Same recovery for the MetalNet route: a caller that re-finalizes without recomputing sensor_class
     # would otherwise drop a metal class that only MetalNet established, and the organic-family guard
     # would then fire on a TF that does have a metal site.
-    if sensor_class in (None, "organic") and gate_metal is None and any(
+    if sensor_class in (None, "organic") and gate_metal is None and not struct_caveat and any(
             c.source == "metalnet" and c.role == "metal" for c in calls):
         sensor_class = "metal"
     # The neighbourhood is the weakest metal evidence we carry, so it sits at the bottom of the same
@@ -563,30 +830,71 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
             c.source == "neighborhood" and c.role == "metal" for c in calls):
         sensor_class = "metal"
 
+    # An ASSIGNED clade outranks the bare family prior. `metal_site.inducer_class` rule 5 calls a
+    # member of a metal-sensing family "metal" when the gate is silent and nothing else is known. A
+    # clade the protein was assigned to with positive confidence, and whose curated role is non-metal,
+    # is evidence about this protein; the family prior is not. The case is the BlaI/MecI branch of CopY
+    # (clade CopY_c3, beta-lactam): its label is not a resolvable chemical name, so it cannot be the
+    # headline, and the family prior then filled the class with "divalent metal" against both the
+    # clade and MetalNet. A positive gate or a MetalNet site is direct evidence and is left alone.
+    _clade = next((c for c in calls if c.source == "ssn_cluster" and (c.confidence or 0) > 0), None)
+    if (sensor_class == "metal" and gate_metal is None and _clade is not None
+            and _clade.role in ("non-metal", "multidrug")
+            and not any(c.source in ("metalnet", "neighborhood") and c.role == "metal" for c in calls)):
+        sensor_class = "organic"
+        class_reason = (f"SSN clade {(_clade.evidence or {}).get('cluster', '?')} is a non-metal clade "
+                        f"({_clade.ligand or ', '.join(_clade.candidates)}); an assigned clade outranks "
+                        f"the family prior ({class_reason or 'metal-sensing family, gate silent'})")
+
     # reactive-species (redox) sensors carry a specific [2Fe-2S]/reactive-Cys signature (SoxR, NsrR-like)
     # that a RegulonDB benchmark showed is separable from true metal sensors -- their effector is an
     # oxidative/nitrosative signal, not a metal ion or an organic ligand, so it takes the headline directly.
     if sensor_class == "redox":
+        cons.sensor_class = "redox"
+        cons.class_evidence = {**cons.class_evidence, "policy": {"basis": class_reason or "existing_redox_policy"}}
         cons.top = "reactive oxygen/nitrogen species (redox)"
         cons.notes = ("[2Fe-2S]/reactive-Cys signature -> reactive-species (redox) sensor: the effector is "
                       "an oxidative/nitrosative signal (superoxide, H2O2 or NO), not a metal ion or organic "
                       "ligand",)
-        return cons
+        return cons.refresh([c for c in operative if c.role == "redox"], finalized=True)
 
     # --- gate policy: a metal label without the coordination signature is advisory, not confident ---
     notes = []
-    top_call = next((c for c in cons.calls if c.ligand == cons.top), None)
+    top_call = max((c for c in operative if c.ligand == cons.top and _identity.exact_eligible(c)),
+                   key=lambda c: c.confidence, default=None)
+    # EXP072 source precedence: the fusion picked the headline by SOURCE (clade > published database >
+    # local operon chemistry) and only then by confidence. Say so whenever that decided the outcome --
+    # a larger number from a weaker kind of evidence is still in `candidates`, it just did not win.
+    _named = [c for c in calls if _identity.exact_eligible(c)]
+    _loudest = max(_named, key=lambda c: c.confidence, default=None)
+    if (_loudest is not None and top_call is not None and _loudest is not top_call
+            and _identity.identity_key(_loudest.ligand) != _identity.identity_key(top_call.ligand)
+            and _schema.source_tier(_loudest.source) > _schema.source_tier(top_call.source)):
+        notes.append(
+            f"source precedence: '{top_call.ligand}' from {top_call.source} (confidence "
+            f"{top_call.confidence:.2f}) keeps the headline over '{_loudest.ligand}' from "
+            f"{_loudest.source} ({_loudest.confidence:.2f}); a larger confidence from a weaker kind of "
+            f"evidence does not outrank it, and '{_loudest.ligand}' remains a candidate")
     # The MetalNet verdict is recovered from the retained calls, so a re-fuse
     # (which has no sequence and cannot recompute it) applies exactly the same policy as the first pass.
-    coord_call = next((c for c in cons.calls if c.source == "coordination"), None)
-    fam_name = ((coord_call.evidence or {}).get("family") or "") if coord_call else ""
-    struct_caveat = metal_site.structural_site_caveat(fam_name)
     mn_call = next((c for c in cons.calls if c.source == "metalnet"), None)
     mn_gate = None if mn_call is None else (True if mn_call.role == "metal"
                                             else False if mn_call.role == "non-metal" else None)
     # The structural verdict the guards below act on: our own family chemistry when it has an opinion,
     # MetalNet only where it is silent. Same precedence as `metal_site.inducer_class` rule 4b.
-    struct_gate = gate_metal if gate_metal is not None else mn_gate
+    struct_gate = gate_metal if gate_metal is not None else (
+        None if mn_gate is True and struct_caveat else mn_gate)
+    # Apply the same existing source guards to set-only proposals. Absence of a
+    # named top must not let an unresolved collection bypass accepted-evidence policy.
+    for call in list(operative):
+        if _identity.exact_eligible(call):
+            continue
+        local = call.source in _OPERON_CHEM_SOURCES
+        if ((local and (sensor_class == "metal" or
+                        (struct_gate is True and float(call.evidence.get("weight", 1)) < LIGIFY_SUPPRESSED_WEIGHT)))
+                or (local and sensor_class == "organic" and struct_gate is not True and call.role in _METAL_ROLES)
+                or (gate_metal is True and call.source == "ssn_cluster" and call.role not in _METAL_ROLES)):
+            reject(call)
     if top_call and top_call.role in _METAL_ROLES and gate_metal is False:
         notes.append(f"metal label '{cons.top}' NOT confirmed by coordination gate -> advisory")
     if top_call and top_call.role in _METAL_ROLES and gate_metal is True:
@@ -628,6 +936,8 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
             notes.append(f"MetalNet gave no opinion ({ev.get('reason') or 'not available'})")
     nb_call = next((c for c in cons.calls if c.source == "neighborhood"), None)
     if nb_call is not None:
+        if gate_metal is False:
+            reject(nb_call)
         nev = nb_call.evidence or {}
         established = (gate_metal is None and mn_gate is not True)
         notes.append(
@@ -636,29 +946,64 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
             + (" -> metal sensor class from co-location, no structural site was found by either method; "
                "co-location names no ion and is the weakest evidence here"
                if established else " (corroborating; the structural verdict already decided the class)"))
+    hom_call = next((c for c in cons.calls if c.source == "ligify_db_homolog"), None)
+    if hom_call is not None and (hom_call.evidence or {}).get("homologs"):
+        def _hom_text(rows):
+            return "; ".join(
+                f"{h['refseq']} ({h['identity']:.1%} id): "
+                + (", ".join(l["name"] for l in h["ligands"][:4] if l.get("name")) or "no organic ligand")
+                + (" ..." if len(h["ligands"]) > 4 else "") for h in rows)
+        _h = hom_call.evidence["homologs"]
+        # Rows written before EXP072 carry no tier; they were all >= 99 % and non-voting.
+        _voting = [h for h in _h if h.get("tier") == "vote"]
+        _context = [h for h in _h if h.get("tier") != "vote"]
+        if _voting:
+            notes.append(
+                "published Ligify predictions for near-identical proteins in other genomes (>= 99 % "
+                "identity; organic ligands vote as a published-database source, scaled by the measured "
+                "89 % ligand concordance): " + _hom_text(_voting)
+                + ". A prediction from another genome's neighbourhood, not a validated inducer")
+        if _context:
+            notes.append(
+                "published Ligify predictions for homologous proteins in other genomes (context only, "
+                "not counted): " + _hom_text(_context)
+                + ". The published call depends on each genome's neighbourhood, so it indicates the kind of "
+                  "chemistry seen for this protein elsewhere, not its inducer")
+        if hom_call.evidence.get("dropped_inorganic"):
+            notes.append(
+                "metal/ion ligands of published homologues are not used (ions come from the SSN clade): "
+                + ", ".join(dict.fromkeys(str(d.get("name")) for d in hom_call.evidence["dropped_inorganic"])))
     # A cluster assigned to several species: say so, say which, and say that the headline is the
     # fusion of that set with the other sources rather than a pick from inside it.
-    ssn_call = next((c for c in cons.calls if c.source == "ssn_cluster"), None)
-    if ssn_call is not None and len(ssn_call.candidates) > 1:
+    ssn_call = split_call or next((c for c in cons.calls if c.source == "ssn_cluster"), None)
+    if split_call is not None:
+        _gs = split_call.evidence["gate_split"]
+        notes.append(
+            f"SSN cluster {(split_call.evidence or {}).get('cluster', '?')} spans the metal and organic "
+            f"classes; this protein's own coordination gate ({gate_name or 'gate'}) is "
+            f"{'POSITIVE' if gate_metal else 'NEGATIVE'}, so {', '.join(_gs['dropped'])} "
+            f"{'is' if len(_gs['dropped']) == 1 else 'are'} dropped and "
+            f"{', '.join(_gs['kept'])} kept (EXP070; the raw clade set is retained in `calls`)")
+    if ssn_call is not None and (ssn_call.confidence or 0) > 0 and len(ssn_call.candidates) > 1:
         others = [c.source for c in cons.calls
                   if c.source != "ssn_cluster" and (c.ligand or c.role)]
         notes.append(
             f"SSN cluster {(ssn_call.evidence or {}).get('cluster', '?')} is assigned to "
             f"{', '.join(ssn_call.candidates)} -- a genuine multi-species cluster, not a failure to "
-            f"decide. The headline '{cons.top}' is the fusion of that set with "
-            f"{', '.join(others) if others else 'no other source'}; the full set is kept in "
-            f"`candidates` and any member remains a live hypothesis")
+            f"decide. This is the raw source proposal, considered alongside "
+            f"{', '.join(others) if others else 'no other source'}; accepted alternatives are recorded "
+            f"in the final `candidates` field")
     # An UNRESOLVED tie is a result, not a failure to decide. Say which ions are tied and why
     # nothing separates them. This used to record whether the regulon broke the tie; under the tier
     # contract it cannot, because the regulon is reached THROUGH the operator hits and a tier-2
     # product may not settle a tier-1 claim.
-    if ssn_call is not None and ssn_call.mixture_kind == "unresolved":
+    if ssn_call is not None and (ssn_call.confidence or 0) > 0 and ssn_call.mixture_kind == "unresolved":
         _tied = (ssn_call.evidence or {}).get("unresolved_between") or list(ssn_call.candidates)
         _why = (ssn_call.evidence or {}).get("why_unresolved") or ""
         notes.append(
             f"UNRESOLVED between {' and '.join(_tied)}: {_why}. No protein-level source separates "
-            f"them. Both remain live hypotheses; reporting one as the answer would be precision we "
-            f"do not have")
+            f"them within this raw source; final policy may reject a proposal. Set membership is "
+            f"compatibility rather than exact identification")
     # --- the coordination axis: corroborate a clade, contradict it in the open, or speak where there
     #     is none. Precedence rule 9, added 2026-09-02.
     #
@@ -672,7 +1017,7 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     motif_ion = (coord_call.evidence or {}).get("motif_ion") if coord_call else None
     motif_ions = (coord_call.evidence or {}).get("implied_ions") or {} if coord_call else {}
     motif_names = (coord_call.evidence or {}).get("motifs") or [] if coord_call else []
-    clade_named = ssn_call is not None and bool(ssn_call.ligand)
+    clade_named = ssn_call is not None and (ssn_call.confidence or 0) > 0 and bool(ssn_call.ligand or ssn_call.candidates)
     if motif_ions:
         _srcs = sorted({m for v in motif_ions.values() for m in v})
         if clade_named and ssn_call.ligand in motif_ions:
@@ -682,28 +1027,29 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
                 f"{(ssn_call.evidence or {}).get('cluster', '?')} -- two axes that do not read each "
                 f"other (curated clade anchors vs. the protein's own ligand set)")
         elif clade_named:
-            cons.candidates = tuple(dict.fromkeys((*cons.candidates, *sorted(motif_ions))))
-            cons.mixture_kind = "unresolved"
+            cons.policy_candidates = tuple(sorted(motif_ions))
+            cons.policy_mixture_kind = "unresolved"
             notes.append(
                 f"DISAGREEMENT: SSN cluster {(ssn_call.evidence or {}).get('cluster', '?')} says "
                 f"'{ssn_call.ligand}', the coordination signature ({', '.join(_srcs)}) implies "
-                f"{' or '.join(sorted(motif_ions))}. The clade keeps the headline -- it rests on "
-                f"curated anchors and the motif on a sequence pattern -- but both are live and the "
-                f"full set is in `candidates`")
-        elif cons.top is None and motif_ion and sensor_class != "organic":
+                f"{' or '.join(sorted(motif_ions))}. This is the raw source-level conflict: clade "
+                f"anchors normally precede a sequence pattern, while the final guards determine "
+                f"which proposals remain accepted in `candidates`")
+        elif (cons.top is None and motif_ion and sensor_class != "organic"
+              and _identity.exact_eligible(replace(coord_call, ligand=motif_ion, confidence=0.35))):
             # No clade, no other source named anything, and the motifs agree on ONE ion.
             cons.top = motif_ion
-            coord_call.ligand = motif_ion
-            coord_call.confidence = 0.35
-            cons.agreement = 1.0
+            # Keep the original abstention; this is the existing named-motif promotion and its
+            # unchanged 0.35 confidence, represented separately from the source's raw output.
+            operative.append(replace(coord_call, ligand=motif_ion, confidence=0.35))
             notes.append(
                 f"no SSN clade for this protein, so the headline '{motif_ion}' rests on the "
                 f"coordination signature alone ({', '.join(motif_ions[motif_ion])}). This is weaker "
                 f"than a clade call and is not corroborated by any independent source; treat the ion "
                 f"as the hypothesis and the metal CLASS as the result")
         elif cons.top is None and len(motif_ions) > 1:
-            cons.candidates = tuple(sorted(motif_ions))
-            cons.mixture_kind = "unresolved"
+            cons.policy_candidates = tuple(sorted(motif_ions))
+            cons.policy_mixture_kind = "unresolved"
             notes.append(
                 f"no SSN clade, and the coordination signature ({', '.join(_srcs)}) is consistent with "
                 f"{' or '.join(sorted(motif_ions))} without separating them -- the motif is shared by "
@@ -719,25 +1065,29 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     # `agreement` is the share of VOTING sources naming `top` -- with a single voter it is 1.0 by
     # construction and means "uncontested", NOT "corroborated". Say so, or a reader mistakes it for
     # confidence (the ArsR_c9 -> organic-metabolite failure read as agreement=1.0).
-    n_voting = sum(1 for c in cons.calls if c.ligand and c.confidence > 0)
-    if cons.top is not None and n_voting <= 1:
-        notes.append(f"single-source call ({top_call.source if top_call else '?'}): agreement=1.00 means "
-                     f"UNCONTESTED, not corroborated -- no independent source named an inducer")
     # transparency: say when the operon-chemistry (Ligify) call was suppressed by the metal/redox gate
-    lig_call = next((c for c in cons.calls if c.source == "ligify"), None)
+    lig_call = next((c for c in cons.calls if c.source in _OPERON_CHEM_SOURCES), None)
     if lig_call and float(lig_call.evidence.get("weight", 1.0)) < LIGIFY_SUPPRESSED_WEIGHT:
         notes.append(f"Ligify '{lig_call.ligand}' down-weighted x{lig_call.evidence.get('weight')}: "
                      f"{lig_call.evidence.get('weight_reason')}")
     # metal gate positive but the only ligand named is a suppressed Ligify organic -> the metal wins the
     # headline (a suppressed operon-chemistry guess must not be the top call for a metal sensor)
-    if (struct_gate is True and top_call is not None and top_call.source == "ligify"
+    if (struct_gate is True and top_call is not None and top_call.source in _OPERON_CHEM_SOURCES
             and float(top_call.evidence.get("weight", 1.0)) < LIGIFY_SUPPRESSED_WEIGHT):
-        metal_call = next((c for c in cons.calls if c.role in _METAL_ROLES and c.ligand
-                           and c.source != "ligify"), None)
-        cons.top = metal_call.ligand if metal_call else "divalent metal (ion unresolved)"
+        metal_call = next((c for c in operative if c.role in _METAL_ROLES and _identity.exact_eligible(c)
+                           and c.source not in _OPERON_CHEM_SOURCES), None)
+        # Preserve independent metal-call priority, then any surviving named organic source before
+        # manufacturing a class placeholder. This changes neither source confidence nor guard triggers.
+        reject(top_call)
+        alternative = metal_call or _surviving_organic_call(operative)
+        cons.top = alternative.ligand if alternative else "divalent metal (ion unresolved)"
         notes.append(f"metal gate positive -> headline is {cons.top}, not the suppressed Ligify "
                      f"'{top_call.ligand}'")
-        top_call = next((c for c in cons.calls if c.ligand == cons.top), metal_call)
+        if alternative is not None and metal_call is None:
+            notes.append(f"surviving organic call from {alternative.source} retained after operon-chemistry "
+                         "rejection; the published database is predictive evidence, not experimental truth")
+        top_call = alternative
+        cons.refresh(operative)
 
     # metalloregulator-family guard: a known metal-sensor family (sensor_class == "metal") must not have its
     # headline set by a NON-metal ORGANIC vote from a weak single source (the regulon substrate-map or Ligify
@@ -747,14 +1097,20 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     # vote wins over the Mn(II) sensor). Demote to the class-level metal call unless a metal-role source
     # named an ion.
     if (sensor_class == "metal" and top_call is not None and top_call.role not in _METAL_ROLES
-            and top_call.source == "ligify"):
-        metal_call = next((c for c in cons.calls if c.role in _METAL_ROLES and c.ligand
-                           and c.source != "ligify"), None)
+            and top_call.source in _OPERON_CHEM_SOURCES):
+        metal_call = next((c for c in operative if c.role in _METAL_ROLES and _identity.exact_eligible(c)
+                           and c.source not in _OPERON_CHEM_SOURCES), None)
         demoted = cons.top
-        cons.top = metal_call.ligand if metal_call else "divalent metal (ion unresolved)"
+        reject(top_call)
+        alternative = metal_call or _surviving_organic_call(operative)
+        cons.top = alternative.ligand if alternative else "divalent metal (ion unresolved)"
         notes.append(f"metalloregulator family -> headline is {cons.top}, not the non-metal '{demoted}' "
                      f"from {top_call.source} (metal sensor class; coordination gate silent)")
-        top_call = next((c for c in cons.calls if c.ligand == cons.top), metal_call)
+        if alternative is not None and metal_call is None:
+            notes.append(f"surviving organic call from {alternative.source} retained after operon-chemistry "
+                         "rejection; the published database is predictive evidence, not experimental truth")
+        top_call = alternative
+        cons.refresh(operative)
 
     # ORGANIC-FAMILY GUARD -- the exact mirror of the metalloregulator guard above. A TF with NO metal
     # evidence must not have its headline set to a METAL by a weak single source. The regulon substrate map
@@ -775,17 +1131,19 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     # the same kind the guard already exempts `ssn_cluster` for, not a substrate vote about its neighbours.
     if (sensor_class == "organic" and struct_gate is not True
             and top_call is not None and top_call.role in _METAL_ROLES
-            and top_call.source == "ligify"):
+            and top_call.source in _OPERON_CHEM_SOURCES):
         # prefer another source that actually voted (positive confidence) for a non-metal ligand; a
         # non-positive call is a source saying "no usable evidence" and must not be promoted either
-        alt = next((c for c in cons.calls if c.ligand and c.confidence > 0
+        alt = next((c for c in operative if _identity.exact_eligible(c)
                     and c.role not in _METAL_ROLES and c is not top_call), None)
         demoted = cons.top
+        reject(top_call)
         cons.top = alt.ligand if alt else None          # None -> class-level organic fallback below
         notes.append(f"organic-ligand sensor class with no coordination signature -> '{demoted}' from "
                      f"{top_call.source} is corroboration, not the headline (a substrate vote about the "
                      f"co-regulated genes cannot introduce a metal for a TF with no metal site)")
         top_call = alt
+        cons.refresh(operative)
 
     # A POSITIVE coordination gate also outranks a NON-METAL SSN CLUSTER label. The guard above deliberately
     # excludes `ssn_cluster` (a cluster label is normally the best inducer evidence there is), but that left a
@@ -801,25 +1159,44 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
     # evidence and must be left alone.
     if (gate_metal is True and top_call is not None and top_call.source == "ssn_cluster"
             and top_call.role not in _METAL_ROLES):
-        metal_call = next((c for c in cons.calls if c.role in _METAL_ROLES and c.ligand
-                           and c.source not in ("ligify", "ssn_cluster")), None)
+        metal_call = next((c for c in operative if c.role in _METAL_ROLES and _identity.exact_eligible(c)
+                           and c.source not in (*_OPERON_CHEM_SOURCES, "ssn_cluster")), None)
         demoted = cons.top
+        reject(top_call)
         cons.top = metal_call.ligand if metal_call else "divalent metal (ion unresolved)"
         notes.append(
             f"coordination gate POSITIVE ({gate_name or 'gate'}{', ' + gate_chem if gate_chem else ''}) "
             f"-> headline is {cons.top}, not the non-metal '{demoted}' inherited from SSN cluster "
             f"{top_call.evidence.get('cluster', '?')}; the cluster label disagrees with this protein's own "
             f"metal site (metal-boundary misassignment -- corroborate the ion)")
-        top_call = next((c for c in cons.calls if c.ligand == cons.top), metal_call)
+        top_call = next((c for c in operative if c.ligand == cons.top and _identity.exact_eligible(c)), metal_call)
+        cons.refresh(operative)
+
+    # A member of a metal-sensing family whose own coordination gate is NEGATIVE, with no accepted
+    # source carrying a class: the negative gate is the class evidence (non-metal member of a metal
+    # family). Without this the 2026-11-10 run left 26 such MerR/ArsR regulators with no call at all,
+    # where the gate had in fact ruled the metal site out. A clade or any other accepted source that
+    # carries a metal or redox class keeps precedence -- this only fills silence or agrees.
+    if not sensor_class and gate_metal is False and gate_negative_reason:
+        cons.refresh(operative)
+        _classes = {r.get("class") for r in cons.class_evidence.get("records") or ()}
+        if _classes <= {"organic"} and not cons.class_evidence.get("source_uncertainty"):
+            sensor_class, class_reason = "organic", gate_negative_reason
 
     # --- class-level fallback: never go silent (user policy "propose at least one probable inducer") ---
+    if sensor_class:
+        cons.sensor_class = sensor_class
+        cons.class_evidence = {**cons.class_evidence, "policy": {"basis": class_reason or "explicit_finalization_policy"}}
+    elif struct_gate is True:
+        cons.sensor_class = "metal"
+        cons.class_evidence = {**cons.class_evidence, "policy": {"basis": "positive_regulatory_site_policy"}}
     if cons.top is None:
         if struct_gate is True or sensor_class == "metal":
             cons.top = "divalent metal (ion unresolved)"
             notes.append("no source named an ion; metal sensor class (gate, MetalNet or metalloregulator "
                          "family) -> class-level metal call (low confidence -- corroborate with "
                          "ligify / cluster annotation)")
-        elif gate_metal is False or sensor_class == "organic":
+        elif sensor_class == "organic":
             cons.top = "non-metal effector (undetermined)"
             notes.append("organic-ligand sensor family / no metal-coordination signature -> non-metal "
                          "effector class (identity undetermined; e.g. the TetR/AcrR lipophilic-ligand "
@@ -827,9 +1204,10 @@ def _finalize(calls, gate_metal, *, gate_name=None, gate_chem=None, sensor_class
         else:
             notes.append("inducer undetermined (no cluster label, no operon chemistry, gate inconclusive)")
     cons.notes = tuple(notes)
-    # Human-facing label only. `cons.top` remains the sole class/count input.
-    from predictor.effector import inducer_vocab as _vocab
-    cons.top_display = _vocab.display_label(cons.top, cons.candidates)
+    cons.refresh(operative, finalized=True)
+    if cons.agreement == 1.0 and len(cons.support_sources) == 1:
+        cons.notes += (f"single-source call ({cons.support_sources[0]}): agreement=1.00 means "
+                       "UNCONTESTED, not corroborated -- no independent source named an inducer",)
     return cons
 
 

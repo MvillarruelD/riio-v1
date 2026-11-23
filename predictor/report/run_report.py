@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from urllib.parse import quote
 
-from predictor.report import discovery_page, run_page
+from predictor.report import discovery_page, figure_data, run_page
 
 
 def _json(path):
@@ -203,7 +203,8 @@ def write_discovery_report(run_dir, manifest_path=None):
 
 
 def _run_rows(run, manifest_path=None):
-    from predictor.effector.inducer_vocab import inducer_class_of, is_abstention
+    from predictor.effector.inducer_vocab import is_abstention
+    from predictor.effector.chemical_identity import class_from_record
     manifests = _manifest(run, manifest_path)
     summary = {r.get("run_name", r.get("name", "")): r for r in _table(run / "summary.tsv")}
     bundles = _stored_bundles(run)
@@ -219,7 +220,7 @@ def _run_rows(run, manifest_path=None):
         dossier = _object(bundle / "dossier.json") if bundle else {}
         bundle_manifest = _object(bundle / "bundle_manifest.json") if bundle else {}
         inducer = dossier.get("inducers") or {}
-        top = inducer.get("top") or dossier.get("effector") or row.get("inducer_top", "")
+        top = figure_data.inducer_top(dossier, row.get("inducer_top", ""))
         operators = dossier.get("operators") or {}
         primary = operators.get("primary") or {} if isinstance(operators, dict) else {}
         provenance = primary.get("provenance") or {}
@@ -233,7 +234,8 @@ def _run_rows(run, manifest_path=None):
                    discovery_family=item.get("family") or row.get("discovery_family", ""),
                    ssn_cluster=dossier.get("ssn_cluster", row.get("ssn_cluster", "")),
                    inducer_top=top,
-                   inducer_class=(inducer_class_of(top) or "unresolved") if predicted else "not predicted",
+                   inducer_class=(class_from_record(inducer, top)[0] or "unresolved") if predicted else "not predicted",
+                   inducer_class_provenance=class_from_record(inducer, top)[1],
                    agreement=inducer.get("agreement", row.get("agreement", "")),
                    primary_operator=primary.get("sequence", row.get("primary_operator", "")),
                    primary_start=provenance.get("start", row.get("primary_start", "")),
@@ -262,6 +264,7 @@ def _run_rows(run, manifest_path=None):
 
 def _write_xlsx(path, rows, columns):
     from openpyxl import Workbook
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
     workbook = Workbook()
@@ -270,7 +273,8 @@ def _write_xlsx(path, rows, columns):
     sheet.append(columns)
     for row in rows:
         # Force source text to literal cells; labels beginning '=' are not formulas.
-        sheet.append([_text(row.get(column, "")) for column in columns])
+        # A control character in one annotation must not lose the whole workbook.
+        sheet.append([ILLEGAL_CHARACTERS_RE.sub("", _text(row.get(column, ""))) for column in columns])
         for cell in sheet[sheet.max_row]:
             cell.data_type = "s"
         link = row.get("report_path")

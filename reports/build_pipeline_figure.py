@@ -315,7 +315,7 @@ def _inducer_evidence(c):
     c.line([(38, 91), (38, 89.5), (123, 89.5)], IND, lw=0.4)
     for x in centers:
         c.line([(x, 89.5), (x, 90.5)], IND, lw=0.4)
-    names = ["SSN clade", "Cys/His\nmotifs", "MetalNet2", "Nearby\ngenes", "Ligify"]
+    names = ["SSN clade", "Cys/His\nmotifs", "MetalNet2", "Nearby\ngenes", "Operon\nchemistry"]
     for x, name in zip(centers, names):
         c.text(x, 97.5 if x != 83 else 96.5, name, size=FS_SMALL, ha="center")
         c.line([(x, 100.5), (x, 102)], IND, lw=0.4)

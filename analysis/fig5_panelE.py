@@ -40,12 +40,15 @@ OUT = RP.FIGURES / "F23_panelE_inducer_per_regulator"
 GENOMES = [
     ("M. avium subsp. hominissuis", "M. avium"),
     ("M. tuberculosis H37Rv", "M. tuberculosis"),
-    ("V. cholerae RFB16", "V. cholerae"),
+    ("V. cholerae N16961", "V. cholerae N16961"),   # final rerun (Amendment 1); RFB16 before it
     ("V. vulnificus NBRC15645", "V. vulnificus"),
 ]
 #: the manuscript's genome palette, sampled from panel A/B of the published figure
 GEN_COLOR = {"M. avium": "#5B9BD5", "M. tuberculosis": "#1F4E79",
-             "V. cholerae": "#9E2A2B", "V. vulnificus": "#F4B183"}
+             "V. cholerae": "#9E2A2B", "V. cholerae N16961": "#9E2A2B",
+             "V. vulnificus": "#F4B183"}
+#: a pre-2026-11-10 run used V. cholerae RFB16; its column takes the RFB16 key instead
+LEGACY_GENOME = {"V. cholerae N16961": ("V. cholerae RFB16", "V. cholerae RFB16")}
 
 #: metal rows + groups EXACTLY as panel D (ions we never call are kept, so the grids align row-for-row)
 ION_GROUPS = [
@@ -92,6 +95,15 @@ def main():
     by_gen = collections.defaultdict(list)
     for r in rows:
         by_gen[r["genome"]].append(r)
+    global GENOMES
+    GENOMES = [LEGACY_GENOME[k] if k in LEGACY_GENOME and k not in by_gen
+               and LEGACY_GENOME[k][0] in by_gen else (k, lab) for k, lab in GENOMES]
+    GEN_COLOR.setdefault("V. cholerae RFB16", GEN_COLOR["V. cholerae"])
+    # A genome the panel has no column for used to vanish silently: the 2026-11-10 run's 20
+    # V. cholerae N16961 regulators were labelled "?" upstream and the column drew n=0.
+    unplaced = sorted(set(by_gen) - {k for k, _ in GENOMES})
+    S.require(not unplaced, f"a panel column for every genome in {TSV.name} (unplaced: {unplaced})",
+              "fig5_complement.py's GENOME map (organism accession -> genome label)")
 
     # ion x genome -> [(family_code, gate_positive)] for regulators predicted to sense that ion
     cell = collections.defaultdict(list)

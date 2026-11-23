@@ -236,6 +236,7 @@ def test_motif_corroborates_an_agreeing_clade_without_taking_the_headline():
                            evidence={"cluster": "MerR_9"})
     r = IND._finalize([ssn_call, cc], g["has_site"], gate_name=g["gate"], sensor_class="metal")
     assert r.top == "Zn2+"
+    assert r.accepted_calls == [ssn_call] and cc.confidence == 0.0
     assert any("agreeing with SSN cluster MerR_9" in n for n in r.notes), r.notes
 
 
@@ -250,6 +251,8 @@ def test_motif_disagreeing_with_a_clade_is_reported_never_resolved():
     assert r.top == "Cd2+", "the clade keeps the headline"
     assert set(r.candidates) == {"Cd2+", "Zn2+"}
     assert r.mixture_kind == "unresolved"
+    assert r.accepted_calls == [ssn_call] and cc.confidence == 0.0
+    assert r.agreement == 1.0, "candidate-only motif policy must not create a confidence voter"
     assert any(n.startswith("DISAGREEMENT") for n in r.notes), r.notes
 
 
@@ -259,7 +262,9 @@ def test_motif_may_name_an_ion_only_when_no_clade_spoke():
     g, cc = _coordination_call(ZNTR, "MerR")
     r = IND._finalize([cc], g["has_site"], gate_name=g["gate"], sensor_class="metal")
     assert r.top == "Zn2+"
-    coord = next(c for c in r.calls if c.source == "coordination")
+    raw_coord = next(c for c in r.calls if c.source == "coordination")
+    assert raw_coord.ligand is None and raw_coord.confidence == 0.0, "retain the original abstention"
+    coord = next(c for c in r.accepted_calls if c.source == "coordination")
     assert coord.ligand == "Zn2+" and 0 < coord.confidence < 0.5, (
         "a motif-only call must be marked weaker than a clade call")
     assert any("rests on the coordination signature alone" in n for n in r.notes), r.notes

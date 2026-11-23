@@ -46,18 +46,23 @@ def lookup(uniprot_acc: str, *, use_cache: bool = True, timeout: int = 30) -> di
     if use_cache and cp.exists():
         try:
             d = json.loads(cp.read_text(encoding="utf-8"))
-            return d or None
+            if d.get("not_in_afdb"):
+                return None
+            if d:                         # a bare {} is an old record of a failed request: ask again
+                return d
         except Exception:
             pass
+    absent = False
     try:
         with urllib.request.urlopen(_API.format(acc=acc), timeout=timeout) as h:
             data = json.loads(h.read().decode("utf-8"))
         meta = _meta_from_record(data[0]) if data else None
-    except Exception:
+        absent = not data
+    except Exception as exc:
         meta = None
-    if use_cache:
-        _CACHE.mkdir(parents=True, exist_ok=True)
-        cp.write_text(json.dumps(meta or {}), encoding="utf-8")
+        absent = getattr(exc, "code", None) == 404
+    if use_cache and (meta or absent):    # a timeout is not "not in AFDB"
+        resources.atomic_write_text(cp, json.dumps(meta or {"not_in_afdb": True}))
     return meta
 
 
@@ -77,7 +82,9 @@ def fetch_model(uniprot_acc: str, *, fmt: str = "cif", use_cache: bool = True,
     try:
         _CACHE.mkdir(parents=True, exist_ok=True)
         with urllib.request.urlopen(url, timeout=timeout) as h:
-            out.write_bytes(h.read())
+            payload = h.read()
+        with resources.atomic_path(out) as temporary:
+            temporary.write_bytes(payload)
     except Exception:
         return None
     return str(out)

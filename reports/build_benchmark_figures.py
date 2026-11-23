@@ -111,7 +111,8 @@ def _sensor_row(s: dict) -> tuple[list[str], str]:
         return [found, "not_scored", "not_scored"], note
     metal = "correct" if s["ion"] in ("hit", "shortlist", "class only") else "incorrect"
     ion = {"hit": "correct", "shortlist": "partial", "class only": "partial"}.get(s["ion"], "incorrect")
-    note = "ion in the shortlist, not first" if s["ion"] == "shortlist" else \
+    note = ("shortlist: " + ", ".join(s["shortlist"]) if s.get("shortlist")
+            else "ion in the shortlist, not first") if s["ion"] == "shortlist" else \
         (f"called {s['called']}" if s["called"] else "")
     if not studied:
         note += " (found anyway)"

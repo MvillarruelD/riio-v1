@@ -31,6 +31,8 @@ def path_exists(value) -> bool:
         raise
 
 
+#: A single-line input no protein sequence could be, and a file name usually is.
+_PATH_LIKE = re.compile(r"[/\\]|\.(?:fa|faa|fasta|fas|fsa|pep|seq|txt)$", re.IGNORECASE)
 _PROTEIN_ALPHABET = frozenset("ACDEFGHIKLMNPQRSTVWYBXZJUO")
 _DNA_ALPHABET = frozenset("ACGTUN")
 _VALIDATED_FAMILIES = frozenset({"MerR", "ArsR/SmtB"})
@@ -39,14 +41,16 @@ _PARTIAL_FAMILIES = frozenset({"Fur"})
 
 def _source_text(source: str) -> str:
     value = str(source)
-    # Raw protein sequences routinely exceed Windows' path-length limit.  Only
-    # ask the filesystem about strings that can plausibly be a path.
-    if "\n" not in value and "\r" not in value and len(value) < 240:
-        path = Path(value)
-        if path.exists():
+    # One line may be a path. `path_exists` copes with sequences too long to be file names; a 240-character
+    # cut-off here read every candidate FASTA of a deep run folder as "a protein with invalid residues".
+    if "\n" not in value and "\r" not in value and value.strip() and len(value) < 4096:
+        if path_exists(value):
+            path = Path(value)
             if not path.is_file():
                 raise ValueError(f"sequence input is not a file: {path}")
-            return path.read_text(encoding="utf-8", errors="replace")
+            return path.read_text(encoding="utf-8-sig", errors="replace")
+        if not value.lstrip().startswith(">") and _PATH_LIKE.search(value.strip()):
+            raise ValueError(f"file not found: {value.strip()}")
     return value
 
 

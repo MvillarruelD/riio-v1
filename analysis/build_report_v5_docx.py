@@ -36,11 +36,30 @@ JOBS = RP.JOBS   # honour TFOP_JOBS; this was a dev-machine literal
 OUTDOC = RP.REPORT_DOCX
 
 GEN = {"GCF_000195955.2": "M. tuberculosis H37Rv", "GCF_004345205.2": "M. avium subsp. hominissuis",
-       "GCF_008369605.1": "V. cholerae RFB16", "GCF_002224265.1": "V. vulnificus NBRC15645"}
+       "GCF_008369605.1": "V. cholerae RFB16",   # the published survey's strain; runs before 2026-11-10
+       "GCF_000006745.1": "V. cholerae N16961",  # the final rerun's reference strain (Amendment 1)
+       "GCF_002224265.1": "V. vulnificus NBRC15645"}
 
 #: Appendix A: (file, number, title, description, provenance). Titles and descriptions come from each
 #: figure's own generating-script docstring and the 57-regulator report, so nothing is re-attributed
 #: to the wrong image. Every entry states its data source, because NONE of these derive from run 5.
+def _strain_note() -> str:
+    """Say so when the run's V. cholerae strain is not the survey's RFB16.
+
+    The survey searched V. cholerae RFB16; the 2026-11-10 run uses O1 El Tor N16961, rediscovered
+    from scratch, so its V. cholerae candidates are not the survey's 19.
+    """
+    import csv as _csv
+    if not RP.MANIFEST.is_file():
+        return ""
+    with RP.MANIFEST.open(encoding="utf-8") as fh:
+        accs = {r.get("organism_acc", "") for r in _csv.DictReader(fh)}
+    if "GCF_000006745.1" in accs and "GCF_008369605.1" not in accs:
+        return (", in which V. cholerae is represented by the O1 El Tor reference strain N16961 "
+                "(GCF_000006745.1) rather than the survey's RFB16, with its candidates rediscovered")
+    return ""
+
+
 def _provenance_line(n_candidates: int) -> str:
     """Return immutable run provenance recorded in the regulator bundles."""
     names = _manifest_names()
@@ -126,8 +145,8 @@ def gather():
             coverage["coordination"] += 1
         if "metalnet" in calls:
             coverage["MetalNet"] += 1
-        if "ligify" in calls:
-            coverage["Ligify"] += 1
+        if "ligify" in calls or "operon_chem" in calls:      # renamed route (EXP066)
+            coverage["operon chemistry"] += 1
         if (calls.get("ssn_cluster") or {}).get("ligand"):
             coverage["SSN clade"] += 1
         if "neighborhood" in calls:
@@ -196,7 +215,7 @@ def build():
            f"NBRC15645, and established which of them carry a predicted metal-coordination site. It "
            f"states two open questions explicitly: which metal each regulator actually senses, and "
            f"which genes each one controls. This report addresses both using a distinct "
-           f"{n}-candidate discovery-and-analysis run. It produced {n}/{n} complete recorded bundles, "
+           f"{n}-candidate discovery-and-analysis run{_strain_note()}. It produced {n}/{n} complete recorded bundles, "
            f"each with a fused inducer "
            f"call, a predicted DNA-binding site "
            f"and a genome-wide candidate regulon.")
@@ -362,6 +381,8 @@ def build():
     rows = []
     for acc, lab in GEN.items():
         c = cls_by_gen[lab]
+        if not c:          # a strain this run does not contain (RFB16 on the 2026-11-10 run)
+            continue
         rows.append([lab, str(sum(c.values())), str(c["metal"]), str(c["redox"]), str(c["organic"])])
     rows.append(["total", str(n), f"{n_metal} ({100*n_metal/n:.0f} %)",
                  f"{n_redox} ({100*n_redox/n:.0f} %)", f"{n_org} ({100*n_org/n:.0f} %)"])
@@ -377,7 +398,7 @@ def build():
         tot = sum(c.values())
         return (100 * c["redox"] / tot) if tot else 0.0
 
-    _labs = list(GEN.values())
+    _labs = [l for l in GEN.values() if sum(cls_by_gen[l].values())]
     _vib = [l for l in _labs if "cholerae" in l or "vulnificus" in l]
     _myc = [l for l in _labs if "avium" in l or "tuberculosis" in l]
     _fmt = lambda ls: " and ".join(f"{_redox_pct(l):.0f} % of {l}" for l in ls)  # noqa: E731
@@ -470,7 +491,7 @@ def build():
               "and promoter windows. The operator route then gathers homolog promoters (SSN first, "
               "with MSA expansion when sparse), builds seed motifs, rescans every retained motif width "
               "and reports the selected sites and candidate regulon. In parallel, independent SSN, "
-              "coordination, MetalNet, Ligify and neighbourhood evidence contributes to an inducer "
+              "coordination, MetalNet, operon-chemistry and neighbourhood evidence contributes to an inducer "
               "consensus; any source may abstain. Optional apo-dimer folding provides QC and design "
               "context. Each TF directory records its inputs, evidence, environment, run record, "
               "checksums and AlphaFold-3 hand-off jobs. Batch synthesis (orange) begins only after all "
@@ -546,7 +567,7 @@ def build():
            "contributes the chemistry read from the sequence; MetalNet contributes a predicted "
            "metal-binding site, and is trusted for the presence of a site but never for the identity "
            "of the ion; the genomic neighbourhood contributes whether metal-homeostasis genes lie "
-           "close to the regulator; Ligify contributes the chemistry of the operon the regulator "
+           "close to the regulator; the operon-chemistry route (Ligify's scoring formula) contributes the chemistry of the operon the regulator "
            "sits in; and the reconstructed regulon contributes the substrate classes of the genes it "
            "appears to control. In this archived run, no separate regulon-source call was recorded; "
            "the regulon remains an output and an internal-consistency check rather than a fusion input.")
@@ -554,8 +575,8 @@ def build():
            "Sources are not summed. Each returns a ligand with a confidence or abstains, and the "
            "call is the highest-confidence ligand with agreement across sources reported alongside "
            f"it. The archived dossiers record a MetalNet assessment for {S['coverage']['MetalNet']}/{n} "
-           f"candidates, a coordination-gate opinion for {S['coverage']['coordination']}/{n}, a Ligify "
-           f"call for {S['coverage']['Ligify']}/{n}, an assigned SSN-clade ligand for "
+           f"candidates, a coordination-gate opinion for {S['coverage']['coordination']}/{n}, an operon-chemistry "
+           f"call for {S['coverage']['operon chemistry']}/{n}, an assigned SSN-clade ligand for "
            f"{S['coverage']['SSN clade']}/{n}, and neighbourhood and Ligify-DB evidence for "
            f"{S['coverage']['neighbourhood']}/{n} and {S['coverage']['Ligify DB']}/{n}, respectively. "
            "Where the evidence settles the class but not the ion, the reported call names the class "

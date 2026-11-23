@@ -55,40 +55,48 @@ def _read_cache(acc: str) -> str | None:
 
 
 def _write_cache(acc: str, seq: str) -> None:
-    _CACHE.mkdir(parents=True, exist_ok=True)
-    _cache_path(acc).write_text(f">{_base(acc)}\n{seq}\n", encoding="ascii", errors="ignore")
+    resources.atomic_write_text(_cache_path(acc), f">{_base(acc)}\n{seq}\n", encoding="ascii", errors="ignore")
 
 
 def _parse_fasta(text: str) -> dict[str, str]:
     """Multi-FASTA text -> {base_accession: sequence}. The header's first token is the accession."""
     out, acc, buf = {}, None, []
+
+    def store():
+        # NCBI answers a UniProt accession as `sp|P0A9E0.1|ARAC_ECOLI`: index the accession field too,
+        # otherwise every UniProt lookup is a miss.
+        keys = [acc, acc.split("|")[1]] if acc.count("|") >= 2 else [acc]
+        for key in keys:
+            out[_base(key)] = "".join(buf)
+
     for line in text.splitlines():
         if line.startswith(">"):
             if acc is not None:
-                out[_base(acc)] = "".join(buf)
-            acc = line[1:].split()[0] if len(line) > 1 else None
+                store()
+            acc = line[1:].split()[0] if line[1:].strip() else None
             buf = []
         elif acc is not None:
             buf.append(line.strip())
     if acc is not None:
-        out[_base(acc)] = "".join(buf)
+        store()
     return out
 
 
 def fetch_protein_sequences(protein_ids, *, allow_ncbi: bool = False, batch: int = 50,
                             verbose: bool = False) -> dict[str, str]:
     """`{base_acc: seq}` for the given protein accessions. Cache-first; only the still-missing accessions
-    are fetched (and only when `allow_ncbi`). Empty/failed accessions are cached as '' so they are not
-    retried. Non-protein-looking ids (no WP_/NP_/.. and not a UniProt acc) are skipped."""
+    are fetched (and only when `allow_ncbi`). Only sequences are cached: an empty answer cannot be told
+    from a failed request, and caching one made a single network error permanent. Empty entries written
+    by earlier versions are retried when online. Non-protein-looking ids (no WP_/NP_/.. and not a UniProt acc) are skipped."""
     ids = [i for i in {(_base(p)) for p in (protein_ids or []) if p} if i]
     out: dict[str, str] = {}
     missing: list[str] = []
     for acc in ids:
         cached = _read_cache(acc)
-        if cached is None:
-            missing.append(acc)
-        elif cached:
+        if cached:
             out[acc] = cached
+        else:
+            missing.append(acc)
     if missing and allow_ncbi:
         try:
             try:
@@ -112,8 +120,8 @@ def fetch_protein_sequences(protein_ids, *, allow_ncbi: bool = False, batch: int
                 parsed = {}
             for acc in chunk:
                 seq = parsed.get(acc, "")
-                _write_cache(acc, seq)               # cache hits AND confirmed misses
                 if seq:
+                    _write_cache(acc, seq)
                     out[acc] = seq
             time.sleep(0.12)                          # be polite to NCBI (no key) -- ~8 req/s ceiling
         if verbose:

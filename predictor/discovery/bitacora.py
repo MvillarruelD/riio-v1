@@ -33,6 +33,8 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import hashlib
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -589,6 +591,19 @@ def _proteome_for(genome_fasta, gff, out_dir: Path, *, verbose: bool = False):
     return cache, kind
 
 
+def _work_key(genome_fasta, gff=None) -> str:
+    """Default work directory. The file stem alone collided: every upload called `genome.fna` was served
+    the cached proteome of the first one."""
+    genome = Path(genome_fasta)
+    digest = hashlib.sha256()
+    annotations = [Path(gff)] if gff else [genome.with_suffix(".gff"), genome.with_suffix(".gff3")]
+    for path in (genome, *annotations):
+        if path.is_file():
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
+    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", genome.stem)[:40]
+    return f"{stem}-{digest.hexdigest()[:16]}"
+
+
 def find_candidates(genome_fasta, gff=None, *, profiles=None, out_dir=None,
                     timeout: int = 7200, verbose: bool = False) -> BitacoraResult:
     """Run BITACORA over one genome. Abstains -- never raises -- when the engine is absent."""
@@ -610,7 +625,7 @@ def find_candidates(genome_fasta, gff=None, *, profiles=None, out_dir=None,
                 status="no_profiles", genome=str(genome_fasta),
                 reason=f"could not build seed profiles in {prof_dir}; missing: {', '.join(missing) or 'unknown'}")
 
-    out_dir = Path(out_dir or (CACHE_DIR / Path(genome_fasta).stem))
+    out_dir = Path(out_dir or (CACHE_DIR / _work_key(genome_fasta, gff)))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # BITACORA runs in PROTEIN mode (`bitacora_runner.run_bitacora` says why), so what it needs is a

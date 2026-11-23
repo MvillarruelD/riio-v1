@@ -192,7 +192,7 @@ def test_pipeline_renderer_contains_modes_exports_and_unclipped_text(compact):
         # A compact schematic carries states; interface syntax stays in the legend.
         assert {"Homologue promoters", "Inverted-repeat PWM", "Intergenic scan", "Ranked operators",
                 "Fused inducer call", "SSN clade", "Cys/His motifs", "MetalNet2", "sequence + MSA",
-                "Nearby genes", "Ligify", "ion if resolved · channels may abstain",
+                "Nearby genes", "Operon chemistry", "ion if resolved · channels may abstain",
                 "Regulatory hypothesis", "candidate targets"} <= labels
         assert not fig.axes[0].images
         canvas = fig.bbox

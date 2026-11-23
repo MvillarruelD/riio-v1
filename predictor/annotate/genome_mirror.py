@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -220,9 +221,8 @@ def _assembly_for_nuccore(nuccore_acc: str, *, retries: int = 4) -> str | None:
     Best-effort: returns None only after exhausting retries."""
     import time
     from Bio import Entrez
-    Entrez.email = os.environ.get("NCBI_EMAIL", "predictor@example.com")
-    if os.environ.get("NCBI_API_KEY"):
-        Entrez.api_key = os.environ["NCBI_API_KEY"]
+    from predictor.annotate import genome_resolver
+    genome_resolver._entrez()               # the one credential resolver (settings file, NCBI_TOKEN alias)
 
     def _retry(fn):
         last = None
@@ -274,6 +274,31 @@ def fetch_accession(accession: str, *, dry_run: bool = False, mirror_dir: Path =
     return {"requested": accession, "assembly": asm, "ingested": accs, "mirror": str(mirror_dir)}
 
 
+def _mirrored(accession: str, mirror_dir: Path) -> list[Path]:
+    """Mirror FASTAs that ARE this accession, best first.
+
+    A bare prefix match let an incomplete accession (`GCF_00000584`) return whichever genome happened to
+    start with it. Accepted: the exact name, the exact versioned accession plus an assembly-name suffix,
+    and any version of an accession given without one (newest first).
+    """
+    accession = str(accession).strip()
+    if not accession or re.search(r"[^A-Za-z0-9_.-]", accession):
+        return []
+    exact = mirror_dir / f"{accession}.fna"
+    found = [exact] if exact.is_file() else []
+    versioned = re.search(r"\.\d+$", accession) is not None
+    others = []
+    for path in mirror_dir.glob(f"{accession}*.fna"):
+        rest = path.stem[len(accession):]
+        if not path.stem.startswith(accession):     # Windows globbing ignores case
+            continue
+        if versioned and rest.startswith("_"):
+            others.append((0, path))
+        elif not versioned and (match := re.fullmatch(r"\.(\d+)(?:_.*)?", rest)):
+            others.append((int(match.group(1)), path))
+    return found + [path for _, path in sorted(others, key=lambda item: (-item[0], item[1].name))]
+
+
 def ensure_genome(accession: str, *, allow_download: bool = True, mirror_dir: Path = MIRROR_DIR):
     """Return (fna_path, gff_path|None) for an accession, mirror-first and acquiring on demand.
 
@@ -282,9 +307,9 @@ def ensure_genome(accession: str, *, allow_download: bool = True, mirror_dir: Pa
     *window* path (`genome_resolver.fetch_region`), which needs no whole-genome download and is what the
     structure-free operator discovery already uses. Returns (None, None) if not acquired."""
     mirror_dir = Path(mirror_dir)
-    # the mirror keys on whatever accession was ingested; match by stem prefix for GCF/GCA or exact for nuccore
-    for fna in list(mirror_dir.glob(f"{accession}*.fna")) + ([mirror_dir / f"{accession}.fna"]
-                                                             if (mirror_dir / f"{accession}.fna").exists() else []):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", str(accession or "").strip()):
+        return None, None                   # not an accession, so neither a file name nor a download
+    for fna in _mirrored(accession, mirror_dir):
         if not _usable_fasta(fna):
             continue
         gff = fna.with_suffix(".gff")

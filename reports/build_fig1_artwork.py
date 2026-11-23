@@ -431,7 +431,7 @@ def inducer_lane(c: Svg):
     c.gene(xs[3] - 7.2, xs[3] - 2.0, yl, strand="-", h=1.1)
     c.gene(xs[3] - 1.2, xs[3] + 2.2, yl, fill=TF_MID, edge=TF_DARK, h=1.1)
     c.gene(xs[3] + 2.8, xs[3] + 7.4, yl, fill=IND_LIGHT, edge=IND, h=1.1)
-    # Ligify: a small-molecule ligand.
+    # Operon chemistry (the route formerly labelled Ligify): a small-molecule ligand.
     hx, hy, hr = xs[4] - 2.0, yi + 0.6, 2.1
     pts = [(hx + hr * math.cos(math.radians(30 + 60 * k)), hy + hr * math.sin(math.radians(30 + 60 * k)))
            for k in range(6)]
@@ -440,7 +440,7 @@ def inducer_lane(c: Svg):
     c.line([pts[5], (hx + 4.3, hy - 2.6), (hx + 6.0, hy - 1.6)], color=INK, width=0.5 * PT)
     c.circle(hx + 6.8, hy - 2.1, 0.75, fill=IND_LIGHT, stroke=IND_DARK, width=0.45 * PT)
 
-    names = ["SSN clade", "Cys/His motifs", "MetalNet2", "Nearby genes", "Ligify"]
+    names = ["SSN clade", "Cys/His motifs", "MetalNet2", "Nearby genes", "Operon chemistry"]
     for x, s in zip(xs, names):
         c.text(x, 88.8, s, size=F_BODY, anchor="middle")
     c.text(xs[2], 91.4, "sequence + MSA", size=F_SMALL, color=MUTED, anchor="middle")

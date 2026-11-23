@@ -11,6 +11,9 @@ operon is small, and there are no competing regulators. The score starts at 100 
     - 5 * (operon gene count - 2)                    large operons dilute the one-enzyme-one-ligand logic
 
 Colour bands match Ligify (green >=70, yellow 50-69, orange 30-49, red <30) for figure parity.
+This is an uncalibrated context score, not a compound-binding probability. Every participant from the
+same enzyme gets the same score: this formula does not distinguish substrate from product. Different
+operon definitions can increase scores mechanically without demonstrating better inducer accuracy.
 
 Run `python rank.py` for a self-test against the formula's reference values.
 """

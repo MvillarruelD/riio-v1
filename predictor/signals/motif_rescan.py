@@ -22,6 +22,7 @@ Run `python motif_rescan.py` for a self-test (plants tier-1, distal, and coding 
 from __future__ import annotations
 
 import math
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field, replace
 
 try:                                    # works as package and as `python motif_rescan.py`
@@ -135,8 +136,29 @@ def _flanking(genes, gap):
     return left, right
 
 
-def classify_tier(gap, genes, regulator):
-    left, right = _flanking(genes, gap)
+class _FlankIndex:
+    """`_flanking` in O(log n), with the same tie rule (first gene in input order).
+
+    The linear version ran once per intergenic gap and was a quarter of a prediction's CPU time.
+    """
+
+    def __init__(self, genes):
+        self.by_end = sorted(genes, key=lambda g: g.end)
+        self.ends = [g.end for g in self.by_end]
+        self.by_start = sorted(genes, key=lambda g: g.start)
+        self.starts = [g.start for g in self.by_start]
+
+    def __call__(self, gap):
+        a, b = gap
+        last = bisect_right(self.ends, a) - 1
+        left = self.by_end[bisect_left(self.ends, self.ends[last])] if last >= 0 else None
+        first = bisect_left(self.starts, b)
+        right = self.by_start[first] if first < len(self.starts) else None
+        return left, right
+
+
+def classify_tier(gap, genes, regulator, flanks=None):
+    left, right = flanks(gap) if flanks is not None else _flanking(genes, gap)
     if regulator is not None and (left is regulator or right is regulator):
         return 1
     if left is not None and right is not None and left.strand == "-" and right.strand == "+":
@@ -178,7 +200,8 @@ def rescan_genome(ctx: GenomeContext, *, pwm=None, counts=None, regulator=None,
     boosts = [(int(lo), int(hi)) for lo, hi in (boost_regions or [])]
 
     gaps = intergenic_intervals(ctx.genes, len(ctx.sequence), circular=ctx.circular)
-    intervals = [(s, e, classify_tier((s, e), ctx.genes, reg)) for s, e in gaps]
+    flanks = _FlankIndex(ctx.genes)
+    intervals = [(s, e, classify_tier((s, e), ctx.genes, reg, flanks)) for s, e in gaps]
     if scope == "genome":
         intervals += [(s, e, 4) for s, e in gene_spans(ctx.genes)]
 

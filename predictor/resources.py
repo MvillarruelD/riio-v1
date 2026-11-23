@@ -29,9 +29,12 @@ Run ``python -m predictor.resources`` or ``tfop audit`` to inspect the resolved 
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
+import time
+import uuid
 from pathlib import Path
 
 from platformdirs import user_cache_path, user_config_path
@@ -59,6 +62,36 @@ def cache_path(*parts: str, create: bool = False) -> Path:
     if create:
         path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+@contextlib.contextmanager
+def atomic_path(path):
+    """Yield a private path beside ``path``; publish it with one rename when the block succeeds.
+
+    ``--jobs N`` runs N processes over one cache. A plain write lets a neighbour read half a file, which
+    the best-effort stages then treat as "no evidence" and carry on with a different prediction.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.parent / f".tmp-{uuid.uuid4().hex[:16]}{path.suffix}"
+    try:
+        yield temporary
+        for attempt in range(6):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:        # Windows: another process is reading the old file
+                if attempt == 5:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def atomic_write_text(path, text: str, *, encoding: str = "utf-8", errors: str = "strict",
+                      newline: str | None = None) -> None:
+    with atomic_path(path) as temporary:
+        temporary.write_text(text, encoding=encoding, errors=errors, newline=newline)
 
 
 def output_path(*parts: str, create: bool = False) -> Path:

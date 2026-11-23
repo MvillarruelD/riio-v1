@@ -63,6 +63,17 @@ def _inducer(ax, x, y, r: dict, n_chars: int) -> None:
         # "non-metal effector (undetermined)" is a non-metal call that names no ligand
         vague = "undetermined" in r["inducer"] or r["cls"] == "undetermined"
         text = "non-metal, no ligand" if vague else r["inducer"]
+        if vague and r.get("candidates"):
+            # a class-level call that kept named proposals: show them, so the reader need not look
+            # them up in the bundle (the clade's label first, then operon chemistry)
+            text = "non-metal: " + ", ".join(r["candidates"])
+            vague = False
+        if r.get("metal_site_only"):
+            text += " ‡"      # MetalNet finds a conserved metal site; read as structural (legend)
+        if r["cls"] == "undetermined":
+            # no headline and no class (the 2026-11-10 run has 21 such survey TFs): the pipeline made
+            # no call, which is not the same claim as a non-metal call naming no ligand
+            text = r["inducer"].strip() or "no call"
         ax.text(x, y, _clip(text, n_chars), fontsize=FS, va="center", ha="left",
                 color=C["neutral_dark"] if vague else C["ink"])
 

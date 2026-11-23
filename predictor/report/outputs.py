@@ -634,6 +634,8 @@ def _write_stage_a_contents(dossier: dict, *, d: Path, final: Path, struct: dict
     (d / "ligand").mkdir(parents=True, exist_ok=True)
     (d / "ligand" / "inducer.json").write_text(json.dumps({
         "inducers": portable.get("inducers") or {}, "effector": portable.get("effector"),
+        "effector_origin": portable.get("effector_origin"),
+        "effector_override": portable.get("effector_override"),
         "ion": portable.get("ion"), "ligand": portable.get("ligand"),
         "ligand_genes": portable.get("ligand_genes") or [],
         "ligand_keywords": portable.get("ligand_keywords") or []}, indent=2), encoding="utf-8")

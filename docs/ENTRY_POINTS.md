@@ -27,6 +27,9 @@ Nucleotide FASTA preserves a supplied/sibling GFF3 when available, otherwise cal
 GenBank inputs support multiple records, preserve CDS identifiers, annotated translations and contigs,
 and reject origin-wrapped CDS that the linear coordinate schema cannot represent safely.
 Local genome files are copied into `inputs/`; per-TF subprocesses receive that exact context and locus.
+The operator rescan and the regulon cover the whole supplied assembly (every chromosome, plasmid and contig),
+as when the same assembly is named by accession. An identical protein present at several loci (one RefSeq
+`WP_` accession) is one candidate, represented by its first copy in the annotation.
 An organism label alone does not replace local nucleotide context. Proteomes need an accession or
 network-resolved source genome for complete downstream operator prediction.
 

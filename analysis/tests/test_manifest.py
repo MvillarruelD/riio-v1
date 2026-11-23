@@ -97,9 +97,15 @@ def test_structure_only_mode_skips_sequence_validation(manifest_file, tmp_path):
 
 
 @pytest.mark.released_data
-def test_the_shipped_production_manifest_validates(workspace, analysis_dir):
-    """The list the production run will actually execute."""
-    path = analysis_dir / "run_manifest_survey_rerun20260924.csv"
+@pytest.mark.parametrize("run", ["ecoli", "salmonella", "survey"])
+def test_the_canonical_run_manifests_validate(workspace, analysis_dir, run):
+    """The lists the canonical run executed, as named in `canonical_runs.toml`."""
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        import tomli as tomllib
+    runs = tomllib.loads((analysis_dir / "canonical_runs.toml").read_text(encoding="utf-8"))["runs"]
+    path = analysis_dir / runs[run]["manifest"]
     if not path.is_file():
-        pytest.skip("final production manifest is not present in this checkout")
+        pytest.skip(f"{path.name} is not present in this checkout")
     assert MF.validate(path, workspace) == []

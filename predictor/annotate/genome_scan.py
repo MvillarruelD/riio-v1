@@ -101,8 +101,9 @@ def read_fasta(path):
 def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
     """[(protein_id, translation)] from a genome's OWN annotation: GFF CDS x genome FASTA.
 
-    Segments sharing a protein_id are joined in genome order before translation, so a CDS split
-    across several GFF lines yields the whole protein rather than its first exon.
+    Segments of one feature (same protein_id and ID) are joined in genome order before translation, so
+    a CDS split across several GFF lines yields the whole protein rather than its first exon. Another
+    feature with the same protein_id is another copy of the gene and is not joined.
     """
     from collections import defaultdict
 
@@ -111,6 +112,8 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
     contigs = dict(read_fasta(fna_path))
     segments = defaultdict(list)
     metadata = defaultdict(dict)
+    first_feature: dict[str, str] = {}
+    phases: dict[tuple[str, int], int] = {}
     for line in Path(gff_path).read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("#"):
             continue
@@ -121,7 +124,15 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
                  (kv.split("=", 1) for kv in c[8].split(";") if "=" in kv)}
         pid = attrs.get("protein_id") or attrs.get("Name") or attrs.get("ID")
         if pid and c[0] in contigs:
+            # Identical proteins share one protein_id at several loci (RefSeq WP_), each with its own ID.
+            # They are copies, not exons: joining them produced antisense "proteins" and a megabase locus.
+            # The first copy represents the protein.
+            feature = attrs.get("ID", "")
+            if first_feature.setdefault(pid, feature) != feature:
+                continue
             segments[pid].append((c[0], int(c[3]), int(c[4]), c[6]))
+            if c[7] in ("1", "2"):
+                phases[(pid, int(c[3]))] = int(c[7])
             current = metadata[pid]
             current.update({k: v for k, v in {
                 "locus_tag": attrs.get("locus_tag"),
@@ -134,6 +145,8 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
         nt = "".join(contigs[s[0]][s[1] - 1:s[2]] for s in segs)
         if segs[0][3] == "-":
             nt = str(Seq(nt).reverse_complement())
+        # Phase of the first segment in reading order: non-zero for a CDS cut at a contig edge.
+        nt = nt[phases.get((pid, (segs[-1] if segs[0][3] == "-" else segs[0])[1]), 0):]
         aa = str(Seq(nt[:len(nt) - len(nt) % 3]).translate(table=11, to_stop=True))
         if aa:
             prots.append((pid, aa))
@@ -226,6 +239,11 @@ def proteins_from_input(path, *, gff=None, verbose=True, return_metadata=False):
 
 
 # --------------------------------------------------------------------------- HMM census
+def census_families() -> set[str]:
+    """Every family label the Pfam census can report."""
+    return set(json.loads(_PFAM_MAP.read_text(encoding="utf-8")).values())
+
+
 def scan_proteins(records, *, families=None, cpus=0, metadata=None):
     """One hmmsearch of all proteins vs the Pfam HMM library at gathering cutoffs -> [Candidate].
 
@@ -402,7 +420,8 @@ def write_outputs(cands, out_dir, *, kind="proteome", n_proteins=0, source="", p
             **track_files,
             **source_files,
             **({"predictions_tsv": "candidate_predictions.tsv"} if predictions else {}),
-            **({"per_tf_bundles": "results/jobs/<protein_id>/  (dossier.json + REPORT.html each)"}
+            **({"per_tf_bundles": "<output folder>/jobs/<protein_id>/  (dossier.json + REPORT.html each; "
+                                  "each prediction's `bundle` field gives the full path)"}
                if predictions else {}),
         },
     }

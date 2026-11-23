@@ -43,13 +43,15 @@ GENOME_LABEL = {
     "GCF_000195955.2": "M. tuberculosis H37Rv",
     "GCF_004345205.2": "M. avium hominissuis",
     "GCA_004345205.2": "M. avium hominissuis",
-    "GCF_008369605.1": "V. cholerae RFB16",
+    "GCF_008369605.1": "V. cholerae RFB16",        # runs before 2026-11-10
+    "GCF_000006745.1": "V. cholerae N16961",       # the final rerun's reference strain (Amendment 1)
     "GCF_002224265.1": "V. vulnificus NBRC 15645",
 }
 SHORT = {                                   # panel c has four categories on one axis -- keep them short
     "M. tuberculosis H37Rv": "M. tub.",
     "M. avium hominissuis": "M. avium",
     "V. cholerae RFB16": "V. chol.",
+    "V. cholerae N16961": "V. chol.",
     "V. vulnificus NBRC 15645": "V. vuln.",
 }
 FAMC = dict(FAM)
@@ -61,12 +63,28 @@ def rows():
     return list(csv.DictReader(SUMMARY.open(encoding="utf-8"), delimiter="\t")) if SUMMARY.is_file() else []
 
 
+def _manifest_family() -> dict:
+    """run_name -> family, from the run's manifest.
+
+    The regulon summary's `family` column records the family the regulon stage was TOLD, which is
+    `(auto)` for every discovered candidate; read that way, panel a drew every bar as "other
+    families". The manifest carries the family discovery assigned.
+    """
+    if not MANIFEST.is_file():
+        return {}
+    with MANIFEST.open(encoding="utf-8") as fh:
+        return {r["run_name"]: r.get("family", "") for r in csv.DictReader(fh)}
+
+
 def panel_a(ax):
     """The candidate repertoire actually processed, per genome and family."""
     rs = rows()
+    fam_of = _manifest_family()
     by = defaultdict(Counter)
     for r in rs:
-        by[GENOME_LABEL.get(r["genome"], r["genome"])][r["family"] or "(auto)"] += 1
+        f = r["family"] if r["family"] not in ("", "(auto)") else fam_of.get(r["run_name"], "")
+        f = {"ArsR": "ArsR/SmtB"}.get(f, f)
+        by[GENOME_LABEL.get(r["genome"], r["genome"])][f if f in ("ArsR/SmtB", "MerR", "Fur") else "(auto)"] += 1
     gens = sorted(by, key=lambda g: -sum(by[g].values()))
     fams = ["ArsR/SmtB", "MerR", "Fur", "(auto)"]
     y = np.arange(len(gens))
@@ -81,7 +99,7 @@ def panel_a(ax):
     ax.set_xlabel("candidate TFs with a regenerated regulon")
     ax.legend(fontsize=6, loc="lower right")
     n_own = sum(1 for r in rs if r.get("pwm_source", "").startswith("per_tf"))
-    ax.set_title(f"a   {len(rs)}/150 TFs — {n_own} on their own motif, {len(rs)-n_own} on a family prior",
+    ax.set_title(f"a   {len(rs)} TFs — {n_own} on their own motif, {len(rs)-n_own} on a family prior",
                  loc="left", fontsize=7.5, color=INK)
 
 

@@ -40,7 +40,8 @@ from predictor.effector import inducer_vocab as V  # noqa: E402
 FAMILIES = list(STUDY_FAMILY_PFAM)
 #: display names, in the order figures use
 GENOME_NAME = {"MtubH37Rv": "M. tuberculosis", "MaviHomi": "M. avium",
-               "VchoRFB16": "V. cholerae", "VvulNBRC": "V. vulnificus"}
+               "VchoRFB16": "V. cholerae", "VchoN16961": "V. cholerae",
+               "VvulNBRC": "V. vulnificus"}
 SURVEY_GENOMES = list(GENOME_NAME.values())
 #: a metal call corroborated by >=2 independent evidence channels
 CORROBORATED = 0.5
@@ -95,20 +96,29 @@ def own_region_hit(dossier: dict, k: int = AUTOREG_K) -> tuple[int, dict] | None
 def evidence_channels(dossier: dict) -> dict:
     """What each inducer-evidence channel said, reduced to what the SSN-clade figure needs."""
     calls = {c["source"]: c for c in (dossier.get("inducers") or {}).get("calls", [])}
+    # The operon-chemistry route was renamed "ligify" -> "operon_chem" (EXP066). The channel key used
+    # by the figures stays "ligify"; without this a re-run bundle silently loses the channel.
+    if "operon_chem" in calls:
+        calls.setdefault("ligify", calls["operon_chem"])
     ssn = calls.get("ssn_cluster") or {}
     other = [s for s in OTHER_CHANNELS
              if (calls.get(s) or {}).get("role") == "metal"
              or (s == "ligify" and any(V.inducer_class_of(str((calls.get(x) or {}).get("ligand"))) == "metal"
                                        for x in ("ligify", "ligify_db")))]
     return {"ssn_role": ssn.get("role") or "", "ssn_ligand": ssn.get("ligand") or "",
-            "metal_channels": other}
+            "metal_channels": other,
+            # MetalNet found a metal site, whatever the final call made of it (see `site_only`)
+            "metalnet_site": (calls.get("metalnet") or {}).get("role") == "metal"}
 
 
 def load_predictions(root: Path) -> pd.DataFrame:
     df = pd.read_csv(root / "results" / "operator_predictions.csv")
     df["tag"] = df["run_name"].str.split("__").str[0]
     df["genome_label"] = df["tag"].map(GENOME_NAME).fillna(df["tag"])
-    df["cls"] = df["inducer_top"].apply(lambda t: V.inducer_class_of(str(t)) or "undetermined")
+    # An EMPTY headline (the 2026-11-10 run has 31: no call, or a metal shortlist with no single top)
+    # reached here as NaN, and V.inducer_class_of("nan") is "organic" -- every no-call TF was counted
+    # as an organic-ligand sensor. Empty stays empty; its class is decided below from the dossier.
+    df["inducer_top"] = df["inducer_top"].fillna("").astype(str)
     df["ion_named"] = df["inducer_top"].apply(resolved_ion)
     # The pipeline's own family call, top-k autoregulation, evidence channels and PWM, read from each
     # dossier and seed PWM.
@@ -117,12 +127,48 @@ def load_predictions(root: Path) -> pd.DataFrame:
         bundle = root / "jobs" / name
         d = GS.load_dossier(bundle)
         own = own_region_hit(d)
+        ind = d.get("inducers") or {}
+        if "inducers_frozen" in d:
+            # an inducer overlay is active (genome_scoring.inducer_overlay): the CSV's headline and
+            # agreement are the frozen run's, so take both from the replayed consensus instead
+            df.loc[df["run_name"] == name, "inducer_top"] = str(ind.get("top") or "")
+            df.loc[df["run_name"] == name, "inducer_agreement"] = float(ind.get("agreement") or 0.0)
         rows.append({"pred_family": d.get("family") or "",
+                     "pipeline_class": str(ind.get("sensor_class") or ""),
+                     "inducer_display": str(ind.get("top_display") or ""),
                      "autoreg": own is not None,
                      "autoreg_rank": own[0] if own else None,
                      **evidence_channels(d),
                      **pwm_stats(bundle)})
-    return pd.concat([df, pd.DataFrame(rows, index=df.index)], axis=1)
+    df = pd.concat([df, pd.DataFrame(rows, index=df.index)], axis=1)
+    df["ion_named"] = df["inducer_top"].apply(resolved_ion)      # again: an overlay may have changed it
+    df["cls"] = [headline_class(t, pc) for t, pc in zip(df["inducer_top"], df["pipeline_class"])]
+    # An organic call on a regulator in which MetalNet finds a conserved metal site: the GntR family,
+    # where the site is read as structural (it may position the organic acid), and a member of a
+    # metal family whose own coordination gate is negative, which outranks MetalNet. The site is
+    # reported without making the regulator a metal sensor. Marked in the tables and Figures 2b/3b.
+    df["site_only"] = df["metalnet_site"].astype(bool) & (df["cls"] == "organic")
+    return df
+
+
+def metal_members(names) -> list[str]:
+    """The metal species among candidate names, in the vocabulary's spelling, without repeats."""
+    out = []
+    for c in names:
+        if c and V.inducer_class_of(str(c)) == "metal" and "unresolved" not in str(c):
+            n = V.normalise(str(c)) or str(c)
+            if n not in out:
+                out.append(n)
+    return out
+
+
+def headline_class(top: str, pipeline_class: str) -> str:
+    """metal / redox / organic / undetermined. The headline's class where there is a headline (as the
+    benchmark scorers read it); with no headline, the pipeline's own `sensor_class` (a metal call with
+    a several-ion shortlist and no single top is still a metal call), else undetermined."""
+    if top:
+        return V.inducer_class_of(top) or "undetermined"
+    return pipeline_class if pipeline_class in ("metal", "organic", "redox") else "undetermined"
 
 
 def pwm_stats(bundle: Path) -> dict:
@@ -188,6 +234,9 @@ def composition(df: pd.DataFrame) -> dict:
         "families": {f: int(fam_counts.get(f, 0)) for f in FAMILIES},
         "families_outside_study": {f: int(n) for f, n in fam_counts.items() if f and f not in FAMILIES},
         "class_counts": dict(Counter(df.cls)),
+        # organic calls with a MetalNet metal site (a subset of the organic count above)
+        "site_only": {"organic": int(df.site_only.sum()),
+                      "families": dict(Counter(df.pred_family[df.site_only]))},
         "metal_funnel": {"metal_calls": int(len(metal)),
                          "corroborated": int(len(corr)),
                          "ion_resolved": int(sum(ions.values())),
@@ -304,7 +353,7 @@ TARGET_RULE = (f"Regulated gene: the first gene of every predicted-regulon opero
                "otherwise the nearest protein-coding gene on the same replicon whose 5' end lies "
                "downstream of the operator (italic).")
 CHANNEL_SHORT = {"SSN clade": "clade", "coordination": "coord.", "metalnet": "MetalNet2",
-                 "neighborhood": "neighb.", "ligify": "Ligify"}
+                 "neighborhood": "neighb.", "ligify": "operon chem."}
 
 
 def _has_name(g) -> bool:
@@ -368,13 +417,13 @@ def survey_table(df: pd.DataFrame, root: Path) -> dict:
         gene = r.gene if isinstance(r.gene, str) and r.gene else ""
         calls = {c["source"]: c for c in (d.get("inducers") or {}).get("calls", [])}
         # the clade's metal shortlist, only for an unresolved metal call (never inducers.candidates,
-        # which mixes in Ligify's organic ligands)
+        # which mixes in the operon-chemistry organic ligands)
         shortlist = []
         if r.cls == "metal" and not r.ion_named:
             shortlist = [V.normalise(str(c)) or str(c)
                          for c in (calls.get("ssn_cluster") or {}).get("candidates") or []
                          if V.inducer_class_of(str(c)) == "metal"]
-        top = str(r.inducer_top)
+        top = str(r.inducer_top) or str(r.inducer_display)   # no headline: the bundle's own label
         channels = (["SSN clade"] if r.ssn_role == "metal" else []) + list(r.metal_channels)
         op = hits[0] if hits else None
         rows.append({
@@ -384,6 +433,9 @@ def survey_table(df: pd.DataFrame, root: Path) -> dict:
             "clade": r.ssn_cluster if isinstance(r.ssn_cluster, str) else "",
             "cls": r.cls, "metal_call": r.cls == "metal", "ion": r.ion_named,
             "inducer": r.ion_named or top, "shortlist": shortlist,
+            # every named proposal the final call kept, so a class-level call can show its members
+            "candidates": [str(c) for c in (d.get("inducers") or {}).get("candidates") or [] if c],
+            "metal_site_only": bool(r.site_only),
             "metal_channels": [CHANNEL_SHORT.get(c, c) for c in channels],
             "agreement": float(r.inducer_agreement),
             "operator": {"seq": op.get("seq", ""), "own_region": op.get("generator") == "rescan_tier1",
@@ -399,11 +451,113 @@ def survey_table(df: pd.DataFrame, root: Path) -> dict:
             "n": len(rows), "n_metal_calls": sum(x["metal_call"] for x in rows), "rows": rows}
 
 
+SDP = ANALYSIS / "sdp_structures"
+#: Figure 4 (the SDP figure) and its all-candidates pages read every regulator from the CANONICAL
+#: survey run. Most AlphaFold 3 folds were made for operators predicted in the 2026-09-24 run; each is
+#: used only where the canonical run predicts the folded operator (sdp_figure checks rank and
+#: sequence). The V. cholerae regulators and EX350_RS11325 were refolded on 2026-11-12 on the canonical
+#: run's own rank-1 operators (analysis/af3_sdp/refold_20261111).
+
+
+def sdp_bundle(root: Path, run_name: str) -> Path:
+    """The bundle of an SDP-figure regulator: the canonical survey run's, else the fallback run's."""
+    b = root / "jobs" / run_name
+    if not (b / "dossier.json").is_file():
+        raise SystemExit(f"SDP regulator {run_name} is not in the canonical survey run {root.name}")
+    return b
+#: the cuts the SDP analysis used (map_sdp_structures.COORD_CUT / DNA_CUT, the second shell of
+#: sdp_validation's H1s, and sdp_validation.DOCKED, the protein-DNA ipTM fixed before folding)
+SDP_CUTS = {"coordination_A": 3.0, "dna_contact_A": 3.5, "second_shell_A": 7.0, "docked_iptm": 0.5}
+
+
+def sdp_regulator_names(root: Path) -> dict:
+    """run_name -> {"tf", "locus_tag"} for every regulator Figure 4 and its all-candidates pages model,
+    named as survey_table() names them but from the run they were built on (SDP_RUN_ROOT), since the
+    V. cholerae RFB16 rows are not in the canonical survey."""
+    names = {}
+    gene_of = {}
+    for rt in (root,):
+        man = pd.read_csv(ANALYSIS / f"run_manifest_{rt.name.removeprefix('run_')}.csv", dtype=str).fillna("")
+        gene_of.update({k: v for k, v in zip(man.run_name, man.gene) if v})
+    for cfg in ("sdp", "tried"):
+        path = HERE / "structures" / cfg / "regulators_sdp.json"
+        if not path.is_file():
+            continue
+        for k, r in json.loads(path.read_text(encoding="utf-8")).items():
+            if k.startswith("_") or r["run_name"] in names:
+                continue
+            bundle = sdp_bundle(root, r["run_name"])
+            genes = pd.read_csv(bundle / "genome" / "genes.tsv", sep="	", dtype={"protein_id": str})
+            tf = genes[genes.protein_id == r["run_name"].split("__")[-1]]
+            locus = str(tf.iloc[0].locus_tag) if not tf.empty else ""
+            gene = gene_of.get(r["run_name"], "")
+            names[r["run_name"]] = {"tf": gene or short_locus(locus), "locus_tag": locus}
+    return names
+
+
+def sdp_figure(root: Path) -> dict:
+    """Figure 4's rows (every row of reports/structures/sdp/regulators_sdp.json: the drawn rows,
+    figure_row true, and the alternative the Fur-family row was chosen over) and the SDP
+    co-localisation tests behind them: the primary variant of analysis/sdp_structures/validation.tsv
+    per regulator, and validation_pooled.tsv."""
+    cfg = json.loads((HERE / "structures" / "sdp" / "regulators_sdp.json").read_text(encoding="utf-8"))
+    reg = json.loads((SDP / "sdp_registry.json").read_text(encoding="utf-8"))
+    qc = {r["regulator"]: r for r in read_tsv(SDP / "mapping_qc.tsv")}
+    tests = [r for r in read_tsv(SDP / "validation.tsv") if r["variant"] == "primary"]
+    rows = {}
+    for name, r in cfg.items():
+        if name.startswith("_"):
+            continue
+        key, bundle = r["sdp_key"], sdp_bundle(root, r["run_name"])
+        op = next(x for x in read_tsv(bundle / "operators" / "all_operators.tsv")
+                  if int(x["rank"]) == int(r["operator_rank"]))
+        # the fold was made on this operator sequence: a re-pointed run must still predict it there
+        if op["sequence"] != r["operator"]:
+            raise SystemExit(f"SDP row {name}: rank {r['operator_rank']} of {bundle.parent.parent.name} is "
+                             f"{op['sequence']}, but the DNA complex was folded on {r['operator']}")
+        qs = [float(x["qvalue"]) for x in read_tsv(bundle / "regulon.tsv") if int(x["site_start"]) == int(op["start"])]
+        rows[name] = {
+            "regulator": key, "figure_row": r.get("figure_row", True),
+            "from_run": bundle.parent.parent.name.removeprefix("run_"),
+            "run_name": r["run_name"], "genome": r["genome"], "family": r["family"],
+            "called": r["called"], "modeled": r["modeled"], "standin": r.get("standin", {}),
+            "sdp_cluster": r["sdp_cluster"].removeprefix("Cluster").removeprefix("_"),
+            "identity": float(qc[key]["identity"]),
+            "cluster_note": reg[key].get("cluster_note", ""),
+            "holo_job": r["holo"], "dna_job": r["apo"], "protein_dna_iptm": r["protein_dna_iptm"],
+            "characterised": reg[key].get("characterised"),
+            "characterisation_note": reg[key].get("characterisation_note", ""),
+            "operator": {"rank": int(r["operator_rank"]), "score": float(op["score"]),
+                         "qvalue": min(qs) if qs else None, "gene": op["regulated_gene"],
+                         "own_region": op["is_autoregulatory"] == "True", "sequence": op["sequence"]},
+            "sites": {s: v["role"] for s, v in reg[key]["sites"].items()},
+            "tests": {f"{t['hypothesis']} {t['sdp_class']}": {
+                "set": t["set"], "n": int(t["set_size"]), "in_class": int(t["set_in_class"]),
+                "frac": float(t["frac_set"]), "background": float(t["frac_universe"]),
+                "p_hypergeom": float(t["p_hypergeom"]), "p_rotation": float(t["p_circular_shift"]),
+                "residues": t["residues"]} for t in tests if t["regulator"] == key},
+        }
+    def expected(p: dict) -> float:
+        """Residues of the class the pooled set would hold by chance: each regulator's set size times
+        its background fraction of that class."""
+        sub = [t for t in tests if t["hypothesis"] == p["hypothesis"] and t["sdp_class"] == p["sdp_class"]
+               and t["regulator"] in p["regulators"].split(",")]
+        return round(sum(int(t["set_size"]) * int(t["class_in_universe"]) / int(t["universe"]) for t in sub), 2)
+
+    pooled = [{"hypothesis": p["hypothesis"], "sdp_class": p["sdp_class"], "subset": p["subset"],
+               "regulators": p["regulators"].split(","), "in_class": int(p["set_in_class"]),
+               "n": int(p["set_size"]), "expected": expected(p), "p_hypergeom": float(p["p_hypergeom"]),
+               "p_rotation": float(p["p_circular_shift"])} for p in read_tsv(SDP / "validation_pooled.tsv")]
+    return {"cuts": SDP_CUTS, "rows": rows, "pooled": pooled,
+            "regulators_tested": sorted({t["regulator"] for t in tests})}
+
+
 def main() -> int:
     cfg = load_canonical()
     runs = cfg["runs"]
     out: dict = {"provenance": cfg["provenance"] | {"runs": {k: {"tag": v["tag"], "n_candidates": v["n_candidates"]}
-                                                             for k, v in runs.items()}},
+                                                             for k, v in runs.items()}}
+                 | ({"overlay": cfg["overlay"]} if cfg.get("overlay") else {}),
                  "definitions": {
                      "primary_operator":
                          "The single operator the pipeline recommends for a TF: the highest-scoring "
@@ -490,15 +644,17 @@ def main() -> int:
                      "family_name": r["study_family"] or pfam_family(census_pfam.get(r["b_number"], ""))
                      or "unassigned",
                      "known_ions": r["metal_ions"], "discovered": r["discovered"],
-                     "miss_reason": r["miss_reason"], "called": call.get("pred_inducer", ""),
-                     "ion": call.get("ion", "")})
+                     "miss_reason": r["miss_reason"], "called": call.get("pred_display") or call.get("pred_inducer", ""),
+                     "ion": call.get("ion", ""),
+                     "shortlist": metal_members((call.get("pred_candidates") or "").split(";"))})
     for r in out["benchmark"]["salmonella"]["per_tf"]:
         if r.get("osman_sensor") == "yes":
             acct.append({"genome": "SL1344", "tf": r["tf"], "family": r["truth_family"],
                          "family_name": r["truth_family"], "known_ions": r["truth_ions"], "discovered": "yes", "miss_reason": "",
-                         "called": r.get("pred_inducer", ""), "ion": r.get("ion", "")})
+                         "called": r.get("pred_display") or r.get("pred_inducer", ""), "ion": r.get("ion", ""),
+                         "shortlist": metal_members((r.get("pred_candidates") or "").split(";"))})
     false_metal = [{"genome": "E. coli", "tf": r["tf"], "known_class": r["truth_class"],
-                    "called": r["pred_inducer"], "agreement": r["agreement"]}
+                    "called": r.get("pred_display") or r["pred_inducer"], "agreement": r["agreement"]}
                    for r in eco_per if r.get("truth_class") and r["truth_class"] != "metal"
                    and r.get("pred_class") == "metal"]
     eco_acct = [a for a in acct if a["genome"] == "E. coli"]
@@ -548,12 +704,19 @@ def main() -> int:
     out["survey"] = {"all": composition(survey),
                      "per_genome": {g: composition(survey[survey.genome_label == g])
                                     for g in survey.genome_label.unique()}}
+    # the strain behind each survey genome label, from the run's manifest: V. cholerae is N16961 in
+    # the 2026-11-10 run and RFB16 before it, so a legend must not leave the strain implicit
+    man = pd.read_csv(ANALYSIS / runs["survey"]["manifest"], dtype=str).fillna("")
+    out["survey"]["strains"] = {GENOME_NAME.get(rn.split("__")[0], rn.split("__")[0]): {"organism": org, "accession": acc}
+                                for rn, org, acc in zip(man.run_name, man.genome, man.organism_acc)}
     out["benchmark_genome_composition"] = {
         "ecoli": composition(load_predictions(Path(runs["ecoli"]["root"]))),
         "salmonella": composition(load_predictions(Path(runs["salmonella"]["root"]))),
     }
     out["context"] = context_selection(survey, Path(runs["survey"]["root"]))
     out["survey_table"] = survey_table(survey, Path(runs["survey"]["root"]))
+    out["sdp"] = sdp_figure(Path(runs["survey"]["root"]))
+    out["sdp"]["names"] = sdp_regulator_names(Path(runs["survey"]["root"]))
 
     (HERE / "numbers.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     n_metal = out["survey"]["all"]["metal_funnel"]

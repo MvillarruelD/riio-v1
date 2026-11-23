@@ -20,6 +20,7 @@ Run `python pwm_scan.py` for a self-test (plants a site and recovers it).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import numpy as np
 
 ALPH = "ACGT"
@@ -134,6 +135,27 @@ def _pvalue_fn(offset: int, dist: np.ndarray, scale: float):
     return pv
 
 
+@lru_cache(maxsize=32)
+def _cached_null(pssm_bytes: bytes, width: int, background_bytes: bytes, scale: float):
+    """(offset, pmf, survival) of one motif. A genome scan calls `scan` once per intergenic interval with
+    the same motif and background; recomputing this each time was a sixth of a prediction's CPU time."""
+    pssm = np.frombuffer(pssm_bytes, dtype=float).reshape(4, width)
+    offset, dist = _null_distribution(pssm, np.frombuffer(background_bytes, dtype=float), scale)
+    sf = np.cumsum(dist[::-1])[::-1]
+    dist.flags.writeable = sf.flags.writeable = False
+    return offset, dist, sf
+
+
+def _pvalues(scores: np.ndarray, offset: int, dist: np.ndarray, sf: np.ndarray, scale: float) -> np.ndarray:
+    """`_pvalue_fn` over an array of finite scores."""
+    k = np.ceil(scores * scale) - offset
+    out = np.ones(scores.shape[0])
+    inside = (k >= 0) & (k < sf.shape[0])
+    out[inside] = sf[k[inside].astype(np.int64)]
+    out[k >= sf.shape[0]] = dist[-1]
+    return out
+
+
 def bh_qvalues(pvals) -> np.ndarray:
     p = np.asarray(pvals, dtype=float)
     n = p.shape[0]
@@ -172,22 +194,21 @@ def scan(sequences, counts=None, prob=None, background=None,
     background = background / background.sum()
 
     pssm = log_odds(prob, background, log_base)
-    offset, dist = _null_distribution(pssm, background, scale)
-    pv = _pvalue_fn(offset, dist, scale)
     W = pssm.shape[1]
+    offset, dist, sf = _cached_null(pssm.tobytes(), W, background.tobytes(), scale)
 
     strands = [("+", pssm)] + ([("-", _rc_pssm(pssm))] if both_strands else [])
     hits: list[Hit] = []
     for sid, seq in sequences.items():
         codes = _encode(seq)
         for strand, mat in strands:
-            for i, s in enumerate(_scan_scores(mat, codes)):
-                if not np.isfinite(s):
-                    continue
-                p = pv(s)
-                if p <= pvalue_thresh:
-                    hits.append(Hit(sid, i, i + W, strand, float(s), p,
-                                    matched=seq[i:i + W]))
+            scores = _scan_scores(mat, codes)
+            where = np.flatnonzero(np.isfinite(scores))
+            pvals = _pvalues(scores[where], offset, dist, sf, scale)
+            for j in np.flatnonzero(pvals <= pvalue_thresh):
+                i = int(where[j])
+                hits.append(Hit(sid, i, i + W, strand, float(scores[i]), float(pvals[j]),
+                                matched=seq[i:i + W]))
     if hits:
         for h, q in zip(hits, bh_qvalues([h.pvalue for h in hits])):
             h.qvalue = q

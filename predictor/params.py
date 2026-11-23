@@ -53,7 +53,7 @@ PARAMS: tuple[Param, ...] = (
     # --- inducer --------------------------------------------------------------------------------------
     Param("inducer", "curated-member identity", "effector.inducer:curated_member_ion(min_identity)",
           "identity to a curated metal binder needed to transfer its ion"),
-    Param("inducer", "Ligify suppression weight", "effector.inducer:LIGIFY_SUPPRESSED_WEIGHT",
+    Param("inducer", "operon-chemistry suppression weight", "effector.inducer:LIGIFY_SUPPRESSED_WEIGHT",
           "below this gate weight an operon-chemistry call is suppressed"),
     Param("inducer", "coordination distance (A)", "structure.metal_site:_COORD_CUT",
           "donor-to-metal distance counted as coordination (structure only)"),
@@ -64,6 +64,13 @@ PARAMS: tuple[Param, ...] = (
     Param("inducer", "neighbourhood 'near' (bp)", "annotate.neighborhood:NEAR_BP", "distance counted as near"),
     Param("inducer", "neighbourhood 'very near' (bp)", "annotate.neighborhood:VERY_NEAR_BP",
           "distance counted as very near"),
+    # --- operon chemistry (effector route after Ligify; EXP066) --------------------------------------
+    Param("operon chemistry", "divergent-promoter gap (bp)", "effector.operon_chemistry:MAX_PROMOTER_BP",
+          "largest TF->divergent-partner gap counted as a shared promoter; none within it = no call"),
+    Param("operon chemistry", "operon per-gap stop (bp)", "effector.operon_chemistry:OPERON_CHEM_MAX_GAP_BP",
+          "largest intergenic gap inside the walked operon; must stay below the 500 bp replicon pad"),
+    Param("operon chemistry", "operon reach (bp)", "effector.operon_chemistry:OPERON_CHEM_MAX_SPAN_BP",
+          "farthest an operon gene may lie from the partner (Ligify getOperon reach)"),
     # --- operator -------------------------------------------------------------------------------------
     Param("operator", "promoter window upstream (bp)", "annotate.genome_resolver:PROMOTER_UPSTREAM",
           "upstream promoter DNA taken per homologue"),

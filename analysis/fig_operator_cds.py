@@ -53,7 +53,13 @@ PROJ = Path(__file__).resolve().parent.parent
 JOBS = RP.JOBS
 FIG = RP.FIGURES
 OUT = RP.RESULTS
-MIRROR = Path(os.environ.get("PREDICTOR_MIRROR", Path.home() / ".predictor" / "genome_mirror"))
+# The GFFs must be the ones the run itself used: the predictor's genome pool
+# ($PREDICTOR_GENOME_MIRROR, which the stage runner sets). This used to read only the legacy
+# ~/.predictor/genome_mirror, which lacks V. cholerae N16961 and holds different GFF files for two
+# of the survey genomes (stage B, 2026-11-11). The legacy names remain as fallbacks.
+MIRROR = Path(os.environ.get("PREDICTOR_GENOME_MIRROR")
+              or os.environ.get("PREDICTOR_MIRROR")
+              or Path.home() / ".predictor" / "genome_mirror")
 FAMS = ("ArsR", "MerR", "Fur")
 MAX_DIST = 400          # the pipeline's _regulated_gene window
 N_NULL_DRAWS = 400_000  # random positions per genome

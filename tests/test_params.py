@@ -18,7 +18,11 @@ PINNED = {
     "clade minimum identity": 0.60,
     "clade minimum support": 0.5,
     "curated-member identity": 0.5,
-    "Ligify suppression weight": 0.5,
+    "operon-chemistry suppression weight": 0.5,     # renamed from "Ligify suppression weight" (EXP066)
+    # operon-chemistry route parameters, pre-registered in EXP066 (value, not fitted to the endpoint)
+    "divergent-promoter gap (bp)": 1000,            # Ligify's getOperon promoter rule
+    "operon per-gap stop (bp)": 300,                # pad-safe (< 500 bp replicon pad); sweep saturates
+    "operon reach (bp)": 8000,                      # Ligify's getOperon 8 kb reach
     "seed motifs kept (top_k)": 8,
     "seed width tolerance (bp)": 3,
     "seed selection method": "cluster0",

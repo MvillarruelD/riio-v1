@@ -1,16 +1,17 @@
 """
 ligify_db.py -- look a TF up in the PUBLISHED Ligify sensor database before re-deriving its effector.
 
-`effector/ligify.py` reimplements Ligify's genome-context route locally: find the TF's operon, read the
-reactions of the neighbouring enzymes from UniProt, and score each (TF, ligand) pair with the formula in
-`effector/rank.py`. That reimplementation stays exactly as it is -- it is what handles the ~90 % of
-queries the published database has never seen.
+`effector/operon_chemistry.py` derives candidates from a divergent partner's operon and neighbouring
+enzyme reactions in UniProt. It uses the formula ported in `effector/rank.py`, with a different
+neighbourhood model from the published tool. `effector/ligify.py` is now only a compatibility shim.
+The published and derived routes can share underlying evidence; agreement is not automatically
+independent corroboration.
 
 What was missing was their DATA. `groov-bio/ligify-ui` ships a static database of 3,164 predicted
 biosensors, each keyed by RefSeq accession and carrying the protein sequence, the candidate ligands, the
 Rhea reaction and Ligify's own rank. Our discovery candidates ARE RefSeq proteins, so for a record in
-that set we can return the published answer instead of recomputing an approximation of it -- and, where
-we do recompute, we can say whether we agree with the published tool.
+that set we can retain the published prediction -- and, where we also derive candidates, report
+agreement or disagreement. These are computational predictions, not experimentally validated truth.
 
 Measured coverage on the two production manifests: **13 of 140** and **14 of 155** candidates are in the
 database by accession. That is small, and it is concentrated where our own inducer call is weakest --
@@ -35,6 +36,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 
 from predictor import resources
@@ -54,8 +56,8 @@ class LigifyRecord:
     organism: str = ""
     equation: str = ""
     rhea_id: str = ""
-    #: Ligify's own operon-context score, 0-100, on the same scale `effector.rank.calculate_rank`
-    #: produces -- so ours and theirs are directly comparable rather than merely similar-looking.
+    #: Ligify's uncalibrated operon-context score (can be negative). The local route uses the same
+    #: formula on a different gene set: equal scores do not establish equal accuracy or compound odds.
     rank: int | None = None
     rank_metrics: dict = field(default_factory=dict)
     ligands: tuple = ()                 # ordered candidate ligand names
@@ -151,6 +153,110 @@ def lookup(seq: str | None = None, acc: str | None = None) -> LigifyRecord | Non
         if raw:
             return _to_record(raw, "sequence")
     return None
+
+
+# --------------------------------------------------------------------------- near-identical homologues
+#: EXP071: published records of NEAR-IDENTICAL proteins. Measured on this database over records that
+#: carry ligands (EXP071 type-concordance table): homologous records share an exact published ligand
+#: 89 % of the time at >= 99 % identity, 85 % at 80-90 %, 60 % at 50-60 %, against 5.5 % for random
+#: pairs. Informative, but a context-derived prediction, not this protein's validated inducer.
+#: (EXP070's "70 %" counted ligand-less records; corrected.) EXP071 kept it non-voting; EXP072 lets the
+#: >= 99 % tier vote for organic ligands -- see below.
+HOMOLOG_MIN_IDENTITY = 0.99
+HOMOLOG_MIN_COVERAGE = 0.90
+HOMOLOG_MAX = 3
+#: EXP072 (owner decision 2026-11-09): a published homologue is informative for ORGANIC effectors, where
+#: the SSN has no comparable handle; ions come from the SSN analysis. So
+#:   * a record at >= HOMOLOG_MIN_IDENTITY may VOTE, for its organic ligands only;
+#:   * a record between HOMOLOG_CONTEXT_MIN_IDENTITY and HOMOLOG_MIN_IDENTITY is context, never counted;
+#:   * a metal / monatomic-ion ligand is dropped from both tiers (`inorganic_reason`), and the drop logged.
+#: The 0.99 vote threshold was chosen deliberately high: lower values reach real cases on the E. coli
+#: panel, but those hits had been inspected before the threshold was set, so that panel cannot choose it.
+HOMOLOG_CONTEXT_MIN_IDENTITY = 0.50
+#: Share of homologous record pairs at >= 99 % identity that carry an exact published ligand in common
+#: (39 of 44; EXP071 `type_concordance.json`). Scales the vote of a homologue relative to an exact record.
+HOMOLOG_VOTE_CONCORDANCE = 0.886
+
+#: One bracketed atom with an optional charge: `[Na+]`, `[Fe+2]`, `[Hg]`, `[Cl-]`. Not `[SH-]`.
+_MONATOMIC_SMILES = re.compile(r"\[\d*[A-Z][a-z]?(?:[+-]+|[+-]\d+)?\]")
+#: Element symbol of every bracketed SMILES atom (`[Fe+3]`, `[Mo]`, `[Co-3]`); metals are always bracketed.
+_BRACKET_ATOM = re.compile(r"\[\d*([A-Z][a-z]?)")
+
+
+def inorganic_reason(name, smiles=None) -> str:
+    """Why a published ligand is a metal or monatomic ion ('' when it is not one).
+
+    Names in the database are prose (`Sodium ion`, `Ferrous cation`) that the identity vocabulary does
+    not resolve, so the SMILES is the reliable test and the name class is the fallback."""
+    from predictor.effector import chemical_identity as _ci
+    if smiles and _MONATOMIC_SMILES.fullmatch(str(smiles).strip()):
+        return "monatomic_smiles"
+    # A metal anywhere in the structure: Fe-S clusters, hemes, cobalamins, molybdate, arsenite, and
+    # metal salts such as sodium butyrate. Found by the EXP072 review -- single atoms alone let 187
+    # database records keep a metal-containing "organic" ligand. Carbon-free non-metals (H2O2, nitrate)
+    # are deliberately NOT dropped: the rule is about metals, which are the SSN's business.
+    if smiles and any(a in _ci._METAL_ELEMENTS for a in _BRACKET_ATOM.findall(str(smiles))):
+        return "metal_in_smiles"
+    text = _ci.transport_name(name)
+    if _ci.chemistry(name)[0] == "metal":
+        return "metal_class"
+    if text and (_ci._monatomic_ion(text) or _ci._bare_metal_symbol(text)):
+        return "monatomic_ion_name"
+    return ""
+
+_RECORDS: list | None = None
+
+
+def _all_records() -> list:
+    global _RECORDS
+    if _RECORDS is None:
+        try:
+            with gzip.open(DB_PATH, "rt", encoding="utf-8") as fh:
+                _RECORDS = list(json.load(fh).get("records") or [])
+        except Exception:
+            _RECORDS = []
+    return _RECORDS
+
+
+def _records_fasta():
+    """One FASTA of every record with a sequence, header `r<index>`; built once per vendored copy."""
+    recs = _all_records()
+    tag = (_load()["meta"].get("_upstream_sha256") or "nometa")[:12]
+    path = resources.cache_path("ligify_db", f"ligify_db_records_{tag}.faa")
+    if not (path.exists() and path.stat().st_size > 0):
+        with resources.atomic_path(path) as temporary, temporary.open("w", encoding="ascii", errors="ignore") as fh:
+            for i, r in enumerate(recs):
+                s = "".join(str(r.get("protein_seq") or "").split()).upper()
+                if s:
+                    fh.write(f">r{i}\n{s}\n")
+    return path, recs
+
+
+def homologs(seq: str, *, exclude_refseq=(), min_identity: float = HOMOLOG_MIN_IDENTITY,
+             min_coverage: float = HOMOLOG_MIN_COVERAGE, limit: int = HOMOLOG_MAX) -> list:
+    """Published records of near-identical proteins: [(LigifyRecord, identity, qcov, tcov)], best first.
+
+    Context, not identity. Records whose RefSeq (version-insensitive) is in `exclude_refseq` -- the
+    query's own exact record -- are skipped. Empty when the database or MMseqs2 is unavailable."""
+    if not seq or not _all_records():
+        return []
+    from predictor.annotate.homologs import homolog_sweep
+    fasta, recs = _records_fasta()
+    excl = {str(x).split(".", 1)[0] for x in exclude_refseq if x}
+    sweep = homolog_sweep("".join(str(seq).split()).upper(), str(fasta), cluster=False,
+                          evalue=1e-10, max_seqs=50)
+    out, seen = [], set()
+    for h in sweep.hits:
+        if h.pident < min_identity or h.qcov < min_coverage or h.tcov < min_coverage:
+            continue
+        raw = recs[int(h.target.lstrip("r"))]
+        acc = (raw.get("refseq") or "").split(".", 1)[0]
+        if acc in excl or acc in seen:
+            continue
+        seen.add(acc)
+        out.append((_to_record(raw, "homolog"), round(h.pident, 4), round(h.qcov, 3), round(h.tcov, 3)))
+    out.sort(key=lambda t: (-t[1], -t[2]))
+    return out[:limit]
 
 
 # --------------------------------------------------------------------------- self-test

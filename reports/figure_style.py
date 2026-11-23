@@ -119,6 +119,35 @@ def ion_color(ion: str) -> str:
 
 def ion_label(ion: str) -> str:
     return ION_LABEL.get(ion, ion)
+
+
+#: SDP scores, as in the manuscript's SDP figures (Figs 4C/5C): functional red, structural blue, colour
+#: intensity = the class's relative score 0..1. Eleven stops sampled along the published colour bars;
+#: the one stop per bar that a tick label covers is interpolated from its neighbours.
+SDP_FUNCTIONAL = ["#FDFBFB", "#F5E0E3", "#EEC5CC", "#E3A6B1", "#D88896", "#D06D80", "#C14E66",
+                  "#BB3153", "#B0003D", "#A50027", "#9B000F"]
+SDP_STRUCTURAL = ["#FBFDFF", "#E0EFFF", "#C6E1FF", "#ADD3FF", "#93C5FF", "#76B1FB", "#599EF8",
+                  "#4791FE", "#3680FE", "#2D6CFE", "#3056FE"]
+SDP_UNSELECTED = "#F4F4F4"   # aligned to the consensus, neither class
+SDP_UNMAPPED = "#C9C9C9"     # no consensus position (insertion)
+
+
+def sdp_ramp(stops: list[str], t: float) -> str:
+    """Linear interpolation along an 11-stop ramp; t in 0..1."""
+    t = min(1.0, max(0.0, float(t))) * (len(stops) - 1)
+    i = min(int(t), len(stops) - 2)
+    f = t - i
+    a = [int(stops[i][k:k + 2], 16) for k in (1, 3, 5)]
+    b = [int(stops[i + 1][k:k + 2], 16) for k in (1, 3, 5)]
+    return "#%02X%02X%02X" % tuple(round(x + (y - x) * f) for x, y in zip(a, b))
+
+
+def sdp_color(sdp_class: str, functional: float, structural: float) -> str:
+    if sdp_class == "functional":
+        return sdp_ramp(SDP_FUNCTIONAL, functional)
+    if sdp_class == "structural":
+        return sdp_ramp(SDP_STRUCTURAL, structural)
+    return SDP_UNMAPPED if sdp_class == "insertion" else SDP_UNSELECTED
 OUTCOME_GLYPH = {"correct": "✓", "partial": "~", "incorrect": "✗", "not_scored": ""}
 
 
