@@ -434,9 +434,12 @@ def prepare_local(fasta, gff, genbank, proteome, out_dir: Path):
                     table = int((feature.qualifiers.get("transl_table") or ["11"])[0])
                     translation = (feature.qualifiers.get("translation") or [None])[0]
                     if translation is None:
-                        nucleotides = feature.extract(record.seq)[offset:]
-                        nucleotides = nucleotides[:len(nucleotides) - len(nucleotides) % 3]
-                        translation = str(nucleotides.translate(table=table, to_stop=True))
+                        from predictor.annotate.genome_scan import translate_cds
+                        # A 5'-partial CDS is written "<start" on the + strand and ">end" on the - strand.
+                        five_prime = feature.location.end if feature.location.strand == -1 else feature.location.start
+                        partial = type(five_prime).__name__ in ("BeforePosition", "AfterPosition")
+                        translation = translate_cds(str(feature.extract(record.seq)[offset:]), table,
+                                                    five_prime_complete=offset == 0 and not partial)
                     translations.append((attrs["protein_id"], translation))
                     attrs["transl_table"] = str(table)
                 attrs["ID"] = f"{record.id}_{feature.type}{k}"

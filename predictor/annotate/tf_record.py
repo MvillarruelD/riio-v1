@@ -115,8 +115,8 @@ def default_reference(rebuild: bool = False):
 def _to_protein(seq: str) -> str:
     if not is_dna(seq):
         return seq.replace("\n", "").strip()
-    from Bio.Seq import Seq
-    return str(Seq(seq.replace("\n", "").strip()).translate(to_stop=True))
+    from predictor.annotate.genome_scan import translate_cds
+    return translate_cds(seq.replace("\n", "").strip().upper())
 
 
 def classify(seq: str, *, exclude_id: str | None = None, prefer: str = "hmm") -> TFRecord:

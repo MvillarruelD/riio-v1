@@ -574,7 +574,9 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     # overlap by a few bp (YegW->yegV, LldR->lldP, DgoR->dgoK on MG1655), so the tier-1 prior and the
     # regulon's self-reference were anchored on the neighbour instead of the regulator.
     _tf_gene = context.find_tf_gene(ctx, tf_start, tf_end)
-    reg = (_tf_gene.name or _tf_gene.protein_id or None) if _tf_gene is not None else None
+    # The Gene itself, not its name: the rescan resolved a name back to the FIRST gene carrying it,
+    # which is another copy where names repeat (M. avium cmtR, ricR), so tier 1 sat on the wrong gene.
+    reg = _tf_gene
     # One rescan PER SEED WIDTH, then the genome picks the winner. The old code rescanned once with the
     # single surviving width, so a mis-chosen anchor was unrecoverable -- every downstream artifact, up
     # to the exported AF3 jobs, pointed at the wrong DNA. Each width now gets a fair genome-wide test.

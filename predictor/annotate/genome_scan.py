@@ -98,6 +98,28 @@ def read_fasta(path):
     return recs
 
 
+def translate_cds(nt: str, table: int = 11, *, five_prime_complete: bool = True) -> str:
+    """Translate a coding sequence up to its first stop codon, reading the initiator codon as Met.
+
+    In the bacterial code (NCBI translation table 11) GTG, TTG, CTG, ATT, ATC and ATA are start codons
+    besides ATG, and a start codon is translated as methionine when it initiates. A plain codon-by-codon
+    translation (Biopython without ``cds=True``) gives Val for a GTG start and Leu for a TTG start, which
+    is what the GFF route did until 1.2.x: 54 of the 238 canonical query proteins began with V or L where
+    the NCBI protein record has M. ``cds=True`` is not used because it rejects partial and stop-less CDSs.
+
+    ``five_prime_complete=False`` (a CDS annotated as 5'-partial, or one cut at a contig edge) keeps the
+    literal first codon, since it is not the start codon then.
+    """
+    from Bio.Data import CodonTable
+    from Bio.Seq import Seq
+
+    nt = nt[:len(nt) - len(nt) % 3]
+    aa = str(Seq(nt).translate(table=table, to_stop=True))
+    if aa and five_prime_complete and nt[:3].upper() in CodonTable.unambiguous_dna_by_id[table].start_codons:
+        aa = "M" + aa[1:]
+    return aa
+
+
 def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
     """[(protein_id, translation)] from a genome's OWN annotation: GFF CDS x genome FASTA.
 
@@ -114,6 +136,7 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
     metadata = defaultdict(dict)
     first_feature: dict[str, str] = {}
     phases: dict[tuple[str, int], int] = {}
+    five_prime_partial: set[str] = set()
     for line in Path(gff_path).read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("#"):
             continue
@@ -133,6 +156,9 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
             segments[pid].append((c[0], int(c[3]), int(c[4]), c[6]))
             if c[7] in ("1", "2"):
                 phases[(pid, int(c[3]))] = int(c[7])
+            # NCBI marks a missing 5' end with start_range on the + strand and end_range on the - strand.
+            if (c[6] == "+" and "start_range" in attrs) or (c[6] == "-" and "end_range" in attrs):
+                five_prime_partial.add(pid)
             current = metadata[pid]
             current.update({k: v for k, v in {
                 "locus_tag": attrs.get("locus_tag"),
@@ -146,8 +172,8 @@ def proteins_from_gff(fna_path, gff_path, *, return_metadata=False):
         if segs[0][3] == "-":
             nt = str(Seq(nt).reverse_complement())
         # Phase of the first segment in reading order: non-zero for a CDS cut at a contig edge.
-        nt = nt[phases.get((pid, (segs[-1] if segs[0][3] == "-" else segs[0])[1]), 0):]
-        aa = str(Seq(nt[:len(nt) - len(nt) % 3]).translate(table=11, to_stop=True))
+        phase = phases.get((pid, (segs[-1] if segs[0][3] == "-" else segs[0])[1]), 0)
+        aa = translate_cds(nt[phase:], 11, five_prime_complete=phase == 0 and pid not in five_prime_partial)
         if aa:
             prots.append((pid, aa))
             metadata[pid].update({
