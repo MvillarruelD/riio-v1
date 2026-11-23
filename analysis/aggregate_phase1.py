@@ -90,7 +90,10 @@ def main() -> int:
             "inducer_top": ind.get("top"), "inducer_agreement": ind.get("agreement"),
             "coordination_gate": ind.get("coordination_gate"),
             "inducer_from_cluster": calls.get("ssn_cluster"), "inducer_from_coordination": calls.get("coordination"),
-            "inducer_from_ligify": calls.get("ligify"), "ion": j.get("ion"),
+            # The operon-chemistry route was renamed "ligify" -> "operon_chem" (EXP066); bundles written
+            # since then store the new name, older ones the old. The column keeps its historical name.
+            "inducer_from_ligify": calls["operon_chem"] if "operon_chem" in calls else calls.get("ligify"),
+            "ion": j.get("ion"),
             "mode": mor.get("mode") or j.get("mode"), "mode_confidence": mor.get("confidence"),
             "autoreg_recovered": aut.get("recovered"), "autoreg_nearest_bp": aut.get("nearest_bp"),
             "regulon_operons": len(j.get("regulon") or []),

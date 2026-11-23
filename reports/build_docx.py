@@ -20,7 +20,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.shared import Mm, Pt, RGBColor
 from PIL import Image
 
-from build_legends import figure_entries, provenance_line
+from build_legends import figure_entries, provenance_line, sdp_summary
 
 HERE = Path(__file__).resolve().parent
 FIGDIR = HERE / "figures"
@@ -110,6 +110,29 @@ def figure(doc, e: dict, first: bool) -> None:
     rich(leg, e["legend"], size=LEGEND_PT)
 
 
+def sdp_section(doc, s: dict) -> None:
+    """Figure 4's section (build_legends.sdp_summary): the SDP results, with an optional table (first row
+    and column bold) and closing paragraph."""
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    heading(doc, s["heading"])
+    for text in s["intro"]:
+        rich(doc.add_paragraph(), text)
+    for text in s["bullets"]:
+        rich(doc.add_paragraph(style="List Bullet"), text, size=9.5)
+    if s.get("table"):
+        t = doc.add_table(rows=len(s["table"]), cols=len(s["table"][0]))
+        t.style = "Table Grid"
+        for i, row in enumerate(s["table"]):
+            for j, text in enumerate(row):
+                cell = t.cell(i, j)
+                cell.width = TEXT_W * (0.24 if j == 0 else 0.76 / (len(row) - 1))
+                rich(cell.paragraphs[0], f"**{text}**" if (i == 0 or j == 0) and text else text, size=8.5)
+    if s.get("closing"):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(8)
+        rich(p, s["closing"])
+
+
 def generated_summary(N: dict) -> str:
     p = N['provenance']
     runs = p['runs']
@@ -163,6 +186,9 @@ def main(argv=None) -> int:
             continue
         item = doc.add_paragraph(style="List Bullet")
         rich(item, f"**{term}.** {d}", size=9.5)
+
+    if "sdp" in N:
+        sdp_section(doc, sdp_summary(N))
 
     entries = figure_entries(N)
     for group, is_main in (("Main figures", True), ("Supplementary figures", False)):

@@ -247,6 +247,65 @@ class TestStructuralSite:
         """The caveat only governs a SILENT gate. If our own chemistry fired, it decides."""
         assert MS.inducer_class(MERR_METAL, "MerR", None, SITE)[0] == "metal"
 
+    @staticmethod
+    def _calls(*, family="GntR", ligand="Zn2+", role="metal"):
+        return [InducerCall(source="coordination", ligand=None, confidence=0.0, role="",
+                            evidence={"family": family}),
+                _mn("metal", **SITE),
+                InducerCall(source="operon_chem", ligand=ligand, confidence=0.5, role=role)]
+
+    @pytest.mark.parametrize("sensor_class", [None, "organic"])
+    def test_finalize_does_not_recover_metal_class_from_caveated_site(self, sensor_class):
+        calls = self._calls()
+        got = IND._finalize(calls, None, sensor_class=sensor_class)
+        assert got.top not in ("Zn2+", "divalent metal (ion unresolved)")
+        assert any(c.source == "metalnet" and c.role == "metal" and c.evidence["has_site"]
+                   for c in got.calls), "the structural observation must remain recorded"
+        assert any("structural/cofactor site" in note for note in got.notes)
+
+    def test_caveated_site_does_not_bypass_organic_family_guard(self):
+        calls = self._calls()
+        got = IND._finalize(calls, None, sensor_class="organic")
+        assert got.top == "non-metal effector (undetermined)"
+        assert any("corroboration, not the headline" in note for note in got.notes)
+
+    @pytest.mark.parametrize("sensor_class", [None, "organic"])
+    def test_caveated_site_preserves_positive_organic_evidence(self, sensor_class):
+        calls = self._calls(ligand="citrate", role="non-metal")
+        got = IND._finalize(calls, None, sensor_class=sensor_class)
+        assert got.top == "citrate"
+        assert any("does not suppress the organic evidence" in note for note in got.notes)
+
+    def test_caveated_site_cannot_trigger_the_positive_structural_gate_guard(self):
+        calls = self._calls(ligand="citrate", role="non-metal")
+        calls[-1].evidence = {"weight": 0.1, "weight_reason": "retained earlier proposal"}
+        got = IND._finalize(calls, None, sensor_class="organic")
+        assert got.top == "citrate"
+        assert not any("metal gate positive -> headline" in note for note in got.notes)
+
+    @pytest.mark.parametrize("family", ["GntR", "MerR", "TetR/AcrR"])
+    def test_finalize_preserves_positive_family_gate_and_redox_precedence(self, family):
+        calls = self._calls(family=family)
+        assert IND._finalize(calls, True, sensor_class="metal").top == "Zn2+"
+        assert IND._finalize(calls, True, sensor_class="redox").top == \
+            "reactive oxygen/nitrogen species (redox)"
+
+    def test_finalize_uncaveated_family_still_recovers_metalnet_class(self):
+        calls = self._calls(family="TetR/AcrR")
+        assert IND._finalize(calls, None, sensor_class=None).top == "Zn2+"
+
+    def test_finalize_recovers_redox_before_caveated_family_class(self):
+        calls = self._calls()
+        calls.append(InducerCall(source="ssn_cluster", ligand=None, confidence=0.0, role="redox"))
+        assert IND._finalize(calls, None, sensor_class=None).top == \
+            "reactive oxygen/nitrogen species (redox)"
+
+    def test_finalize_negative_family_gate_still_overrides_metalnet(self):
+        calls = self._calls(family="MerR", ligand="formaldehyde", role="non-metal")
+        got = IND._finalize(calls, False, sensor_class="organic")
+        assert got.top == "formaldehyde"
+        assert any("dissent recorded, not acted on" in note for note in got.notes)
+
 
 class TestCofactorIsNotAnInducer:
     """A metal the protein CONTAINS is not the metal it SENSES.

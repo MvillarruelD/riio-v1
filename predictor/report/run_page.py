@@ -13,6 +13,8 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 
+from predictor.report import figure_data
+
 #: Shared with the manuscript figures (reports/figure_style.py) so an ion reads the same everywhere.
 ION_COLOR = {"Zn2+": "#56B4E9", "Cu+": "#C96144", "Cd2+": "#8281B9", "Cd2+/Pb2+": "#4B4A8C",
              "As(III)": "#009E73", "Fe2+": "#9C5732", "Mn2+": "#CC79A7", "Ni2+": "#E69F00",
@@ -24,7 +26,8 @@ ION_ALIAS = {"As3+": "As(III)", "arsenite": "As(III)", "Cu(I)": "Cu+", "Fe(II)":
 FAIL = ' class="fail"'  # row attribute for candidates that did not complete
 CLASS_COLOR = {"metal": "#0F4D92", "redox": "#42949E", "organic": "#B9A17B", "unresolved": "#D8D8D8"}
 CHANNEL = {"ssn_cluster": "SSN clade", "coordination": "coord.", "metalnet": "MetalNet2",
-           "ligify": "Ligify", "ligify_db": "Ligify", "neighborhood": "neighbourhood",
+           "ligify": "operon chem.", "operon_chem": "operon chem.", "ligify_db": "Ligify DB",
+           "ligify_db_homolog": "Ligify DB homologue", "neighborhood": "neighbourhood",
            "neighbourhood": "neighbourhood"}
 MODE = {"genome_accession": "Genome accession", "local_genome": "Local genome files",
         "genome_fasta": "Local genome files", "genbank": "Local GenBank file",
@@ -91,19 +94,22 @@ def _clip(text: str, limit: int) -> str:
 
 def _inducer_cell(row: dict, dossier: dict) -> str:
     inducers = dossier.get("inducers") or {}
-    canonical = inducers.get("top") or row.get("inducer_top") or ""
-    top = inducers.get("top_display") or canonical
-    cls = row.get("inducer_class")
-    if row.get("abstention"):
+    canonical = figure_data.inducer_top(dossier, row.get("inducer_top")) or ""
+    top = (figure_data.inducer_display(inducers) if "top" in inducers or inducers.get("finalized")
+           else canonical) or ""
+    cls = inducers.get("sensor_class") if "sensor_class" in inducers else row.get("inducer_class")
+    if row.get("abstention") and not inducers.get("candidates") and not cls:
         return _na("no call (abstained)")
     color = next((ION_COLOR[ION_ALIAS.get(v, v)] for v in (canonical, top) if ION_ALIAS.get(v, v) in ION_COLOR), None)
     if cls == "metal" and color:
         return _chip(color) + _e(top)
     if cls == "metal":
-        voters = sorted({CHANNEL.get(c.get("source"), c.get("source", "")) for c in inducers.get("calls") or []
-                         if c.get("role") == "metal"})
+        sources = inducers.get("accepted_calls") if inducers.get("finalized") else inducers.get("calls")
+        voters = sorted({CHANNEL.get(c.get("source"), c.get("source", "")) for c in sources or []
+                         if c.get("role") == "metal" and (c.get("confidence") or 0) > 0})
         why = f' <span class="muted">({_e(", ".join(voters))})</span>' if voters else ""
-        return ("unresolved ion" if "unresolved" in top.lower() or not top else _clip(top, 34)) + why
+        return (_clip(top, 44) if inducers.get("candidates") else
+                "unresolved ion" if "unresolved" in top.lower() or not top else _clip(top, 34)) + why
     return _clip(top, 44)
 
 
@@ -163,7 +169,9 @@ def _predicted_table(predicted: list[dict]) -> str:
             out.append(f'<tr{FAIL if failed else ""}>'
                        f'<td><span class="tf">{_e(name)}</span>'
                        + (f'<span class="locus">{_e(sub)}</span>' if sub else "") + "</td>"
-                       f"<td>{_chip(CLASS_COLOR.get(cls, CLASS_COLOR['unresolved']))}{_e(cls)}</td>"
+                       f"<td>{_chip(CLASS_COLOR.get(cls, CLASS_COLOR['unresolved']))}{_e(cls)}"
+                       + ('<span class="locus">legacy label fallback</span>'
+                          if row.get("inducer_class_provenance") == "legacy_label_fallback" else '') + "</td>"
                        f"<td>{_e(row.get('ssn_cluster')) or _na()}</td>"
                        f'<td class="wrap">{_inducer_cell(row, d)}</td>'
                        f'<td class="seq">{_e(primary) if primary else _na("no operator")}</td>'

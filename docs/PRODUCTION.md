@@ -6,12 +6,13 @@ Use a Git checkout/source archive for the analysis companion. Install its depend
 python -m pip install -e ".[dev,genome,gui]" -r analysis/requirements.txt
 ```
 
-The three supplied canonical manifests contain 39 E. coli, 45 Salmonella, and 154 survey candidates.
+The three supplied canonical manifests are those of the 2026-11-10 run named in
+`analysis/canonical_runs.toml`. They contain 39 E. coli, 45 Salmonella, and 154 survey candidates.
 Their 238 FASTAs are included at the original relative paths. No candidate or biological rule was
 changed for this export. Copy a manifest to `analysis/run_manifest_<newtag>.csv` to start a new run.
 
 ```bash
-cp analysis/run_manifest_survey_rerun20260924.csv analysis/run_manifest_my_run.csv
+cp analysis/run_manifest_survey_rerun20261110.csv analysis/run_manifest_my_run.csv
 export TFOP_RUN_ROOT="$PWD/runs/run_my_run"
 python analysis/manifest.py run_manifest_my_run.csv
 python analysis/run_pipeline.py --tag my_run --check
@@ -22,7 +23,7 @@ python analysis/run_pipeline.py --tag my_run --from aggregate
 PowerShell equivalents for copying and setting the run root:
 
 ```powershell
-Copy-Item analysis/run_manifest_survey_rerun20260924.csv analysis/run_manifest_my_run.csv
+Copy-Item analysis/run_manifest_survey_rerun20261110.csv analysis/run_manifest_my_run.csv
 $env:TFOP_RUN_ROOT = Join-Path $PWD 'runs/run_my_run'
 python analysis/manifest.py run_manifest_my_run.csv
 python analysis/run_pipeline.py --tag my_run --check

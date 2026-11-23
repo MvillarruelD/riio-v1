@@ -15,7 +15,7 @@ mismatch). This module:
      plasmid when the protein is plasmid-borne -> return the best (accession, start, end, strand, organism)
      and the alternatives.
 
-So `auto_locus(seq)` gives what `mirror_acc` + `tf_locus` were hardcoded for. Cached to results/auto_locus/.
+So `auto_locus(seq)` gives what `mirror_acc` + `tf_locus` were hardcoded for. Cached by sequence in the user cache (auto_locus/).
 Network + NCBI (slow remote blastp); offline self-test parses a canned IPG table.
 
   python -m predictor.annotate.auto_locus --tf CadC_Saureus_pI258   # demo on a plasmid TF
@@ -23,6 +23,7 @@ Network + NCBI (slow remote blastp); offline self-test parses a canned IPG table
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -51,6 +52,11 @@ def _acc_rank(accession: str) -> tuple:
     return (refseq, complete, not wgs)
 
 
+def _cache_file(seq: str) -> Path:
+    digest = hashlib.sha256("".join(seq.split()).upper().encode()).hexdigest()
+    return CACHE / f"seq_{digest[:24]}.json"
+
+
 def top_protein_hits(seq: str, *, n: int = 4, hitlist: int = 25) -> list:
     """Remote blastp the query -> top protein accessions (best identity first). The top hit is usually the
     TF itself; we keep a few in case the exact protein is not the #1 record."""
@@ -71,9 +77,14 @@ def auto_locus(seq: str, *, key: str | None = None, use_cache: bool = True, n_hi
                verbose: bool = True) -> dict | None:
     """Authoritative genome + locus for the TF from its sequence (via blastp -> IPG). Returns
     dict(accession, start, end, strand, organism, n_genomes, alternatives) or None. start/end are
-    0-based half-open + strand coords (same frame as GenomeCandidate)."""
+    0-based half-open + strand coords (same frame as GenomeCandidate).
+
+    The cache is keyed by the SEQUENCE. `key` is only a label for the log: it is the job name, which
+    defaults to "query", so keying on it gave the second protein predicted on a machine the first
+    protein's genome and locus."""
+    seq = gr._query_seq(seq)
+    cp = _cache_file(seq)
     if key and use_cache:
-        cp = CACHE / f"{key}.json"
         if cp.exists():
             d = json.loads(cp.read_text(encoding="utf-8"))
             if verbose:
@@ -121,8 +132,7 @@ def auto_locus(seq: str, *, key: str | None = None, use_cache: bool = True, n_hi
            "alternatives": [{"accession": c.accession, "start": c.tf_start, "end": c.tf_end,
                              "strand": c.tf_strand, "organism": c.organism} for c in uniq[1:6]]}
     if key and use_cache:
-        CACHE.mkdir(parents=True, exist_ok=True)
-        (CACHE / f"{key}.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+        resources.atomic_write_text(cp, json.dumps(out, indent=2))
     if verbose:
         print(f"  auto_locus: {out['accession']}:{out['start']}-{out['end']} ({out['strand']}) "
               f"{out['organism']}  [{out['n_genomes']} genomes carry this protein]")

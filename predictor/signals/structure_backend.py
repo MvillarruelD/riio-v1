@@ -19,6 +19,7 @@ live fold path is exercised by `benchmark/live_structural.py`, not here).
 """
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -112,7 +113,7 @@ def fold_and_score(tf_id: str, prot_seq: str, dna_seq: str, *, plddt_min: float 
     import re
     import time
     inputs, backend, adapter, operator_score = _lib()
-    tag = tag or f"{tf_id.lower()}_live"
+    tag = tag or f"{tf_id.lower()}_{_seq_tag(prot_seq, dna_seq)}_live"
     if not re.fullmatch(r"[ACGT]+", dna_seq.upper()):
         return None
     folder = WORK / "af3_results" / f"{tag}_dna_v1"
@@ -136,6 +137,11 @@ def fold_and_score(tf_id: str, prot_seq: str, dna_seq: str, *, plddt_min: float 
     return feat
 
 
+def _seq_tag(*seqs: str) -> str:
+    """A fold is identified by what was folded: job names repeat across proteins."""
+    return hashlib.sha256("|".join("".join(s.split()).upper() for s in seqs).encode()).hexdigest()[:10]
+
+
 def fold_apo_homomer(tf_id: str, prot_seq: str, *, copies: int = 2, model: str = FAST_MODEL,
                      num_loops: int = 1, num_sampling: int = 16, tag: str | None = None,
                      cached_ok: bool = True) -> dict | None:
@@ -147,9 +153,10 @@ def fold_apo_homomer(tf_id: str, prot_seq: str, *, copies: int = 2, model: str =
     inputs, backend, adapter, _ = _lib()
     if not isinstance(copies, int) or not 1 <= copies <= 26:
         raise ValueError(f"copies must be an integer in [1, 26], got {copies!r}")
-    # Keep the existing dimer cache path; use a distinct key for every higher-order state so a
-    # previously cached dimer can never be presented as the requested tetramer.
-    tag = tag or (f"{tf_id.lower()}_apo" if copies == 2 else f"{tf_id.lower()}_apo{copies}")
+    # Key on sequence AND state: a cached fold of another protein run under the same name, or a cached
+    # dimer where a tetramer was requested, must never be presented as this fold.
+    stem = f"{tf_id.lower()}_{_seq_tag(prot_seq)}"
+    tag = tag or (f"{stem}_apo" if copies == 2 else f"{stem}_apo{copies}")
     folder = WORK / "af3_results" / f"{tag}_apo_v1"
     cif = folder / f"fold_{tag}_apo_v1_model_0.cif"
     if cached_ok and cif.exists() and cif.stat().st_size > 0:

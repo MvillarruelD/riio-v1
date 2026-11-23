@@ -109,6 +109,8 @@ def is_abstention(raw: str | None) -> bool:
 def normalise(raw: str | None) -> str | None:
     """Canonical inducer token, or None when the value is an abstention or empty.
 
+    Legacy spelling/scoring API. New inference uses chemical_identity, which preserves explicit charge
+    and treats unrecognised chemistry as unmapped. This API retains its historical fallthrough.
     Unknown-but-real values are passed through with their case preserved, so a new ligand entering the
     KB is reported rather than silently dropped -- it simply does not get merged with anything.
     """
@@ -240,6 +242,8 @@ _CLASS_LEVEL_CALLS = {
 def inducer_class_of(raw: str | None) -> str | None:
     """'metal' | 'redox' | 'organic' for one stored inducer label, or None when it names nothing.
 
+    Legacy label-regression API: unfamiliar labels still fall through to organic. New consumers prefer
+    stored sensor_class and explicitly mark this function's fallback when reading old dossiers.
     A MIXTURE resolves only when its components agree; `Cu+/persulfide` spans two classes and returns
     None rather than silently picking one. That is the honest answer for a cluster whose anchors
     genuinely disagree about the class, and it keeps this out of the business of deciding chemistry.

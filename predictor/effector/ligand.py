@@ -10,17 +10,16 @@ metabolites directly -- no extra Rhea/ChEBI round-trips (keeps API calls minimal
 Currency metabolites (water, ATP/ADP, NAD(P), CoA, Pi/PPi, O2, CO2, H+, ...) are filtered: a TF almost
 never senses these. What remains are the substrate/product candidates handed to `rank.py`.
 
-Disk cache: `$PREDICTOR_EFFECTOR_CACHE` (default `~/.predictor/effector_cache`), one JSON per accession.
+Disk cache: `$PREDICTOR_EFFECTOR_CACHE` (default platform resource cache), with new versioned
+annotation records and read-only historical accession JSON. See effector.annotation for the NEW
+provenance/cache-only/refresh/pinned-record API.
 
 Run `python ligand.py` for a self-test (synthetic UniProt entry parsed offline; live fetch SKIPs).
 """
 from __future__ import annotations
 
-import json
 import os
 import re
-import urllib.parse
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -28,10 +27,6 @@ from predictor import resources
 
 _CACHE_DIR = Path(os.environ.get("PREDICTOR_EFFECTOR_CACHE",
                                  resources.cache_path("effector")))
-_UNIPROT_SEARCH = "https://rest.uniprot.org/uniprotkb/search"
-# UniProt accession pattern (so we can tell a bare UniProt id from a RefSeq/locus-tag cross-reference)
-_UNIPROT_ACC_RE = re.compile(
-    r"^[OPQ][0-9][A-Z0-9]{3}[0-9]$|^[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}$")
 
 # common "currency"/cofactor metabolites a TF is essentially never a sensor for (lower-cased names)
 CURRENCY = {
@@ -45,6 +40,29 @@ CURRENCY = {
 
 # stoichiometric / article prefixes to strip from an equation participant ("2 H2O", "a fatty acid")
 _PREFIX_RE = re.compile(r"^\s*(\d+|a|an|\(n\)|n)\s+", re.I)
+# EXP067: compartments do not change currency identity. Use only for the membership test, so real
+# metabolites such as molybdate(out) retain their original stored/displayed spelling.
+_COMPARTMENT_SUFFIX_RE = re.compile(r"\s*\(\s*(?:in|out)\s*\)\s*$", re.I)
+
+# Macromolecular reaction participants a TF cannot sense as a small-molecule effector: nucleic acids,
+# whole proteins and protein-bound residues. Currency (CURRENCY) removes cofactors; this removes the
+# polymers that leaked through as "ligands" -- e.g. tRNA(Gly), RNA(n), protein L-histidine,
+# N(6)-acetyl-L-lysyl-[protein] (EXP066: 8 of 26 prototype operon-chemistry calls). Deliberately narrow
+# so it cannot catch a genuine metabolite: anchored on the "[protein]" tag, nucleic-acid words with
+# boundaries, and a leading bare "protein".
+_MACROMOLECULE_RE = re.compile(
+    r"\[protein\]"                                  # ...-[protein] residue tags
+    r"|\b[a-z]{0,4}rna\b|\brna\("                   # RNA, tRNA, rRNA, mRNA, ncRNA, tmRNA, RNA(n)
+    r"|\bdna\b"
+    r"|\bpoly(?:nucleotide|peptide|ribonucleotide|deoxyribonucleotide)\b"
+    r"|\boligo(?:nucleotide|peptide)\b"
+    r"|\bribosom(?:e|al)\b"
+    r"|^\s*(?:an?\s+)?protein\b",                   # "protein L-histidine", "a protein"
+    re.I)
+
+
+def _is_macromolecule(name: str) -> bool:
+    return bool(name and _MACROMOLECULE_RE.search(name))
 
 
 @dataclass
@@ -52,8 +70,14 @@ class Reaction:
     equation: str
     rhea: str = ""
     ec: str = ""
-    chebi: list = field(default_factory=list)         # ChEBI ids from UniProt reactionCrossReferences
+    chebi: list = field(default_factory=list)         # legacy REACTION-wide IDs; never participant identity
     participants: list = field(default_factory=list)  # human-readable names (currency NOT yet removed)
+    reaction_chebi: list = field(default_factory=list)
+    occurrences: list = field(default_factory=list)
+    source_record: dict = field(default_factory=dict)
+    #: EXP072: UniProt's sourced direction for this reaction ("left-to-right" | "right-to-left"), or ""
+    #: when the entry annotates none or both. The equation's written order is only a convention.
+    physiological_direction: str = ""
 
 
 # --------------------------------------------------------------------------- parsing
@@ -81,6 +105,23 @@ def parse_equation(eq: str) -> list:
     return parts
 
 
+def participant_occurrences(eq: str) -> list:
+    """Lossless occurrence roles alongside the legacy stripped-name parser."""
+    from predictor.effector.chemical_identity import compartment
+    if not eq or not _EQ_SEP_RE.search(eq):
+        return []
+    out = []
+    for side_index, side in enumerate(_EQ_SEP_RE.split(eq)):
+        for token in side.split(" + "):
+            name = _strip_participant(token)
+            prefix = _PREFIX_RE.match(token)
+            if name:
+                out.append({"name": name, "raw_token": token, "side": "left" if side_index == 0 else "right",
+                            "coefficient": prefix.group(1) if prefix else "1",
+                            "occurrence": len(out), "compartment": compartment(name)})
+    return out
+
+
 def reactions_from_entry(entry: dict) -> list:
     """Extract catalysed reactions from a UniProtKB entry JSON (`comments` of type CATALYTIC ACTIVITY)."""
     out = []
@@ -96,7 +137,11 @@ def reactions_from_entry(entry: dict) -> list:
                 rhea = rid
             elif db.lower() == "chebi":
                 chebi.append(rid)
-        out.append(Reaction(eq, rhea, ec, chebi, parse_equation(eq)))
+        directions = {(p.get("directionType") or "").lower() for p in c.get("physiologicalReactions") or []}
+        directions &= {"left-to-right", "right-to-left"}
+        out.append(Reaction(eq, rhea, ec, chebi, parse_equation(eq), list(chebi),
+                            participant_occurrences(eq), dict(rx),
+                            next(iter(directions)) if len(directions) == 1 else ""))
     return out
 
 
@@ -116,16 +161,26 @@ def is_enzyme(entry: dict) -> bool:
 
 
 def candidate_ligands(entry: dict) -> list:
-    """Non-currency reaction participants of an enzyme entry, de-duplicated, with provenance.
-    Returns list[dict(name, chebi, equation, rhea)]."""
-    seen, out = set(), []
+    """Non-currency reaction participant occurrences of an enzyme entry, with provenance.
+    `chebi` is now explicitly participant-scoped (empty without a source mapping).
+    Reaction-wide IDs remain under `reaction_chebi`. Every occurrence is retained.
+    Generic AH2 stays in raw evidence with headline_eligible=False."""
+    from predictor.effector.chemical_identity import identity_key, transport_name
+    out = []
     for rx in reactions_from_entry(entry):
-        for name in rx.participants:
+        for occurrence in rx.occurrences:
+            name = occurrence["name"]
             key = name.lower()
-            if key in CURRENCY or key in seen or len(name) <= 1:
+            currency_key = _COMPARTMENT_SUFFIX_RE.sub("", key).strip()
+            if currency_key in CURRENCY or len(name) <= 1 or _is_macromolecule(name):
                 continue
-            seen.add(key)
-            out.append({"name": name, "chebi": rx.chebi, "equation": rx.equation, "rhea": rx.rhea})
+            # UniProt reactionCrossReferences do not map names to IDs. No positional inference.
+            out.append({**occurrence, "chebi": [], "participant_identity_status": "unresolved",
+                        "reaction_chebi": list(rx.reaction_chebi), "equation": rx.equation,
+                        "rhea": rx.rhea, "source_record": rx.source_record,
+                        "physiological_direction": rx.physiological_direction,
+                        "identity_key": identity_key(name),
+                        "headline_eligible": transport_name(name).casefold() != "ah2"})
     return out
 
 
@@ -136,32 +191,14 @@ def _cache_path(accession: str) -> Path:
 
 
 def uniprot_entry(accession: str, *, use_cache: bool = True, timeout: int = 30) -> dict | None:
-    """Fetch the best UniProtKB entry for a protein accession (RefSeq WP_/NP_, EMBL, or UniProt id).
-    Cached to disk to limit API calls. Returns the entry JSON or None."""
-    cp = _cache_path(accession)
-    if use_cache and cp.exists():
-        try:
-            return json.loads(cp.read_text(encoding="utf-8")) or None
-        except Exception:
-            pass
-    acc = accession.split(".")[0]
-    # RefSeq/EMBL accessions (NP_/WP_/YP_/XP_/AP_..., or a locus tag) are cross-references; a bare
-    # UniProt accession is queried directly. A compound `... OR accession:NP_...` is a 400 (NP_ is not a
-    # valid UniProt accession), which silently broke every RefSeq lookup -- so branch on the id shape.
-    field = "xref" if ("_" in acc or not _UNIPROT_ACC_RE.match(acc)) else "accession"
-    q = f"{field}:{acc}"
-    url = (f"{_UNIPROT_SEARCH}?query={urllib.parse.quote(q)}&format=json&size=1"
-           "&fields=accession,protein_name,cc_catalytic_activity,ec,xref_refseq")
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as h:
-            data = json.loads(h.read().decode("utf-8"))
-        entry = (data.get("results") or [None])[0]
-    except Exception:
-        entry = None
-    if use_cache:
-        _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cp.write_text(json.dumps(entry or {}), encoding="utf-8")
-    return entry
+    """Return raw UniProt JSON or None; exact mapping and provenance use annotation_record.
+
+    Historical entries remain unverified and are never silently refetched. Ambiguous,
+    failed or incompatible new acquisitions return None. ``use_cache=False`` bypasses
+    both cache reads and writes. The provenance envelope never enters enzyme parsing.
+    """
+    from predictor.effector.annotation import annotation_record, raw_entry
+    return raw_entry(annotation_record(accession, use_cache=use_cache, timeout=timeout, cache_dir=_CACHE_DIR))
 
 
 # --------------------------------------------------------------------------- self-test

@@ -104,12 +104,12 @@ def _designed_operator(logo) -> str | None:
 # -- bodies are identical to the inline blocks; they take explicit inputs and return their outputs (note the
 # `effector` fill-in propagates back via the return value). See docs/DECOMPOSITION.md for the full plan.
 def _infer_inducer(seq, family, ctx, tf_start, effector, *, allow_ncbi, verbose,
-                   allow_metalnet=True, protein_acc=None,
+                   allow_metalnet=True, protein_acc=None, tf_end=None,
                    tf_id=None, allow_colabfold=False, fold_cif=None, op_cif=None):
     """Stage 4.5: unified inducer inference (SSN cluster + coordination gate + MetalNet + Ligify
-    [+ structural]). Returns (inducer_cons, ssn_cl, effector); effector may be filled in from a NAMED
-    source -- note MetalNet is deliberately NOT among those sources: it establishes that a metal site
-    exists, not which metal, so it must never name the analyte.
+    [+ structural]). Returns (inducer_cons, ssn_cl, effector, failure). Without a user override,
+    `effector` is the final headline, including a class-level result or explicit null. Raw source
+    proposals cannot refill it after the final guards reject them.
 
     `fold_cif`/`op_cif` (optional): a holo fold with bound metals (and, optionally, its operator
     complex) lets the coordination gate type the metal sites and contribute the REGULATORY-site metal
@@ -117,7 +117,12 @@ def _infer_inducer(seq, family, ctx, tf_start, effector, *, allow_ncbi, verbose,
     inducer_cons, ssn_cl, failure = None, None, None
     try:
         from predictor.effector import inducer as inducer_mod
-        tf_gene = next((gg for gg in ctx.genes if gg.start <= tf_start < gg.end), None)
+        # EXP070 D: best span overlap, not "first gene containing tf_start". Neighbouring CDSs overlap
+        # by a few bp, so the start-containment rule returned the UPSTREAM gene for 3 of 39 MG1655
+        # regulators (YegW->yegV, LldR->lldP, DgoR->dgoK), whose accession, operon and neighbourhood
+        # then stood in for the TF's. `tf_end=None` keeps the old rule for callers that lack it.
+        tf_gene = (context.find_tf_gene(ctx, tf_start, tf_end) if tf_end is not None
+                   else next((gg for gg in ctx.genes if gg.start <= tf_start < gg.end), None))
         # `allow_metalnet=False` injects an abstaining stub -- exactly what a machine without the
         # engine produces, so the source reports "no opinion" in the open rather than the path changing.
         _mn_fn = (lambda _s: None) if not allow_metalnet else None
@@ -131,11 +136,10 @@ def _infer_inducer(seq, family, ctx, tf_start, effector, *, allow_ncbi, verbose,
                                                  metalnet_fn=_mn_fn, verbose=verbose)
         ssn_cl = next((c.evidence.get("cluster") for c in inducer_cons.calls
                        if c.source == "ssn_cluster"), None)
-        if effector is None:        # derive the analyte from a NAMED source (not the class-level fallback)
-            named = next((c.ligand for c in inducer_cons.calls
-                          if c.ligand and c.source in ("ssn_cluster", "ligify_db", "ligify")), None)
-            if named:
-                effector = named
+        if effector is None:
+            # The finalized headline is authoritative, including abstention and class placeholders.
+            # Re-reading raw calls here used to revive a proposal rejected by the guards above.
+            effector = inducer_cons.top
         if verbose:
             print(f"inducer: top={inducer_cons.top} agreement={inducer_cons.agreement:.2f} "
                   f"gate={inducer_cons.coordination_gate} cluster={ssn_cl} "
@@ -288,7 +292,17 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     if local_genome:
         if not local_gff:
             raise ValueError("local genome prediction requires a GFF annotation")
-        ctx = context.from_gff(local_gff, local_genome, accession=local_contig)
+        if local_contig and tf_locus:
+            # A contig-local locus, lifted onto the whole assembly: the rescan and regulon are genome-wide,
+            # exactly as when the same assembly is named by accession. Loading only that contig limited
+            # both to the regulator's own replicon.
+            ctx = context.from_gff(local_gff, local_genome)
+            if local_contig not in ctx.contig_offsets:
+                return _failure(name, family, "genome", f"contig {local_contig} is not in the local genome")
+            offset = ctx.contig_offsets[local_contig]
+            tf_locus = (tf_locus[0] + offset, tf_locus[1] + offset, tf_locus[2])
+        else:
+            ctx = context.from_gff(local_gff, local_genome, accession=local_contig)
     if acc and ctx is None:
         # `ensure_genome` is mirror-FIRST: it returns an already-cached genome before it considers
         # downloading, and `allow_download` gates only the download. Gating the whole call on
@@ -528,7 +542,7 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
 
     # ---- 4.5 unified inducer inference (SSN cluster + coordination gate + Ligify [+ structural]) ----
     inducer_cons, ssn_cl, effector, inducer_failure = _infer_inducer(
-        seq, family, ctx, tf_start, effector,
+        seq, family, ctx, tf_start, effector, tf_end=tf_end,
         allow_ncbi=allow_ncbi, verbose=verbose,
         allow_metalnet=getattr(cfg, "allow_metalnet", True),
         tf_id=name, allow_colabfold=allow_colabfold,
@@ -546,16 +560,21 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     # operator hit at a metal gene has to be a finding, not a consequence of having up-weighted that
     # promoter. Annotation-light: ligand_genes uses GFF product names (offline).
     from predictor.report import ligand_regulon as lr
-    tf_gene_obj = next((gg for gg in ctx.genes if gg.start <= tf_start < gg.end), None)
-    ligand = lr.infer_ligand(ctx, tf_gene_obj) if (tf_gene_obj is not None and allow_ncbi) else []
-    lgenes, lig_kws = lr.ligand_genes(ctx, effector=effector, ligand_names=[l["ligand"] for l in ligand])
+    ligand = lr.accepted_ligands(asdict(inducer_cons))
+    lgenes, lig_kws = lr.ligand_genes(ctx, effector=inducer_cons.top,
+                                    ligand_names=[l["ligand"] for l in ligand])
     if verbose:
         print(f"candidate handler genes: {len(lgenes)} (kw={lig_kws[:6]}); "
               f"ligand={ligand[0]['ligand'] if ligand else '(none)'} "
               f"-- reported only, not used to rank operators")
 
     # ---- 5. genome-WIDE rescan -> ALL putative operators -------------------------------------------
-    reg = next((g.name or g.protein_id for g in ctx.genes if g.start <= tf_start <= g.end), None)
+    # Best span overlap, as `_infer_inducer` has selected the TF gene since EXP070. The old
+    # "first gene containing tf_start" rule returned the UPSTREAM gene wherever neighbouring CDSs
+    # overlap by a few bp (YegW->yegV, LldR->lldP, DgoR->dgoK on MG1655), so the tier-1 prior and the
+    # regulon's self-reference were anchored on the neighbour instead of the regulator.
+    _tf_gene = context.find_tf_gene(ctx, tf_start, tf_end)
+    reg = (_tf_gene.name or _tf_gene.protein_id or None) if _tf_gene is not None else None
     # One rescan PER SEED WIDTH, then the genome picks the winner. The old code rescanned once with the
     # single surviving width, so a mis-chosen anchor was unrecoverable -- every downstream artifact, up
     # to the exported AF3 jobs, pointed at the wrong DNA. Each width now gets a fair genome-wide test.
@@ -801,6 +820,8 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
         ])
     # attach extra design + recovery fields the dossier schema doesn't have a slot for
     doss_d = asdict(doss)
+    doss_d["effector_override"] = requested["effector"]
+    doss_d["effector_origin"] = "user_override" if requested["effector"] is not None else "final_consensus"
     doss_d["family_support"] = support_level
     doss_d["genome_topology"] = {
         "circular": bool(getattr(ctx, "circular", False)),

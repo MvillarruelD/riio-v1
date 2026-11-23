@@ -28,11 +28,31 @@ _TSS_WINDOW_DEFAULT = 300            # per_hit_regulation uses +/-300 bp; operat
 def inducer_display(inducers: dict | None) -> str:
     """Presentation label for new and legacy dossiers; never use this value for classification."""
     ind = inducers or {}
+    if ("top" in ind or ind.get("finalized")) and not ind.get("top"):
+        if ind.get("identity_status") and ind.get("candidates"):
+            return "unresolved: " + " or ".join(ind["candidates"])
+        return ""
     stored = ind.get("top_display")
     if isinstance(stored, str) and stored.strip():
         return stored
     from predictor.effector import inducer_vocab
+    if "identity_status" in ind:
+        from predictor.effector.chemical_identity import display_label
+        return display_label(ind.get("top"), ind.get("candidates") or ())
     return inducer_vocab.display_label(ind.get("top"), ind.get("candidates") or ())
+
+
+def inducer_top(dossier: dict, legacy_top=""):
+    """An explicit saved final null is a result, not a request to use stale summary/effector fields."""
+    ind = dossier.get("inducers") or {}
+    if "top" in ind or ind.get("finalized"):
+        return ind.get("top")
+    return dossier.get("effector") or legacy_top
+
+
+def inducer_agreement_label(inducers: dict | None) -> str:
+    """Legacy stored agreement can include unresolved-set membership; never relabel it exact."""
+    return "exact source agreement" if (inducers or {}).get("finalized") else "legacy source agreement"
 
 
 def promoter_occlusion(dossier: dict) -> dict:
@@ -226,6 +246,7 @@ def inducer_evidence_rows(dossier: dict) -> dict:
                      "evidence": c.get("evidence") or {}})
     return {"top": inducer_display(ind), "raw_top": ind.get("top"),
             "agreement": ind.get("agreement"),
+            "agreement_label": inducer_agreement_label(ind),
             "coordination_gate": ind.get("coordination_gate"), "rows": rows,
             "notes": ind.get("notes") or []}
 
@@ -299,7 +320,8 @@ def verdict(dossier: dict) -> list[dict]:
     top = inducer_display(ind)
     if ind.get("top") and ag is not None:
         st = "green" if ag >= 0.5 else ("amber" if ag >= 0.3 else "red")
-        chips.append(_chip("inducer", st, f"{top} (agreement {ag:.2f})"))
+        label = "exact agreement" if ind.get("finalized") else "legacy agreement"
+        chips.append(_chip("inducer", st, f"{top} ({label} {ag:.2f})"))
     else:
         chips.append(_chip("inducer", "na", "not inferred"))
     # operators + regulon counts

@@ -642,37 +642,90 @@ def build_html(data: dict, figs: dict) -> str:
     parts.append("<h3>Inducer inference: supporting signals</h3>")
     _ind = d.get("inducers") or {}
     _ag, _gate = _ind.get("agreement"), _ind.get("coordination_gate")
+    _agreement_label = FD.inducer_agreement_label(_ind)
+    from predictor.effector.chemical_identity import class_from_record
+    _sensor_class, _class_origin = class_from_record(_ind)
     parts.append(
         f'<p class="sub"><b>Final call: {_esc(inducer_display)}</b>'
-        + (f' · source agreement {_ag:.2f}' if isinstance(_ag, (int, float)) else '')
+        + f' · sensor class {_esc(_sensor_class or "unknown")} ({_esc(_class_origin)})'
+        + (f' · class evidence {_esc(_ind.get("class_status"))}' if _ind.get("class_status") else '')
+        + (f' · identity {_esc(_ind.get("identity_status"))}' if _ind.get("identity_status") else '')
+        + (f' · {_agreement_label} {_ag:.2f}' if isinstance(_ag, (int, float)) else '')
+        + (f' · unresolved-set compatibility {_ind.get("compatibility"):.2f}'
+           if isinstance(_ind.get("compatibility"), (int, float)) else '')
         + (f' · coordination gate {"passed" if _gate else "not passed"}' if _gate is not None else '')
         + '</p>')
-    parts.append('<p class="definition"><strong>Call</strong> is the ligand named by a channel, if any. '
+    parts.append('<p class="definition"><strong>Raw call</strong> is the ligand proposed by a channel, if any. '
                  '<strong>Role</strong> is its metal, redox or non-metal classification. '
                  '<strong>Confidence</strong> is specific to that source. <strong>Abstained</strong> '
                  'means the channel named no ligand; coordination and MetalNet can abstain on the ion '
                  'while still recording a metal site, which the caveats below then cite. '
-                 '<strong>Agreement</strong> summarizes concordant channels and is not a measured '
-                 'probability of correctness.</p>')
+                 + ('<strong>Exact agreement</strong> counts accepted exact calls. Membership in an '
+                    'unresolved source set is reported separately as compatibility; it does not identify '
+                    'the compound. ' if _ind.get("finalized") else
+                    '<strong>Legacy source agreement</strong> is the stored legacy fraction and may '
+                    'include unresolved-set membership. Exact support was not recorded separately. ')
+                 + 'These fractions are not measured probabilities of correctness. '
+                 'Raw proposals can be retained after the final policy rejects them.</p>')
     parts.append('<p class="definition">Source names: <strong>ssn_cluster</strong> reads the assigned '
                  'sequence-similarity clade and its curated anchors; <strong>coordination</strong> '
                  'checks sequence metal-binding signatures; <strong>metalnet</strong> predicts a '
                  'metal-binding site; <strong>neighborhood</strong> checks nearby gene annotations; '
                  '<strong>ligify_db</strong> matches a published sensor entry; '
-                 '<strong>ligify</strong> derives an operon-chemistry candidate.</p>')
+                 '<strong>ligify_db_homolog</strong> lists published entries of homologous proteins '
+                 '(at 99 % identity or more its organic ligands may vote; below that it is context only); '
+                 '<strong>operon_chem</strong> (formerly <strong>ligify</strong>) derives an '
+                 'operon-chemistry candidate.</p>')
     # The inducer_evidence figure is still generated (bundle figures/), but not embedded: it restated
     # this table as an image of raw evidence dicts, too small to read at page width.
     inducer_calls = (d.get("inducers") or {}).get("calls") or []
+    interpreted_calls = [call for call in (_ind.get("accepted_calls") or []) if call not in inducer_calls]
     if inducer_calls:
         call_rows = []
         for call in inducer_calls:
+            if not _ind.get("finalized"):
+                status = "legacy acceptance not recorded"
+            elif (call.get("confidence") or 0) <= 0:
+                status = "raw abstention / nonpositive proposal"
+                if any(c.get("source") == call.get("source") for c in interpreted_calls):
+                    status += "; accepted policy interpretation shown separately"
+            elif call in (_ind.get("accepted_calls") or []):
+                status = "accepted evidence"
+            else:
+                status = "advisory / rejected by final policy"
+            proposal = _esc(call.get("ligand") or "abstained")
+            if call.get("candidates"):
+                proposal += '<br><span class="muted">Raw source set: ' + _esc(", ".join(call["candidates"])) + '</span>'
             call_rows.append([
-                f'<b>{_esc(call.get("source"))}</b>', _esc(call.get("ligand") or "abstained"),
-                _fmt_num(call.get("confidence")), _esc(call.get("role") or "—"),
+                f'<b>{_esc(call.get("source"))}</b>', proposal,
+                _fmt_num(call.get("confidence")), _esc(call.get("role") or "—"), _esc(status),
                 f'<details class="evidence-detail"><summary>View evidence</summary>'
                 f'{_evidence_list(call.get("evidence"))}</details>',
             ])
-        parts.append(_table(["source", "call", "confidence", "role", "recorded evidence"], call_rows))
+        parts.append(_table(["source", "raw call", "confidence", "role", "final use", "recorded evidence"], call_rows))
+    if interpreted_calls:
+        parts.append('<h3>Accepted policy interpretation of recorded evidence</h3>')
+        parts.append('<p class="definition">These accepted interpretations are distinct from the '
+                     'original source outputs above. Their recorded confidence is unchanged by '
+                     'report generation; the original abstention remains visible.</p>')
+        interpreted_rows = [[_esc(call.get("source")), _esc(call.get("ligand") or "no single ligand"),
+                             _fmt_num(call.get("confidence")), _esc(call.get("role") or "—"),
+                             _evidence_list(call.get("evidence"))] for call in interpreted_calls]
+        parts.append(_table(["source", "accepted call", "confidence", "role", "recorded evidence"], interpreted_rows))
+    snapshot = _ind.get("chemistry_snapshot")
+    if not isinstance(snapshot, dict):
+        parts.append('<p class="sub">Local chemistry snapshot: legacy / unavailable; no evidence is '
+                     're-fetched when this report is built.</p>')
+    else:
+        parts.append(f'<p class="sub">Recorded local chemistry: {_esc(snapshot.get("status"))}'
+                     + (f' — {_esc(snapshot.get("reason"))}' if snapshot.get("reason") else '') + '.</p>')
+        if snapshot.get("candidates"):
+            proposal_rows = [[_esc(p.get("ligand")), _esc(p.get("rank")), _esc(p.get("enzyme")),
+                              _esc(p.get("rhea")), _esc(p.get("equation"))]
+                             for p in snapshot["candidates"]]
+            parts.append('<details><summary>Raw acquired chemistry proposals (final acceptance is shown above)</summary>'
+                         + _table(["proposal", "context rank", "enzyme", "reaction", "equation"], proposal_rows)
+                         + '</details>')
     parts.append(_sources(files, "ligand/inducer.json", "dossier.json"))
     # The reasoning notes. These were computed, stored in dossier.json and packaged by
     # `figure_data.inducer_evidence_rows()` -- and then rendered nowhere, so every caveat the fusion
@@ -689,21 +742,28 @@ def build_html(data: dict, figs: dict) -> str:
     # if the cluster names several species, show the set alongside the single headline
     _ssn = next((c for c in ((d.get("inducers") or {}).get("calls") or [])
                  if c.get("source") == "ssn_cluster"), None)
-    _cands = (_ssn or {}).get("candidates") or (d.get("inducers") or {}).get("candidates") or []
-    _kind = ((d.get("inducers") or {}).get("mixture_kind") or (_ssn or {}).get("mixture_kind") or "")
+    _cands = (_ind.get("candidates") or []) if "candidates" in _ind or _ind.get("finalized") else ((_ssn or {}).get("candidates") or [])
+    _kind = _ind.get("mixture_kind", "") if "mixture_kind" in _ind or _ind.get("finalized") else ((_ssn or {}).get("mixture_kind") or "")
     if len(_cands) > 1 and _kind == "unresolved":
         # A tie is a result. Do not let the single headline above read as a decided answer.
         parts.append(
             f'<p class="run-note">'
             f'<b>UNRESOLVED between {" and ".join(_esc(c) for c in _cands)}.</b> '
-            f'The available signals do not separate them, so the headline above is one of a tied set rather '
-            f'than a decided answer. Read the regulon and operator sections for <i>each</i> '
-            f'candidate; treating the headline as settled would be precision this run does not have. '
-            f'Why nothing separates them is in the caveats below.</p>')
+            + ('The accepted evidence retains this unresolved set. ' if _ind.get("finalized") else
+               'This legacy record retains the set; final acceptance was not recorded. ')
+            + 'A class-level headline names no '
+            'particular member; set compatibility does not establish exact identification. '
+            'The reasoning is recorded in the caveats.</p>')
     elif len(_cands) > 1:
         parts.append(f'<p class="sub"><b>Candidate set:</b> '
-                     f'{", ".join(_esc(c) for c in _cands)} — the headline is one of these, and the '
-                     f'others remain live hypotheses rather than rejected ones.</p>')
+                     f'{", ".join(_esc(c) for c in _cands)} — these alternatives are retained in '
+                     f'the recorded consensus.</p>')
+    elif len(_cands) == 1:
+        parts.append(f'<p class="sub"><b>Retained alternative:</b> {_esc(_cands[0])} — '
+                     + ('this accepted candidate is distinct from the final headline; it is not an '
+                        'exact headline assignment.' if _ind.get("finalized") else
+                        'this legacy source alternative has no separately recorded final acceptance.')
+                     + '</p>')
     # Display context and support fields already recorded in the dossier.
     _mc = d.get("metal_context") or {}
     if _mc:

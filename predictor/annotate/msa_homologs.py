@@ -24,6 +24,9 @@ notebook uses, no AF3 account, no folding.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import contextvars
+import hashlib
 import json
 import re
 import sys
@@ -52,6 +55,69 @@ _UA = {"User-Agent": "predictor-msa-homologs/1.0"}
 #: key. Bump this whenever `genome_resolver.orient_promoter` / `promoter_window_bounds` change meaning.
 #: "t1" = transcriptional orientation (minus-strand windows reverse-complemented).
 _REGION_CONVENTION = "t1"
+
+
+#: Transient failures seen while one cacheable record is being built (see `_tracking_failures`).
+_FAILURES: contextvars.ContextVar = contextvars.ContextVar("msa_homolog_failures", default=None)
+
+
+@contextlib.contextmanager
+def _tracking_failures():
+    """Collect transient request failures. A record built through one is returned but never cached:
+    caching it turned one network error into a permanently thinner conservation set for the clade."""
+    failures: list[str] = []
+    token = _FAILURES.set(failures)
+    try:
+        yield failures
+    finally:
+        _FAILURES.reset(token)
+
+
+def _note_failure(exc: Exception) -> None:
+    failures = _FAILURES.get()
+    # 400/404 is the server's answer about that identifier; everything else may succeed on a retry.
+    if failures is not None and getattr(exc, "code", None) not in (400, 404):
+        failures.append(type(exc).__name__)
+
+
+def _cached_record(path: Path) -> dict | None:
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) and "regions" in record else None
+
+
+def _a3m_query(path) -> str:
+    """The first (query) record of an a3m, ungapped."""
+    parts, seen = [], False
+    try:
+        with Path(path).open(encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if line.startswith(">"):
+                    if seen:
+                        break
+                    seen = True
+                elif seen:
+                    parts.append(line.strip())
+    except OSError:
+        return ""
+    return "".join(parts).replace("-", "").replace("\x00", "").upper()
+
+
+def alignment_path(tf_id: str | None, seq: str) -> Path:
+    """Where this protein's ColabFold alignment lives. The name alone is not an identity.
+
+    Files were `<job name>_colabfold_uniref.a3m`, and the promoter cache is keyed on that stem, so two
+    proteins run under one name (the default is "query") shared homolog promoters. A file of the old
+    name is reused only when its query row IS this sequence, which keeps existing caches valid.
+    """
+    query = "".join(str(seq).split()).upper()
+    label = re.sub(r"[^A-Za-z0-9_.-]+", "_", tf_id or "query")
+    legacy = CACHE / f"{label}_colabfold_uniref.a3m"
+    if label == (tf_id or "query") and legacy.is_file() and _a3m_query(legacy) == query:
+        return legacy
+    return CACHE / f"{label[:80]}_{hashlib.sha256(query.encode()).hexdigest()[:12]}_colabfold_uniref.a3m"
 
 
 def _get(url, timeout=60):
@@ -123,7 +189,8 @@ def uniprot_to_protein(accs: list) -> dict:
                "&fields=accession,xref_refseq,xref_embl&format=json")
         try:
             d = json.loads(_get(url).decode("utf-8", "replace"))
-        except Exception:
+        except Exception as exc:
+            _note_failure(exc)
             continue
         for e in d.get("results", []):
             acc = e.get("primaryAccession")
@@ -154,7 +221,8 @@ def loci_from_protein(prot_id: str, *, cap: int = 3) -> list:
     try:
         with Entrez.efetch(db="protein", id=prot_id, rettype="ipg", retmode="text") as h:
             return gr._parse_ipg(_read_text(h))[:cap]
-    except Exception:
+    except Exception as exc:
+        _note_failure(exc)
         return []
 
 
@@ -171,7 +239,8 @@ def _upstream(cand, *, upstream: int = gr.PROMOTER_UPSTREAM,
         with Entrez.efetch(db="nuccore", id=cand.accession, rettype="fasta", retmode="text",
                            seq_start=str(s1), seq_stop=str(e1)) as h:
             fa = _read_text(h)
-    except Exception:
+    except Exception as exc:
+        _note_failure(exc)
         return ""
     seq = "".join(l.strip() for l in fa.splitlines() if not l.startswith(">")).upper()
     if len(seq) < 30:
@@ -202,12 +271,24 @@ def collect_msa_regions(a3m_path, *, key: str | None = None, min_id: float = 0.4
     _base = _stem if (not key or _stem.startswith(key)) else f"{key}__{_stem}"
     ck = f"{_base}_{_REGION_CONVENTION}"
     cpath = CACHE / f"{ck}.json"
-    if use_cache and cpath.exists():
-        d = json.loads(cpath.read_text(encoding="utf-8"))
+    d = _cached_record(cpath) if use_cache else None
+    if d is not None:
         if verbose:
             print(f"  [cache] {ck}: {len(d['regions'])} MSA regions")
         return d
+    with _tracking_failures() as failures:
+        out = _build_msa_record(a3m_path, ck, min_id=min_id, max_id=max_id, cap=cap, max_regions=max_regions,
+                                upstream=upstream, downstream=downstream, loci_per_protein=loci_per_protein,
+                                verbose=verbose)
+    if failures:
+        out["incomplete"] = {"transient_failures": len(failures), "kinds": sorted(set(failures))}
+    elif use_cache:
+        resources.atomic_write_text(cpath, json.dumps(out, indent=2))
+    return out
 
+
+def _build_msa_record(a3m_path, ck, *, min_id, max_id, cap, max_regions, upstream, downstream,
+                      loci_per_protein, verbose) -> dict:
     orth = close_orthologs(a3m_path, min_id=min_id, max_id=max_id, cap=cap)
     mapping = uniprot_to_protein([o["acc"] for o in orth]) if orth else {}
     regions, sources, loci_seen = [], [], set()
@@ -239,9 +320,6 @@ def collect_msa_regions(a3m_path, *, key: str | None = None, min_id: float = 0.4
                        if not orth else
                        "UniProt returned no RefSeq/EMBL cross-reference for these accessions"),
         }
-    if use_cache:
-        CACHE.mkdir(parents=True, exist_ok=True)
-        cpath.write_text(json.dumps(out, indent=2), encoding="utf-8")
     if verbose:
         # "mappable orthologs", not "close orthologs": since _acc_of whitelists UniProt accessions
         # this count is what the pipeline can actually follow up, not what the a3m happens to hold.
@@ -355,11 +433,25 @@ def cluster_promoter_regions(query_seq: str | None, ssn_cluster: str, *,
         return {"regions": [], "cluster": ssn_cluster, "n_members": 0, "n_mapped": 0, "n_loci": 0, "sources": []}
     ck = f"cluster_{ssn_cluster}_{cluster_sampling}_n{n_cluster_genomes}_{_REGION_CONVENTION}"
     cpath = CACHE / f"{ck}.json"
-    if use_cache and cpath.exists():
-        d = json.loads(cpath.read_text(encoding="utf-8"))
+    d = _cached_record(cpath) if use_cache else None
+    if d is not None:
         if verbose:
             print(f"  [cache] {ck}: {len(d['regions'])} cluster-promoter regions")
         return d
+    with _tracking_failures() as failures:
+        out = _build_cluster_record(info, query_seq, ssn_cluster, ck, n_cluster_genomes=n_cluster_genomes,
+                                    cluster_sampling=cluster_sampling, scan_cap=scan_cap, upstream=upstream,
+                                    downstream=downstream, loci_per_protein=loci_per_protein,
+                                    max_regions=max_regions, verbose=verbose)
+    if failures:
+        out["incomplete"] = {"transient_failures": len(failures), "kinds": sorted(set(failures))}
+    elif use_cache:
+        resources.atomic_write_text(cpath, json.dumps(out, indent=2))
+    return out
+
+
+def _build_cluster_record(info, query_seq, ssn_cluster, ck, *, n_cluster_genomes, cluster_sampling, scan_cap,
+                          upstream, downstream, loci_per_protein, max_regions, verbose) -> dict:
     cands = _sample_members(info, query_seq, n=n_cluster_genomes,
                             sampling=cluster_sampling, scan_cap=scan_cap)
     accs, mapping = _mapped_members(cands, n_cluster_genomes, verbose=verbose)
@@ -384,9 +476,6 @@ def cluster_promoter_regions(query_seq: str | None, ssn_cluster: str, *,
     out = {"key": ck, "cluster": ssn_cluster, "sampling": cluster_sampling, "n_requested": n_cluster_genomes,
            "regions": regions, "n_members": len(accs), "n_mapped": sum(bool(v) for v in mapping.values()),
            "n_loci": len(loci_seen), "sources": sources}
-    if use_cache:
-        CACHE.mkdir(parents=True, exist_ok=True)
-        cpath.write_text(json.dumps(out, indent=2), encoding="utf-8")
     if verbose:
         print(f"  {ck}: {len(accs)} members -> {out['n_mapped']} mapped -> {len(regions)} promoter regions")
     return out
@@ -469,7 +558,7 @@ def colabfold_a3m(seq: str, out_path, *, mode: str = "env", timeout: int = 1200,
             return None
         # the server can emit NUL bytes inside the alignment; they are never meaningful and, left in,
         # they shift the columns of every consumer that reads the rows positionally
-        out_path.write_text(best.replace("\x00", ""), encoding="utf-8")
+        resources.atomic_write_text(out_path, best.replace("\x00", ""))
         if verbose:
             print(f"  ColabFold MSA -> {out_path} ({best_n} sequences)")
         return out_path
@@ -493,6 +582,8 @@ def expand_homolog_regions(local_regions: list, *, tf_id: str | None = None, seq
     if len(local_regions) >= min_local:
         return local_regions, info
     a3m = _op_msa(tf_id) if tf_id else None
+    if a3m and seq and Path(a3m).is_file() and _a3m_query(a3m) != "".join(seq.split()).upper():
+        a3m = None                      # filed under this job name, but it is another protein's alignment
     info["source"] = "af3_msa" if a3m else None
     if a3m is None and seq and allow_colabfold:
         # prefer="uniref", and a DIFFERENT cache filename so an environmental a3m left on disk by an
@@ -503,8 +594,7 @@ def expand_homolog_regions(local_regions: list, *, tf_id: str | None = None, seq
         # 59 of the 86 candidates that reached this step in run A mapped 0 orthologs.
         # structure/metalnet.py has always asked for the UniRef member; this path needs it for a
         # different reason -- mappable accessions, not a trained-on alignment -- and never said so.
-        a3m = colabfold_a3m(seq, CACHE / f"{tf_id or 'query'}_colabfold_uniref.a3m",
-                            prefer="uniref", verbose=verbose)
+        a3m = colabfold_a3m(seq, alignment_path(tf_id, seq), prefer="uniref", verbose=verbose)
         info["source"] = "colabfold" if a3m else None
     if a3m is None:
         if verbose:
@@ -539,7 +629,7 @@ def regions_for_tf(tf_id: str, *, seq: str | None = None, allow_colabfold: bool 
     (novel TF) fetches a ColabFold MSA if `allow_colabfold`. Returns a list of region sequences ('' filtered)."""
     a3m = _op_msa(tf_id)
     if a3m is None and seq and allow_colabfold:
-        a3m = colabfold_a3m(seq, CACHE / f"{tf_id}_colabfold_uniref.a3m", prefer="uniref")
+        a3m = colabfold_a3m(seq, alignment_path(tf_id, seq), prefer="uniref")
     if a3m is None:
         return []
     return collect_msa_regions(a3m, key=tf_id, **kw)["regions"]

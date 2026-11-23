@@ -26,8 +26,12 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _DISTRO = os.environ.get("BITACORA_WSL_DISTRO", "Ubuntu")
@@ -39,6 +43,12 @@ def win2wsl(p) -> str:
     if len(p) > 1 and p[1] == ":":
         return "/mnt/" + p[0].lower() + p[2:].replace("\\", "/")
     return p.replace("\\", "/")
+
+
+def engine_safe(text) -> bool:
+    """True when upstream can take this text as it is. Its bash and Perl expand every path unquoted, so a
+    space splits a path and `$(...)`, `&` or `;` in one would run as shell."""
+    return re.fullmatch(r"[\w./:+@-]+", str(text)) is not None
 
 
 def read_fasta(path) -> dict[str, str]:
@@ -66,37 +76,80 @@ def run_bitacora(*, engine: Path, profiles: Path, proteins: Path, genome: Path |
     problem the annotated route exists to avoid.
     """
     on_windows = os.name == "nt"
-    script = engine / "runBITACORA_command_line.sh"
-    args = ["-m", "protein",
-            "-q", win2wsl(profiles) if on_windows else str(profiles),
-            "-p", win2wsl(proteins) if on_windows else str(proteins),
-            "-n", name,
-            "-sp", (win2wsl(engine / "Scripts") if on_windows else str(engine / "Scripts")),
-            "-t", str(threads), "-e", evalue, "-c", "F"]
+    where = win2wsl if on_windows else (lambda path: str(Path(path).resolve()))
+    if not engine_safe(proteins.name):
+        out.mkdir(parents=True, exist_ok=True)
+        proteins = Path(shutil.copyfile(proteins, out / "proteins.engine.faa"))
+    # The proteome's FOLDER, not the file: upstream runs `makeblastdb -in` on it, which writes the index
+    # beside the path it was given.
+    real = {"out": where(out), "engine": where(engine), "profiles": where(profiles),
+            "input": where(proteins.parent)}
+    # Any unsafe path: hand the engine symlinks with plain names in a private temporary folder instead.
+    # Safe paths are passed exactly as before.
+    linked = not all(engine_safe(path) for path in real.values())
+    name = re.sub(r"[^\w.-]+", "_", name) or "tfop"
+
+    def arguments(paths: dict) -> tuple[str, list[str]]:
+        return f"{paths['engine']}/runBITACORA_command_line.sh", [
+            "-m", "protein", "-q", paths["profiles"], "-p", f"{paths['input']}/{proteins.name}", "-n", name,
+            "-sp", f"{paths['engine']}/Scripts", "-t", str(threads), "-e", evalue, "-c", "F"]
+
     # The coverage fractions are read by BITACORA's own Perl (see predictor/_engines/bitacora_patches/).
     # WSL does not inherit the Windows environment, so they have to be exported into the inner shell
     # explicitly -- a variable set on this side and simply assumed to arrive would silently leave
     # upstream's defaults in force, and the run would look configured while behaving as stock.
-    cov = "".join(f"export {k}={os.environ[k]}; " for k in ("BITACORA_QCOV", "BITACORA_SCOV")
+    cov = "".join(f"export {k}={shlex.quote(os.environ[k])}; " for k in ("BITACORA_QCOV", "BITACORA_SCOV")
                   if os.environ.get(k))
-    if on_windows:
-        inner = (f'export PATH={_WSL_BIN}:$PATH; ' + cov +
-                 f'mkdir -p "{win2wsl(out)}" && cd "{win2wsl(out)}" && '
-                 f'bash "{win2wsl(script)}" ' + " ".join(f'"{a}"' for a in args))
-        cmd = [os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe",
-               "-d", _DISTRO, "-e", "bash", "-lc", inner]
-        env = None
-    else:
-        # Native (Linux/macOS): BITACORA_BIN, when it names a directory, goes first on PATH -- the same
-        # rule `predictor.discovery.bitacora.native_env` applies, so every engine call sees one install.
-        out.mkdir(parents=True, exist_ok=True)
-        cmd = ["bash", str(script), *args]
-        env = dict(os.environ)
-        bin_dir = Path(os.path.expandvars(os.path.expanduser(os.environ.get("BITACORA_BIN", ""))))
-        if os.environ.get("BITACORA_BIN") and bin_dir.is_dir():
-            env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
-                          cwd=(None if on_windows else str(out)))
+    stage = None
+    try:
+        if on_windows:
+            # Single-quote every path: in double quotes a folder or file name holding $(...) or a backtick
+            # would be executed by the WSL shell. PATH stays unquoted on purpose ($HOME must expand there).
+            inner = f'export PATH={_WSL_BIN}:$PATH; ' + cov + f"mkdir -p {shlex.quote(real['out'])} && "
+            if linked:
+                script, args = arguments({key: f"$stage/{key}" for key in real})
+                # rm without -r: only the links are removed, never what they point to.
+                inner += ('stage=$(mktemp -d /tmp/riio-bitacora.XXXXXX) && '
+                          'trap \'rm -f -- "$stage/out" "$stage/engine" "$stage/profiles" "$stage/input"; '
+                          'rmdir -- "$stage"\' EXIT && '
+                          + " && ".join(f'ln -s -- {shlex.quote(path)} "$stage/{key}"' for key, path in real.items())
+                          + ' && cd "$stage/out" && '
+                          + " ".join(["bash", f'"{script}"',
+                                      *(f'"{a}"' if a.startswith("$stage/") else shlex.quote(a) for a in args)]))
+            else:
+                script, args = arguments(real)
+                inner += f"cd {shlex.quote(real['out'])} && bash {shlex.quote(script)} " + shlex.join(args)
+            cmd = [os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\wsl.exe",
+                   "-d", _DISTRO, "-e", "bash", "-lc", inner]
+            env, cwd = None, None
+        else:
+            # Native (Linux/macOS): BITACORA_BIN, when it names a directory, goes first on PATH -- the same
+            # rule `predictor.discovery.bitacora.native_env` applies, so every engine call sees one install.
+            out.mkdir(parents=True, exist_ok=True)
+            paths, cwd = real, str(out)
+            if linked:
+                base = tempfile.gettempdir()
+                stage = Path(tempfile.mkdtemp(prefix="riio-bitacora-", dir=base if engine_safe(base) else "/tmp"))
+                for key, path in real.items():
+                    (stage / key).symlink_to(path)
+                paths, cwd = {key: str(stage / key) for key in real}, str(stage / "out")
+            script, args = arguments(paths)
+            cmd = ["bash", script, *args]
+            env = dict(os.environ)
+            bin_dir = Path(os.path.expandvars(os.path.expanduser(os.environ.get("BITACORA_BIN", ""))))
+            if os.environ.get("BITACORA_BIN") and bin_dir.is_dir():
+                env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
+        proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=timeout, env=env,
+                              cwd=cwd)
+    finally:
+        if stage is not None:
+            for key in real:                    # unlink, never a recursive delete: these point at real data
+                if (stage / key).is_symlink():
+                    (stage / key).unlink()
+            try:
+                stage.rmdir()
+            except OSError:                     # a leftover temporary folder is not a failed discovery
+                pass
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
 
@@ -119,7 +172,11 @@ def collect(out: Path, proteins: dict[str, str]) -> list[dict]:
             full = proteins.get(base)
             if not full:
                 # the trimmed id sometimes carries a suffix; fall back to a prefix match
-                cand = next((k for k in proteins if base.startswith(k) or k.startswith(base)), None)
+                # longest identifier first: `contig_12_dom` is contig_12, never contig_1
+                cand = max((k for k in proteins if base.startswith(k)), key=len, default=None)
+                if cand is None:
+                    extended = [k for k in proteins if k.startswith(base)]
+                    cand = extended[0] if len(extended) == 1 else None     # ambiguous: do not guess
                 full = proteins.get(cand) if cand else None
                 if full:
                     base = cand

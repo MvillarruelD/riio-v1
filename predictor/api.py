@@ -12,6 +12,7 @@ the folding policy, and returns a small `Result` object (convenient attributes +
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -87,8 +88,7 @@ def predict(seq: str, *, name: str = "query", family: str | None = None, organis
         raise TypeError("seed construction overrides are not accepted by the public API")
     from predictor.config import RunConfig
     from predictor import pipeline
-    if cfg is None:
-        cfg = RunConfig()
+    cfg = RunConfig() if cfg is None else copy.copy(cfg)      # the caller's object is theirs
     cfg = _resolve_folds(cfg, fold)
     cfg.verbose = verbose
     from predictor.run_cli import _resolve_prediction_source

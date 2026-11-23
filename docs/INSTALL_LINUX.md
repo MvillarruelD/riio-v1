@@ -132,13 +132,16 @@ input or the options; RIIO refuses to mix different inputs in one run folder.
 ## 8. Use the graphical interface (optional)
 
 ```bash
-tfop-gui
+tfop gui
 ```
 
-Then open <http://localhost:8501> in a web browser (from WSL, the Windows browser works). The interface
-offers the same single-protein, protein-list and genome-scan workflows. Press `Ctrl+C` in the terminal
-to stop it. It accepts connections from this computer only; to serve it to other machines on purpose,
-start it with `tfop-gui --server.address=0.0.0.0`.
+`tfop gui` and `tfop-gui` are the same program. It prints its address (normally <http://localhost:8501>;
+if that port is busy it takes the next free one) and opens your browser when a desktop is available. From
+WSL the Windows browser works. The interface offers the same single-protein, protein-list and genome-scan
+workflows, and it can open runs made with `tfop genome` or `tfop batch`. Press `Ctrl+C` in the terminal to
+stop it. Use `--port 8600` to choose the port and `--no-browser` on a server. It accepts connections from
+this computer only; to serve it to other machines on purpose, start it with
+`tfop gui --server.address=0.0.0.0`.
 
 ## Optional: an NCBI API key
 

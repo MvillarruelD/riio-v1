@@ -141,7 +141,10 @@ def main() -> int:
                "truth_class": "metal" if sensor else "", "pred_class": pred_cls,
                "class_ok": str(pred_cls == "metal") if sensor else "",
                "truth_ions": ";".join(sorted(TRUTH_IONS[sensor])) if sensor else "",
-               "pred_inducer": top, "pred_candidates": ";".join(cands), "agreement": ind.get("agreement"),
+               "pred_inducer": top, "pred_candidates": ";".join(cands),
+               # the bundle's own display label (EXP069: a two-ion clade reads "metal-ion shortlist: ...",
+               # not the raw "divalent metal (ion unresolved)" placeholder); display only, never scored
+               "pred_display": ind.get("top_display") or V.display_label(top, cands), "agreement": ind.get("agreement"),
                "autoregulated_top5": str(GS.autoregulated(d, 5))}
         if sensor:
             if V.normalise(top) in TRUTH_IONS[sensor]:

@@ -10,8 +10,9 @@ Signatures:
   * MerR metal sensors -- a C-terminal reactive cysteine pair `C-X(7,8)-C` (CadR/ZntR/MerR/CueR clade);
     ABSENT in the non-metal TnrA/GlnR/NmlR subfamilies. This is the plan's explicit gate.
   * Fur -- a histidine/cysteine site-2 (`H..H..` + `C..C`), promiscuous -> advisory only.
-  * ArsR/SmtB -- heterogeneous sites (alpha3 `ELCVCD..C`-like or alpha5 His); we report cysteine pairs
-    but mark the call advisory, since ArsR metal-site location varies by subfamily.
+  * ArsR/SmtB -- heterogeneous sites (alpha3 `ELCVCD..C`-like thiol pairs, or the alpha5
+    `D.H.{10}H.{2}[HE]` His/Asp site); we report cysteine pairs but mark the call advisory, since ArsR
+    metal-site location varies by subfamily. A bare His pair is reported and NOT acted on (see `_ARSR_A5`).
 
 Sequence detection is live here. Structural confirmation is `sensing_site_from_structure` below, which
 reads a fold with its bound metals; the Folddisco constellation query this module once described was
@@ -34,6 +35,20 @@ _CXC = re.compile(r"C.{7,8}C")
 _CYS_PAIR = re.compile(r"C.{2,8}C")            # broader ArsR alpha3/alpha5-style Cys pairs
 # NikR square-planar Ni(II) site: His87-x-His89-x(5)-Cys95 (E. coli). See coordination_gate for prevalence.
 _NIKR_SITE = re.compile(r"H.H.{4,7}C")
+# ArsR/SmtB alpha5 site: Asp-x-His-x(10)-His-x(2)-[His/Glu] -- CzrA's Asp84/His97/His100, and NmtR, which
+# completes an octahedron using its N-terminal His-Gly. This is the catalogued `ArsR_a5_DxHx10Hx2HE`
+# signature in `metal_motifs`, which is the AUTHORITY for it; the copy here exists so the gate still works
+# with the catalogue absent, exactly like the patterns above, and `_self_test` asserts the two agree.
+#
+# It replaced a bare `H..H` + >=2 His test on 2026-10-29. That test was not the alpha5 signature at all:
+# it wants two His exactly 3 apart, whereas the real site spaces them 11 AND 3 around an Asp anchor, so
+# `H..H` matched only the trailing `H.{2}[HE]` fragment and only when `[HE]` was His. Measured against a
+# composition-matched null (each sequence shuffled in place), the old test carried information in just two
+# of ten ArsR clades -- c2 (+16.0 points over null) and c5 (+54.7), the clades holding the genuine alpha5
+# sensors -- and fired AT OR BELOW chance in the other eight, including the persulfide clade c7 (3.9% vs a
+# 3.3% null). It manufactured a confident metal call for AbBigR, an experimentally confirmed persulfide
+# sensor (Capdevila et al., Nat Chem Biol 17:65-70, 2021), from His35/His38. See ledger EXP064.
+_ARSR_A5 = re.compile(r"D.H.{10}H.{2}[HE]")
 
 
 def cys_pairs(seq: str, pattern=_CXC):
@@ -268,13 +283,16 @@ def _coordination_gate_impl(seq: str, family: str) -> dict:
         # so a Cys-only gate would wrongly reject genuine Zn/Ni sensors. Check both.
         cys = cys_pairs(seq, _CYS_PAIR)
         n_his = seq.count("H")
-        hxxh = bool(re.search(r"H..H", seq))            # alpha5 His pair signature
         thiol = bool(cys) and n_cys >= 2
-        his_site = hxxh and n_his >= 2
-        chem = "thiol(Cys)" if thiol else ("His/carboxylate" if his_site else "none")
+        a5 = bool(_ARSR_A5.search(seq))                 # alpha5 D-x-H-x(10)-H-x(2)-[HE] site
+        hxxh = bool(re.search(r"H..H", seq))            # reported only; NOT load-bearing (see _ARSR_A5)
+        his_site = a5
+        chem = "thiol(Cys)" if thiol else ("His/carboxylate (alpha5 DxHx10Hx2HE)" if his_site else "none")
         return {"has_site": bool(thiol or his_site), "gate": "ArsR-metal", "chemistry": chem,
-                "positions": cys, "c_terminal": None, "n_cys": n_cys, "n_his": n_his, "hxxh": hxxh,
-                "advisory": "ArsR sites are alpha3(Cys) OR alpha5(His/Asp); both chemistries checked"}
+                "positions": cys, "c_terminal": None, "n_cys": n_cys, "n_his": n_his,
+                "a5_motif": a5, "hxxh": hxxh,
+                "advisory": "ArsR sites are alpha3(Cys) OR the alpha5 DxHx10Hx2HE His/Asp site; both "
+                            "chemistries checked. A bare His pair is reported but does not assert a site"}
     if "NikR" in fam:
         # NikR's high-affinity Ni(II) site is square-planar His87/His89/Cys95 (+ His76' from the adjacent
         # subunit) in the C-terminal tetramerisation domain -- E. coli NikR numbering.
@@ -582,6 +600,24 @@ def _self_test() -> None:
         assert res["CzrA_Saureus"]["has_site"], "CzrA alpha5-His gate must pass"
     if "NmtR_Mtb" in res and not res["NmtR_Mtb"]["has_site"]:
         print("  note: NmtR sequence-gate negative -> dispersed His/Asp Ni site; needs a fold")
+    # the alpha5 channel must stay the CATALOGUED signature, not a bare His pair (EXP064). `metal_motifs`
+    # is the authority; `_ARSR_A5` is the local copy the gate uses, and the two must not drift apart.
+    try:
+        from predictor.structure import metal_motifs as _mm
+        _cat = _mm.by_name("ArsR_a5_DxHx10Hx2HE")
+        assert _cat is not None and _cat.pattern == _ARSR_A5.pattern, (
+            f"ArsR alpha5 pattern drifted from the catalogue: {_ARSR_A5.pattern!r} vs "
+            f"{getattr(_cat, 'pattern', None)!r}")
+    except ImportError:                                 # catalogue absent -> gate still works standalone
+        pass
+    # a bare His pair must NOT assert a metal site on its own: this is AbBigR, a confirmed persulfide
+    # sensor whose His35/His38 produced a false metal call until 2026-10-29.
+    _abbigr = ("MKDGLQIEEMKNAADSVVGTLKSLANTDRLLILCHLAHEELNVSQIEEKTQITQPTLSQQ"
+               "LMMLRKSDVVSTRRDGKQIFYSIKDDKMHSILNMLYQLYCIE")
+    _g = coordination_gate(_abbigr, "ArsR/SmtB")
+    assert _g["hxxh"] and not _g["a5_motif"], "AbBigR has a bare His pair but no alpha5 site"
+    assert _g["has_site"] is False, (
+        "a bare H..H must not assert an ArsR metal site (AbBigR is a persulfide sensor)")
     # a synthetic non-metal MerR (no C-terminal Cys pair) must fail the gate
     nonmetal = "M" + "A" * 60 + "L" * 60          # no cysteines at all
     g = coordination_gate(nonmetal, "MerR")

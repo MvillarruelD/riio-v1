@@ -265,8 +265,8 @@ def family_consensus(family: str, *, max_ops: int = 60, widths=None,
         return None, len(ops)
     motif = em_finder.discover(ops, widths=widths, palindrome=palindrome, restarts=2)
     if cache:
-        _PWM_CACHE.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(cpath, pwm=motif.prob, n_used=len(ops))
+        with resources.atomic_path(cpath) as temporary:
+            np.savez_compressed(temporary, pwm=motif.prob, n_used=len(ops))
     return motif.prob, len(ops)
 
 

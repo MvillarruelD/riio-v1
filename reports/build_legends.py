@@ -19,7 +19,10 @@ FIGURES = [
     ("fig1_pipeline", "Figure 1", "RIIO combines sequence and genomic context to predict operators and inducers", True),
     ("fig2_benchmark", "Figure 2", "Benchmark on E. coli K-12 and S. Typhimurium SL1344", True),
     ("fig3_survey", "Figure 3", "Four-genome survey", True),
-    ("fig4_context_structures", "Figure 4", "Operator-bound metalloregulators in genomic context", True),
+    # Figure 4 is the SDP figure (build_fig_sdp_structures.py; Fur-family row V. cholerae Zur, the user's
+    # choice of 2026-10-15). It replaced fig4_context_structures (CueR/Fur/IdeR, no SDPs).
+    ("fig_sdp_representatives", "Figure 4",
+     "Discovered metalloregulators coloured by specificity-determining positions", True),
     ("figS1_per_regulator", "Figure S1", "Every discovered regulator, axis by axis", False),
     ("figS2_own_promoter", "Figure S2", "Own-promoter recovery", False),
     ("figS3_pwm_quality", "Figure S3", "Operator and PWM quality", False),
@@ -31,6 +34,31 @@ FIGURES = [
     ("figS5bis_survey_table_3", "Figure S5bis (3/3)",
      "Every survey candidate: V. cholerae and V. vulnificus", False),
 ]
+#: rows per page of the all-candidates figure; build_fig_tried_candidates.ROWS_PER_PAGE, kept here so
+#: this module does not import the builder (test_sdp_structures asserts the two agree)
+ALL_CANDIDATES_PER_PAGE = 5
+
+
+def all_candidates_figures() -> list[tuple[str, str, str, bool]]:
+    """The supplementary pages that show every modelled regulator, read from the figure's own layout
+    (reports/structures/tried/regulators_sdp.json) so the labels cannot drift from the pages."""
+    path = HERE / "structures" / "tried" / "regulators_sdp.json"
+    if not path.exists():
+        return []
+    rows = [(k, v) for k, v in json.loads(path.read_text(encoding="utf-8")).items() if not k.startswith("_")]
+    pages = [rows[i:i + ALL_CANDIDATES_PER_PAGE] for i in range(0, len(rows), ALL_CANDIDATES_PER_PAGE)]
+    n = len(pages) + 1                       # page 1 is the summary table
+    out = [("fig_all_candidates_p1", f"Figure S6 (1/{n})",
+            "Every regulator modelled for Figure 4, at a glance", False)]
+    for i, page in enumerate(pages, 2):
+        groups: list[str] = []
+        for _, r in page:
+            g = r["group"].split(" (")[0].split(",")[0]   # the block's name, without its gloss
+            if g not in groups:
+                groups.append(g)
+        out.append((f"fig_all_candidates_p{i}", f"Figure S6 ({i}/{n})",
+                    "Every regulator modelled for Figure 4: " + _and(groups), False))
+    return out
 
 
 def provenance_line(N: dict) -> str:
@@ -122,7 +150,7 @@ def legend_fig1(N: dict) -> str:
         "position-weight matrix (PWM), scans intergenic DNA (default per-site p ≤ 1e-4), and ranks "
         "candidate operators with regulon and mode annotations. The amber inducer path fuses "
         "curated SSN-clade labels, Cys/His motifs, optional MetalNet2 sequence/MSA site evidence, "
-        "nearby-gene functions and Ligify ligand evidence. Channels may abstain; ions are named "
+        "nearby-gene functions and operon-chemistry ligand evidence. Channels may abstain; ions are named "
         "only if resolved. Inducer-derived gene labels annotate operator hits without boosting "
         "their ranking. An apo fold and fold QC are optional (off by default). **c**, Both outputs "
         "support a regulatory hypothesis linking the TF, candidate operators/targets and putative "
@@ -162,7 +190,8 @@ def legend_fig2(N: dict) -> str:
         "Pfam. In both, a protein the paper's own family sequence set lists counts in that family, which "
         "places ModE in LysR although UniProt cross-references only its molybdate-binding domain. "
         f"Tan: discovered TFs outside the census families ({tan}). "
-        "**b**, Inducer class of the final fused call. "
+        "**b**, Inducer class of the final fused call. " + site_only_sentence(
+            [N["benchmark_genome_composition"][g] for g in bench_genomes(N)]) +
         "**c**, Per genome, on its own y axis: metal calls (final call a metal) over discovered TFs, "
         "ion-resolved calls (naming one species, stacked by ion) over metal calls, and ion-resolved calls "
         f"with one of the top {k} operators in the regulator's own flanking intergenic region. "
@@ -174,10 +203,22 @@ def legend_fig2(N: dict) -> str:
         f"({expected(so['expected_by_chance'])} expected, P = {pval(so['p_vs_chance'])}); exact "
         "Poisson-binomial test against sites of the same widths placed uniformly in intergenic DNA. "
         f"**e**, Class confusion, both genomes pooled ({diag}/{len(conf)} correct). "
-        "**f**, Every known metal sensor: found, called metal, exact ion (amber: the ion is in the "
-        "shortlist but not first); *E. coli* sensors outside the studied families carry their Pfam "
+        "**f**, Every known metal sensor: found, called metal, exact ion (amber: the call is a shortlist "
+        "of ions that holds the known one without ranking it first; the shortlist's members are written "
+        "in the note); *E. coli* sensors outside the studied families carry their Pfam "
         "family. " + caveat(N)
     )
+
+
+def _strains(N: dict) -> str:
+    """One sentence naming the survey strains (numbers.json survey.strains), or '' if absent."""
+    st = N["survey"].get("strains") or {}
+    if not st:
+        return ""
+    names = [f"*{st[g]['organism']}* ({st[g]['accession']})" for g in survey_genomes(N) if g in st]
+    note = (" The *V. cholerae* genome is strain N16961, not the RFB16 strain of the published survey; its "
+            "candidates were discovered afresh on N16961." if any("N16961" in v["organism"] for v in st.values()) else "")
+    return "Genomes: " + _and(names) + "." + note + " "
 
 
 def legend_fig3(N: dict) -> str:
@@ -192,12 +233,13 @@ def legend_fig3(N: dict) -> str:
         f"The {sv['n']} candidates discovered in the {w(len(genomes))} survey genomes ({counts}). No operator or "
         "inducer truth set exists for these genomes, so no panel here is an accuracy claim: each shows "
         "what the pipeline returned. "
+        f"{_strains(N)}"
         f"**a**, Candidates per family, by the pipeline's own family call: the {w(nfam)} studied families "
         "in the fixed study order every figure shares (an order of presentation, not a biological one), "
         f"then, in tan, the other families that candidates fall in ({outside}); a blank cell means no "
         "candidate, and each row label carries its genome's candidate count. "
         "**b**, Inducer class of the final fused call, as a percentage of each genome's candidates, with "
-        "the count inside each segment. "
+        "the count inside each segment. " + site_only_sentence([sv]) +
         "**c**, As Figure 2c, one panel per genome on its own y axis: metal calls over candidates, "
         "ion-resolved calls over metal calls (stacked and labelled by ion), and ion-resolved calls whose "
         f"regulator has one of its top {k} operators in its own flanking intergenic region. Pooled over "
@@ -209,26 +251,306 @@ def legend_fig3(N: dict) -> str:
     )
 
 
-def legend_fig4(N: dict) -> str:
+# ---------------------------------------------------------------- Figure 4: SDP representatives
+# numbers.json "sdp" rows: the three drawn (figure_row) and V. cholerae Fur, the Fur-family candidate
+# the drawn Zur row was chosen over, kept so the document can state that comparison.
+#: the protein names the text uses for each row (labels, not results)
+SDP_NAME = {"smtB": "SmtB", "RS09920": "EX350_RS09920", "RS12295": "EX350_RS12295", "fcrX": "Fur",
+            "zur": "Zur", "RS08730": "Zur"}
+_AA3 = {"A": "Ala", "C": "Cys", "D": "Asp", "E": "Glu", "F": "Phe", "G": "Gly", "H": "His", "I": "Ile",
+        "K": "Lys", "L": "Leu", "M": "Met", "N": "Asn", "P": "Pro", "Q": "Gln", "R": "Arg", "S": "Ser",
+        "T": "Thr", "V": "Val", "W": "Trp", "Y": "Tyr"}
+_ROMAN = {"1": "I", "2": "II", "3": "III"}
+
+
+def _ox(ion: str) -> str:
+    """'Cd2+' -> 'Cd(II)'."""
+    m = re.fullmatch(r"([A-Z][a-z]?)(\d)\+", ion)
+    return f"{m[1]}({_ROMAN[m[2]]})" if m else ion
+
+
+def _residues(t: dict) -> str:
+    """'D116:F H118:F' -> 'Asp116/His118' (a test's residue set, in sequence order)."""
+    return "/".join(_AA3[x[0]] + x[1:x.index(":")] for x in t["residues"].split())
+
+
+def _site(r: dict, name: str) -> str:
+    """A registry site name as text: 'alpha5' -> 'α5 site (Asp116/...)', "Cys77'/... (CadR-type)" ->
+    'Cys77′/... site (CadR-type)'; names that already say 'site' stay as they are."""
+    s = name.replace("alpha", "α").replace("'", "′")
+    if "site" not in s:
+        s = s.replace(" (", " site (", 1) if " (" in s else s + " site"
+    if not re.search(r"\d\d", s):
+        s += f" ({_residues(r['tests']['H1 functional'])})"
+    return s
+
+
+def _pooled(N: dict, hyp: str, cls: str, docked: bool = False) -> dict:
+    subset = f"pDNA >= {N['sdp']['cuts']['docked_iptm']}" if docked else "all"
+    return next(p for p in N["sdp"]["pooled"]
+                if (p["hypothesis"], p["sdp_class"], p["subset"]) == (hyp, cls, subset))
+
+
+def _frac(t: dict) -> str:
+    return f"{t['in_class']}/{t['n']}"
+
+
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _sdp_rows(N: dict) -> tuple[list[str], str, list[str]]:
+    """(the drawn rows in manuscript order, the drawn Fur-family row, the Fur-family rows not drawn)."""
+    R = N["sdp"]["rows"]
+    rows = [k for k, r in R.items() if r["figure_row"]]
+    fur = next(k for k in rows if R[k]["family"] == "Fur")
+    return rows, fur, [k for k, r in R.items() if not r["figure_row"] and r["family"] == "Fur"]
+
+
+def _uncharacterised(R: dict, rows: list[str]) -> bool:
+    """True when no drawn row has experimental characterisation of its own (the registry's record)."""
+    return all(R[k].get("characterised") is False for k in rows)
+
+
+def _char_note(r: dict) -> str:
+    return r["characterisation_note"].split(" (UniProt and PubMed")[0]
+
+
+def _who(R: dict, k: str) -> str:
+    r = R[k]
+    return f"*{r['genome']}* {SDP_NAME[k]} ({r['family'].split('/')[0]} cluster {r['sdp_cluster']})"
+
+
+def legend_fig4_sdp(N: dict) -> str:
+    S = N["sdp"]
+    R, cut = S["rows"], S["cuts"]
+    rows, fur, _ = _sdp_rows(N)
+    op = R[fur]["operator"]
+    h1 = _pooled(N, "H1", "functional")
+
+    if op["own_region"]:
+        where = (f"{SDP_NAME[fur]}'s is its rank-{op['rank']} site, in its own promoter region"
+                 + (f", shared with *{op['gene']}*." if op["gene"] else "."))
+    elif op["rank"] == 1:
+        where = (f"{SDP_NAME[fur]}'s is its top-ranked site, in the *{op['gene']}* promoter; no site in its "
+                 "own promoter region is among its top five.")
+    else:
+        where = (f"{SDP_NAME[fur]}'s is the rank-{op['rank']} site, in the *{op['gene']}* promoter: no model "
+                 "docked on the rank-1 site.")
+    def zoom(k: str) -> str:
+        sites = [_site(R[k], s) for s, role in R[k]["sites"].items()
+                 if role in ("regulatory", "structural", "secondary") and (k != "smtB" or role == "regulatory")
+                 and not s.startswith("Cys site")]
+        crystal = ", as in this protein's crystal structure (PDB 2W57)" if "MN" in R[k]["standin"] else ""
+        return f"{SDP_NAME[k]}, {_and(sites)}{crystal}"
+
+    standins = [f"{_ox(el.title() + '2+')} for {_ox(ion)} in {SDP_NAME[k]}"
+                for k in rows for el, ion in R[k]["standin"].items()]
+    structural = any("H2 structural" in R[k]["tests"] for k in rows)
     return (
-        "CueR, Fur (fcrX) and DtxR/IdeR (EX350_RS17345) are the three displayed predictions whose "
-        "AlphaFold 3 dimers engage their predicted operators. **Genomic context:** annotated genes "
-        "are directional arrows drawn to scale; each regulator's arrow and metal badge match its "
-        "protein colour, and the badge names the called effector. The green mark is the rank-1 "
-        "operator; q is the operator "
-        "call's adjusted value. Coordinates and a 1-kb scale are shown. "
-        "**Operator complex:** predicted dimer bound to a 60-bp duplex. Each predicted operator "
-        "was extended to 60 bp with its bordering genomic sequence from the same region; the "
-        "operator is shown in pale green and marked by a green bracket, and gold marks contacted "
-        "nucleotides. The Fur and DtxR DNA complexes include modeled metal; the CueR complex is "
-        "apo. **Holo dimer and metal site:** each regulator has a distinct protein palette, with "
-        "its two protomers in dark and light tints and modeled ions as grey spheres. The rightmost view enlarges "
-        "one site; coordinating side chains are sticks, with dark dotted links for donor atoms "
-        "within 3.0 Å and lighter dashed links for 3.0–4.3 Å. AlphaFold 3 used Cu(II) in place "
-        "of the called Cu(I) for CueR and Mn(II) in place of the called Fe(II) for Fur and DtxR; "
-        "Fur also contains structural Zn(II). The structures and contacts are predictions, "
-        "not experimental evidence of binding or metal specificity."
+        f"One discovered regulator per family, coloured by the specificity-determining positions (SDPs) of "
+        f"its SSN cluster: {_and([_who(R, k) for k in rows])}. "
+        "**Context:** the green box is the pipeline's predicted operator used for the DNA complex (rank, "
+        f"q value); no curated site was used. {where} "
+        "**AlphaFold 3 panels,** left to right: DNA-bound complex (60-bp duplex; operator bracketed, "
+        "contacted nucleotides gold) with its protein–DNA chain-pair ipTM, red below "
+        f"{cut['docked_iptm']}; DNA interface, side chains within {cut['dna_contact_A']} Å of the DNA "
+        "labelled; holo dimer in the complex's pose; metal-site zooms "
+        f"({'; '.join(zoom(k) for k in rows)}). Metal–ligand bonds ≤ {cut['coordination_A']} Å"
+        + (f"; AlphaFold 3 used {_and(standins)}" if standins else "") + ". "
+        "**Colours:** as in the manuscript's Figs 4C and 5C, functional SDPs red and structural SDPs "
+        "blue by relative score; other aligned residues near-white, unaligned grey. "
+        "**Bottom:** SDP class of the regulatory-metal ligands, their second shell (within "
+        f"{cut['second_shell_A']:g} Å of the ion), "
+        + ("the structural Zn ligands, " if structural else "")
+        + f"DNA base contacts (hatched below ipTM {cut['docked_iptm']}) and all residues. Over "
+        f"{w(len(h1['regulators']))} modelled regulators, {h1['in_class']} of {h1['n']} regulatory-metal "
+        f"ligands are functional SDPs ({h1['expected']:.0f} expected; circular-shift P = "
+        f"{pval(h1['p_rotation'])}); as AlphaFold 3 and the SDPs share evolutionary signal, this is "
+        "co-localisation, not independent validation."
     )
+
+
+def legend_all_candidates(N: dict, key: str) -> str:
+    """One legend per page of the all-candidates supplement: the summary table, then the row pages."""
+    S, dk = N["sdp"], N["sdp"]["cuts"]["docked_iptm"]
+    cfg = json.loads((HERE / "structures" / "tried" / "regulators_sdp.json").read_text(encoding="utf-8"))
+    rows = [(k, v) for k, v in cfg.items() if not k.startswith("_")]
+    docked = sum(v["protein_dna_iptm"] >= dk for _, v in rows)
+    h1 = _pooled(N, "H1", "functional")
+    common = (
+        f"Every one of the {len(rows)} regulators modelled for Figure 4 that was folded on an operator the "
+        "pipeline predicted, grouped by the transcription factor it is. Three further regulators "
+        "(M. tuberculosis NmtR and the two ZntRs) were folded only on a curated box and are left out, "
+        "because the figure's operators must be predictions. Colours are those of Figure 4: functional "
+        "SDPs red, structural SDPs blue, intensity the relative score; the DtxR and CsoR families have no "
+        "SDP table and are drawn in neutral grey.")
+    if key.endswith("_p1"):
+        return (
+            "**The summary table.** " + common + " For each regulator the table gives its SSN cluster and "
+            "identity to that cluster's consensus, the called inducer, which predicted operator the DNA "
+            "complex used and whether that operator lies in the regulator's own promoter region, the "
+            f"protein–DNA chain-pair ipTM (bold where the complex docks at ≥ {dk}; {docked} of "
+            f"{len(rows)} do), the residues the model places at the regulatory metal site, and how many "
+            "of those are functional SDPs of its cluster. The pages that follow draw each row in full. "
+            f"Pooled over these regulators, {h1['in_class']} of {h1['n']} regulatory-metal ligands are "
+            f"functional SDPs ({h1['expected']:.0f} expected; circular-shift P = {pval(h1['p_rotation'])}).")
+    page = int(key.rsplit("_p", 1)[1])
+    per = ALL_CANDIDATES_PER_PAGE
+    on_page = rows[(page - 2) * per:(page - 1) * per]
+    # named from the run Figure 4 was built on (numbers.json sdp.names), not the canonical survey,
+    # which no longer holds the V. cholerae RFB16 regulators
+    survey = N["sdp"].get("names") or {s["run_name"]: s for s in N["survey_table"]["rows"]}
+    names = _and([f"*{v['genome']}* {survey[v['run_name']]['tf']} "
+                  f"({survey[v['run_name']]['locus_tag']})" for _, v in on_page])
+    return (
+        f"**{names}.** " + common + " Each row carries the regulator's status (drawn in Figure 4, or "
+        "folded and not drawn), how many AlphaFold 3 jobs it has and the best protein–DNA ipTM any of "
+        "them reached on a predicted operator, then its genomic context with that operator, the DNA "
+        "complex in the form that binds DNA (apo for ArsR/SmtB, metal-loaded for MerR and the Fur "
+        "family), one protomer's DNA interface, the holo dimer in the complex's pose, and its metal "
+        f"sites. Metal–ligand bonds are drawn to {S['cuts']['coordination_A']} Å and side chains within "
+        f"{S['cuts']['dna_contact_A']} Å of the DNA are labelled whatever the ipTM.")
+
+
+def sdp_summary(N: dict) -> dict:
+    """The run document's Figure 4 section: what the SDP mapping shows, and why the Fur-family row is
+    the regulator it is. {"heading", "intro", "bullets"}; every number from numbers.json "sdp"."""
+    S = N["sdp"]
+    R, cut = S["rows"], S["cuts"]
+    dk = cut["docked_iptm"]
+    rows, fur, others = _sdp_rows(N)
+    h1, h1s, h2 = _pooled(N, "H1", "functional"), _pooled(N, "H1s", "functional"), _pooled(N, "H2", "structural")
+    h3, h3d = _pooled(N, "H3", "structural"), _pooled(N, "H3", "structural", docked=True)
+    h3xd = _pooled(N, "H3x", "structural", docked=True)
+    docked = sorted(set(h3d["regulators"]) | set(h3xd["regulators"]))
+    t1 = {k: R[k]["tests"]["H1 functional"] for k in R}
+    in_fig = [SDP_NAME[k] for k in rows if R[k]["protein_dna_iptm"] >= dk]
+    fur_family = [k for k in R if R[k]["family"] == "Fur"]
+    survey = {k: next(x for x in N["survey_table"]["rows"] if x["run_name"] == R[k]["run_name"]) for k in R}
+
+    def site(k: str) -> str:
+        o = R[k]["operator"]
+        return (f"rank-{o['rank']} operator "
+                + ("in its own promoter region" if o["own_region"] else f"in the *{o['gene']}* promoter"))
+
+    shared = len({site(k) for k in rows}) == 1
+
+    def row(k: str) -> str:
+        r = R[k]
+        return (f"*{r['genome']}* {SDP_NAME[k]} ({r['family'].split('/')[0]} cluster {r['sdp_cluster']}; "
+                f"protein–DNA ipTM {r['protein_dna_iptm']:.2f}" + ("" if shared else f"; {site(k)}") + ")")
+
+    def strengths(k: str, o: str) -> list[str]:
+        """What row k has over the other Fur-family candidate o, from the numbers above."""
+        r, q = R[k], R[o]
+        ag = {x: survey[x]["agreement"] for x in (k, o)}
+        out = []
+        if r["protein_dna_iptm"] > q["protein_dna_iptm"]:
+            lead = ("the only Fur-family complex that docks" if r["protein_dna_iptm"] >= dk > q["protein_dna_iptm"]
+                    else "the better-docked DNA complex" if q["protein_dna_iptm"] >= dk
+                    else "the less weak DNA complex")
+            out.append(f"{lead} ({r['protein_dna_iptm']:.2f} against {q['protein_dna_iptm']:.2f})")
+        if (r["operator"]["rank"], -r["operator"]["score"]) < (q["operator"]["rank"], -q["operator"]["score"]):
+            # q is quoted only when the regulon reports one for both sites
+            qs = (f"; q = {pval(r['operator']['qvalue'])} against {pval(q['operator']['qvalue'])}"
+                  if r["operator"]["qvalue"] is not None and q["operator"]["qvalue"] is not None else "")
+            out.append(f"the stronger operator (rank {r['operator']['rank']}"
+                       + (", in its own promoter region" if r["operator"]["own_region"] else "") + qs + ")")
+        elif r["operator"]["own_region"] and not q["operator"]["own_region"]:
+            out.append("an operator in its own promoter region")   # only when the clause above is absent
+        if ag[k] > ag[o]:
+            out.append(f"the more corroborated metal call (agreement {ag[k]:.2f} against {ag[o]:.2f})")
+        if r["modeled"] == r["called"] and q["modeled"] != q["called"]:
+            out.append(f"its native metal in the model ({_ox(r['called'])}, where {SDP_NAME[o]} needed a "
+                       f"{_ox(q['modeled'])} stand-in for {_ox(q['called'])})")
+        if "MN" in r["standin"]:
+            out.append("a crystal structure of the same protein whose sites the model reproduces (2W57)")
+        if "H2 structural" in r["tests"] and "H2 structural" not in q["tests"]:
+            out.append("both Fur-family metal sites of the manuscript's Fig. 5C, with the structural one "
+                       "confirmed by the SDPs")
+        return out
+
+    intro = [
+        "Figure 4 shows one discovered regulator per family, coloured by the collaborator's "
+        "specificity-determining positions (SDPs) for its SSN cluster. It replaces the earlier "
+        "CueR/Fur/IdeR figure, whose DtxR-family regulator has no SDP table. Every DNA complex is modelled on "
+        f"an operator the pipeline predicted; no curated site is used. The rows are {_and([row(k) for k in rows])}"
+        + (f", each modelled on its {site(rows[0]).replace(' in its own', ', in its own')}." if shared else ".")
+        + ((" The rows were chosen among the regulators whose complex docks (protein–DNA ipTM ≥ "
+            f"{dk}) on an operator this run predicts, taking in each family one with no experimental "
+            "characterisation of its own, so that the figure shows what the pipeline proposes for "
+            "proteins nobody has studied: " + "; ".join(f"{SDP_NAME[k]}, {_char_note(R[k])}" for k in rows)
+            + ".") if _uncharacterised(R, rows) else ""),
+    ]
+    bullets = [
+        f"**Metal sites.** Across {w(len(h1['regulators']))} modelled regulators of the three families, "
+        f"{h1['in_class']} of {h1['n']} residues coordinating the regulatory metal are functional SDPs, "
+        f"against {h1['expected']:.0f} expected by chance (exact circular-shift P = {pval(h1['p_rotation'])}). "
+        "In the figure rows: " + "; ".join(
+            f"{SDP_NAME[k]} {_frac(t1[k])} ({_residues(t1[k])}; P = {pval(t1[k]['p_rotation'])})"
+            for k in rows) + ". "
+        f"In {SDP_NAME['RS12295']} Cys77 is functional, while Cys126, like the two cysteines of CueR, is "
+        "conserved across the metal-sensing MerR clusters and so classed structural.",
+        f"**Second shell.** Non-ligand residues within {cut['second_shell_A']:g} Å of the regulatory ion "
+        f"are also enriched for functional SDPs ({h1s['in_class']}/{h1s['n']} against "
+        f"{h1s['expected']:.0f} expected; P = {pval(h1s['p_rotation'])}). This test was added after the "
+        "first folds were seen, so it is exploratory.",
+        f"**Structural site.** Every ligand of the structural Zn site is a structural SDP, in the figure's "
+        f"{SDP_NAME[fur]} ({_frac(R[fur]['tests']['H2 structural'])}: "
+        f"{_residues(R[fur]['tests']['H2 structural'])}) and in each of the "
+        f"{w(len(h2['regulators']))} Fur-family regulators that form one "
+        f"({h2['in_class']}/{h2['n']} pooled, P = {pval(h2['p_rotation'])}), as the manuscript's Fig. 5C "
+        "shows for scZur. Two of those regulators are in Fur clusters 4 and 9, which Fig. 5C does not "
+        "draw, so the pattern holds outside the clusters it was read from.",
+        f"**DNA interface.** Only {w(len(docked))} complexes dock at protein–DNA ipTM ≥ {dk}, "
+        f"{w(len(in_fig))} of them in the figure ({_and(in_fig)})"
+        + ("; no Fur-family complex does" if all(R[k]["protein_dna_iptm"] < dk for k in fur_family) else "")
+        + f". In the {w(len(h3d['regulators']))} docked MerR and Fur-family complexes {_frac(h3d)} base "
+        f"contacts are structural SDPs (P = {pval(h3d['p_rotation'])}); in the "
+        f"{w(len(h3xd['regulators']))} docked ArsR complexes {_frac(h3xd)} are "
+        f"(P = {pval(h3xd['p_rotation'])}). "
+        + ("For MerR and the Fur family this agrees with a family-wide DNA-recognition role for the "
+           f"structural SDPs, on {w(len(h3d['regulators']))} complexes only; the ArsR complexes do not "
+           "show it. " if h3d["p_rotation"] < 0.05 <= h3xd["p_rotation"] else
+           "The models neither support nor refute a family-wide DNA-recognition role for the structural "
+           "SDPs. ")
+        + f"The count over all MerR and Fur-family complexes ({_frac(h3)}, P = {pval(h3['p_rotation'])}) "
+        "rests mostly on complexes below the cut, so it is not evidence.",
+    ]
+    arsr_alt = [k for k in R if not R[k]["figure_row"] and R[k]["family"].startswith("ArsR")]
+    arsr = next((k for k in rows if R[k]["family"].startswith("ArsR")), None)
+    if arsr and arsr_alt:
+        a = arsr_alt[0]
+        bullets.append(
+            f"**ArsR row.** *{R[arsr]['genome']}* {SDP_NAME[arsr]} is drawn instead of "
+            f"*{R[a]['genome']}* {SDP_NAME[a]}, of the same SDP cluster. Both dock on their rank-1 "
+            f"own-promoter operator ({R[arsr]['protein_dna_iptm']:.2f} against "
+            f"{R[a]['protein_dna_iptm']:.2f}), and {SDP_NAME[a]} is experimentally characterised while "
+            f"{SDP_NAME[arsr]} is not: {_char_note(R[arsr])}. The row is therefore a prediction for an "
+            f"unstudied ortholog, not a new kind of sensor. {SDP_NAME[a]} stays in the figure's "
+            "configuration.")
+    if others:
+        def who_locus(k: str) -> str:
+            return f"*{R[k]['genome']}* {SDP_NAME[k]} ({survey[k]['locus_tag']})"
+
+        drawn = who_locus(fur)
+        bullets.append(
+            f"**Fur-family row.** Of the Fur-family regulators modelled on a predicted operator, "
+            f"{drawn} is drawn. It has " + _and(strengths(fur, max(
+                others, key=lambda o: R[o]["protein_dna_iptm"]))
+                + (["no experimental characterisation of its own"] if R[fur].get("characterised") is False
+                   else [])) + ". "
+            + " ".join(
+                (f"{who_locus(o)} has {_and(strengths(o, fur))}, and its complex docks too "
+                 f"({R[o]['protein_dna_iptm']:.2f}), but it is experimentally characterised, so it was "
+                 "not drawn." if R[o]["protein_dna_iptm"] >= dk and R[o].get("characterised") else
+                 f"{who_locus(o)} has {_and(strengths(o, fur))}, but its complex reaches only "
+                 f"{R[o]['protein_dna_iptm']:.2f}.") for o in others)
+            + " Both alternatives stay in the figure's configuration, so the comparison can be redrawn.")
+    bullets.append("**Reading.** AlphaFold 3 draws on the same evolutionary information as the SDPs, so this "
+                   "co-localisation supports the SDP assignment rather than validating it independently.")
+    return {"heading": "Figure 4: SDPs on the modelled regulators", "intro": intro, "bullets": bullets}
 
 
 def legend_figS1(N: dict) -> str:
@@ -316,6 +638,17 @@ def legend_figS4(N: dict) -> str:
     )
 
 
+def site_only_sentence(comps: list[dict]) -> str:
+    """The hatched segment of the inducer-class panel, with its count and families, from numbers.json."""
+    n = sum(c.get("site_only", {}).get("organic", 0) for c in comps)
+    fams = sorted({f for c in comps for f in c.get("site_only", {}).get("families", {})})
+    if not n:
+        return ""
+    return (f"Hatched: organic calls in which MetalNet2 finds a conserved metal site ({n}, in "
+            f"{', '.join(fams)}); the site is reported but not read as a sensing site (structural in GntR; "
+            "overruled by a negative family coordination gate elsewhere), so the call stays organic. ")
+
+
 def _survey_table_columns(N: dict, k: int) -> str:
     """The column definitions Figures S5 and S5bis (1/3) share. The table's own footnote states the
     regulated-gene and own-region rules in full, so the legend names them and points there."""
@@ -365,7 +698,11 @@ def legend_figS5bis(N: dict, part: int) -> str:
                 "inducer-class square and the rule for the regulated gene. " + tail)
     return (head + "One column is added to Figure S5: the inducer class of the final call, as a coloured "
             "square. 'non-metal, no ligand' is the pipeline's 'non-metal effector (undetermined)' call, "
-            "which the inducer vocabulary classes as organic. "
+            "which the inducer vocabulary classes as organic; 'non-metal:' followed by names is the same "
+            "class-level call with the proposals it kept (the clade's label, then operon chemistry), none "
+            "of which is resolved to one ligand; 'no call', class undetermined, is a regulator for which "
+            "the pipeline made no inducer call at all. ‡ marks an organic call in which MetalNet2 finds "
+            "a conserved metal site that is not read as a sensing site. "
             + _survey_table_columns(N, T["top_k"]) + " " + tail)
 
 
@@ -374,7 +711,8 @@ LEGENDS = {
     "fig1_pipeline": legend_fig1,
     "fig2_benchmark": legend_fig2,
     "fig3_survey": legend_fig3,
-    "fig4_context_structures": legend_fig4,
+    "fig_sdp_representatives": legend_fig4_sdp,
+    **{k: (lambda N, p=k: legend_all_candidates(N, p)) for k, _, _, _ in all_candidates_figures()},
     "figS1_per_regulator": legend_figS1,
     "figS2_own_promoter": legend_figS2,
     "figS3_pwm_quality": legend_figS3,
@@ -384,6 +722,8 @@ LEGENDS = {
     "figS5bis_survey_table_2": lambda N: legend_figS5bis(N, 2),
     "figS5bis_survey_table_3": lambda N: legend_figS5bis(N, 3),
 }
+#: the all-candidates supplement is appended last, after _and() and the legend function it uses exist
+FIGURES += all_candidates_figures()
 
 
 def figure_entries(N: dict | None = None) -> list[dict]:
@@ -393,10 +733,23 @@ def figure_entries(N: dict | None = None) -> list[dict]:
             for k, lab, t, m in FIGURES]
 
 
+def sdp_provenance_line(N: dict) -> str:
+    """Which run Figure 4's rows are read from: the canonical survey run, except regulators it does
+    not hold (the V. cholerae RFB16 alternatives), which stay on the run they were folded for."""
+    rows = N.get("sdp", {}).get("rows", {})
+    if not rows:
+        return ""
+    return (" Figure 4 and Figure S6 are read from this run. Most of their AlphaFold 3 folds were made for "
+            "operators predicted in an earlier run and are used because this run predicts the same operator "
+            "at the same rank; the three *V. cholerae* regulators (now strain N16961) and EX350_RS11325 "
+            "were refolded on this run's rank-1 operators.")
+
+
 def main() -> int:
     N = json.loads((HERE / "numbers.json").read_text(encoding="utf-8"))
     L = ["# Figure legends", "", (f"Data-bearing figures use `numbers.json`. {provenance_line(N)} "
-         "Figure 1 is a schematic of the v1.1 interfaces; no run data are plotted."), ""]
+         "Figure 1 is a schematic of the v1.1 interfaces; no run data are plotted."
+         + sdp_provenance_line(N)), ""]
     for e in figure_entries(N):
         L += [f"## {e['label']} | {e['title']}", "", f"`figures/{e['key']}.*`", "", e["legend"], ""]
     (HERE / "LEGENDS.md").write_text("\n".join(L), encoding="utf-8")

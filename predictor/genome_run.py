@@ -26,6 +26,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 MANIFEST_COLS = ["run_name", "fasta", "genome", "organism_acc", "family", "family_flag", "validated",
                  "contig", "start", "end", "strand", "aa_len", "locus_tag", "gene", "product"]
@@ -48,7 +49,7 @@ def _candidate_name(name: str) -> None:
 
 
 def _unescape(s: str) -> str:
-    return re.sub(r"%([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), s).replace(",", " ")
+    return unquote(s).replace(",", " ")          # UTF-8 aware: %C3%A9 is one character, not two
 
 
 def ensure_genome(accession: str, *, allow_download: bool = True) -> tuple[Path, Path | None]:
@@ -67,6 +68,7 @@ def gff_index(gff: Path | None) -> dict:
     proteome was read from, which keeps start/end on the genome's own frame.
     """
     out: dict[str, dict] = {}
+    first_feature: dict[str, str] = {}
     if not gff or not Path(gff).exists():
         return out
     for line in Path(gff).read_text(encoding="utf-8", errors="replace").splitlines():
@@ -76,8 +78,9 @@ def gff_index(gff: Path | None) -> dict:
         if len(f) < 9 or f[2] != "CDS":
             continue
         attrs = dict(kv.split("=", 1) for kv in f[8].split(";") if "=" in kv)
-        pid = attrs.get("protein_id", "")
-        if not pid:
+        pid = unquote(attrs.get("protein_id", ""))
+        # A repeated protein_id under another ID is another copy of the gene, not a segment of this one.
+        if not pid or first_feature.setdefault(pid, attrs.get("ID", "")) != attrs.get("ID", ""):
             continue
         rec = out.setdefault(pid, {"contig": f[0], "start": int(f[3]), "end": int(f[4]), "strand": f[6],
                                    "locus_tag": attrs.get("locus_tag", ""), "gene": attrs.get("gene", ""),
@@ -188,7 +191,8 @@ def manifest_rows(cands: list, *, short: str, organism: str, accession: str, eng
 
 
 def write_manifest(rows: list[dict], path: Path) -> None:
-    with Path(path).open("w", encoding="utf-8", newline="") as fh:
+    from predictor import resources
+    with resources.atomic_path(path) as temporary, temporary.open("w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=MANIFEST_COLS + PROV_COLS)
         w.writeheader()
         w.writerows(rows)
@@ -271,12 +275,16 @@ def predict_all(rows: list[dict], *, out_dir: Path, jobs: int = 1, **kw) -> dict
 
 
 SUMMARY_COLS = ["run_name", "locus_tag", "gene", "product", "discovery_family", "family", "ssn_cluster",
-                "inducer_top", "inducer_class", "agreement", "primary_operator", "primary_start",
+                "inducer_top", "inducer_class", "inducer_class_provenance", "agreement", "primary_operator", "primary_start",
                 "primary_end", "primary_locality", "n_regulon_operons", "status"]
 
 
 def summarise(rows: list[dict], status: dict[str, str], *, out_dir: Path) -> Path:
-    """summary.tsv: one row per candidate with the headline calls, read back from each bundle."""
+    """summary.tsv: one row per candidate with the headline calls, read back from each bundle.
+
+    The table describes the run directory, not only the latest invocation: a candidate finished by an
+    earlier partial selection stays done."""
+    from predictor import resources
     from predictor.effector import inducer_vocab as V
 
     out = []
@@ -286,19 +294,24 @@ def summarise(rows: list[dict], status: dict[str, str], *, out_dir: Path) -> Pat
                "discovery_family": r["family"], "status": status.get(name, "not run")}
         bundle = out_dir / "jobs" / name
         if bundle_complete(bundle):
+            if name not in status:
+                rec["status"] = "done (resumed)"
             d = json.loads((bundle / "dossier.json").read_text(encoding="utf-8"))
             ind = d.get("inducers") or {}
             prim = (d.get("operators") or {}).get("primary") or {}
             pv = prim.get("provenance") or {}
             rec.update({"family": d.get("family"), "ssn_cluster": d.get("ssn_cluster"),
-                        "inducer_top": ind.get("top"), "inducer_class": V.inducer_class_of(ind.get("top")),
+                        "inducer_top": ind.get("top"),
+                        "inducer_class": (ind.get("sensor_class") if "sensor_class" in ind
+                                          else V.inducer_class_of(ind.get("top"))),
+                        "inducer_class_provenance": ("explicit" if "sensor_class" in ind else "legacy_label_fallback"),
                         "agreement": ind.get("agreement"), "primary_operator": prim.get("sequence"),
                         "primary_start": pv.get("start"), "primary_end": pv.get("end"),
                         "primary_locality": pv.get("locality"),
                         "n_regulon_operons": len(d.get("regulon") or [])})
         out.append(rec)
     path = out_dir / "summary.tsv"
-    with path.open("w", encoding="utf-8", newline="") as fh:
+    with resources.atomic_path(path) as temporary, temporary.open("w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=SUMMARY_COLS, delimiter="\t", restval="")
         w.writeheader()
         w.writerows(out)
@@ -432,11 +445,15 @@ def prepare_local(fasta, gff, genbank, proteome, out_dir: Path):
                     phase = str(offset if consumed == 0 else (3 - (consumed - offset) % 3) % 3) if feature.type == "CDS" else "."
                     lines.append("\t".join([record.id, "GenBank", feature.type, str(int(part.start)+1), str(int(part.end)), ".", "-" if part.strand == -1 else "+", phase, ";".join(f"{a}={quote(str(b))}" for a,b in attrs.items())]))
                     consumed += len(part)
-        if len(translations) != len({pid for pid, _ in translations}):
-            raise ValueError("GenBank protein identifiers must be unique")
+        # RefSeq gives every copy of an identical protein the same WP_ accession, so a repeated identifier
+        # is normal; only one identifier naming two different proteins is ambiguous.
+        proteins: dict[str, str] = {}
+        for pid, seq in translations:
+            if proteins.setdefault(pid, seq) != seq:
+                raise ValueError(f"GenBank protein identifiers must be unique: {pid} names two different proteins")
         annotation.write_text("\n".join(lines)+"\n", encoding="utf-8")
-        if translations:
-            (dest / "genome.proteins.faa").write_text("".join(f">{pid}\n{seq}\n" for pid, seq in translations), encoding="utf-8")
+        if proteins:
+            (dest / "genome.proteins.faa").write_text("".join(f">{pid}\n{seq}\n" for pid, seq in proteins.items()), encoding="utf-8")
         return fna, annotation
     source = Path(proteome or fasta)
     fna = dest / ("proteome.faa" if proteome else "genome.fna")

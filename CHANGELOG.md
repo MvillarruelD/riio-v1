@@ -1,5 +1,52 @@
 # Changelog
 
+## 1.2.0 — 2026-11-23
+
+Inducer calls change in this release. Operator and regulon calls change only where the regulator was
+previously resolved to an overlapping neighbouring gene.
+
+- **Inducer evidence (changes predictions).** The derived effector route reads the regulator's own
+  operon (divergent and co-transcribed), with each source labelled. Sources are ranked by kind (SSN
+  clade, then published database, then local operon chemistry) before confidence. Published homologues
+  at 99 % identity or more may vote for their organic ligands; lower-identity ones are reported as
+  context only. Bare element symbols resolve to the explicit ion, and a clade set that spans metal and
+  organic classes is split by the protein's own coordination gate. Chemical-identity uncertainty and an
+  explicit sensor class are kept and shown in the report.
+- **Inducer fusion fixes (changes predictions).** A negative coordination gate is a non-metal call when
+  no accepted source carries a metal or redox class. An assigned non-metal SSN clade outranks the bare
+  family prior. A negative gate drops the metal member of a mixed clade set. Metal ions named by operon
+  chemistry lose their transport-compartment tag (`Cu(+)(in)` is reported as `Cu+`).
+- **ArsR/SmtB metal gate (changes predictions).** The α5 channel requires the catalogued
+  `D.H.{10}H.{2}[HE]` site instead of a bare `H..H` pair, and the `ArsR_c7` seed label is corrected to
+  the persulfide clade (YgaV/HlyU/BigR).
+- **Regulator choice.** Where neighbouring genes overlap, the regulator is the gene with the best
+  overlap with the query, not the upstream one.
+- **GUI.** A redesigned interface started with `tfop gui` (first free port from 8501, `--port`,
+  `--no-browser`). Saved runs reopen in the page, and each run shows the equivalent `tfop` command for
+  cmd/PowerShell or POSIX shells. Results views read the stored report fields.
+- **Data integrity.**
+  - Caches are keyed by sequence, not job name. Network failures are no longer cached as answers.
+    Cache files are written atomically, so parallel jobs never read half a file.
+  - A partial accession no longer matches another mirrored genome.
+  - Copies of one protein sharing a RefSeq `WP_` id are no longer concatenated, and CDS phase is
+    honoured.
+  - Local multi-replicon genomes are scanned whole.
+  - RefSeq GenBank files with duplicated identical proteins are accepted.
+  - UniProt `sp|ACC|` headers resolve.
+- **Runner and CLI.**
+  - BITACORA works with paths containing spaces or shell characters, and never executes them.
+  - Deep run folders work.
+  - `tfop selftest` reports code errors and timeouts as failures, not as a missing engine.
+  - `tfop scan` validates its families and exits non-zero on failure.
+- **Speed.** The genome rescan no longer recomputes null distributions and flanking genes for every
+  intergenic gap. Output is identical and a typical prediction is about 40 % faster.
+- **Canonical companion.** The supplied manifests and FASTAs are now those of the 2026-11-10 run
+  (`analysis/canonical_runs.toml`), the run this release reproduces; the 2026-09-24 lists are removed.
+- The GUI's example accession is ZntR (`NP_417751.1`); the previous one was a histidine kinase.
+- **Known defects, not fixed in this release because fixing them changes recorded values:**
+  - GFF-route proteins keep V/L at GTG/TTG start codons.
+  - On the + strand, the operator anchor takes the regulator itself as its upstream neighbour.
+  - A regulator named by a repeated gene name can resolve to another copy.
 
 ## 1.1.0 — 2026-10-09
 

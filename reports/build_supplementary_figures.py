@@ -106,7 +106,7 @@ STATUS = [("clade_and_other", "clade + other channels", C["metal"]),
           ("other_only", "clade silent; other channels", C["organic"]),
           ("clade_disagrees", "clade says non-metal", C["incorrect"])]
 CHANNELS = ["SSN clade", "coordination", "metalnet", "neighborhood", "ligify"]
-CHANNEL_LABEL = {"metalnet": "MetalNet2", "neighborhood": "neighbourhood", "ligify": "Ligify"}
+CHANNEL_LABEL = {"metalnet": "MetalNet2", "neighborhood": "neighbourhood", "ligify": "operon chem."}  # short: the long label pushed the TIFF past 183 mm
 
 
 def fig_ssn(N: dict) -> None:

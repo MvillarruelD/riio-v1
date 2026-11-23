@@ -190,8 +190,19 @@ _MERR_TABLE = {
 _ARSR_GATE = "ArsR-metal"
 _ARSR_TABLE = {
     "c2": ("CzrA/SmtB/ZiaR", "Zn2+", "metal"),       # HIGH: 3 independent Zn sensors all land here (support 1.0)
-    "c7": ("NmtR(tentative)", "Ni2+", "metal"),      # TENTATIVE: single anchor (NmtR/Ni), and c7 also contains
-                                                     # YgaV (thiol/RSS, NOT Ni) -> heterogeneous (retest finding).
+    # c7 is the PERSULFIDE / thiol-redox clade -- YgaV, HlyU and BigR, 7 consistent anchors, no conflict.
+    # It carried "NmtR(tentative)" / Ni2+ / metal here on the strength of a single supposed anchor, and that
+    # was simply wrong: NmtR is O69711 and it is a member of c2, as `accession_to_cluster.json`,
+    # `curated_binders_ArsR.json` and the `anchor_conflict` docstring above ("`ArsR_c2` carries Zn(II),
+    # Ni(II) (NmtR) AND Pb(II)") all independently record. c7 holds no Ni anchor at all.
+    #
+    # The enriched `cluster_inducer_table.json` has carried the correction since the ligand-mining pass
+    # ("corrected (membership): persulfide/thiol-redox cluster, not Ni") and OVERRIDES this seed at load
+    # time, so the stale tuple was vestigial and this fix is PREDICTION-NEUTRAL -- `load_clusters()`
+    # already returned persulfide/RSS. It is corrected here so the seed dump
+    # (`cluster_inducer_table.seed.json`) and everything built from it stop restating the error; the
+    # analysis layer's SSN_MASTER is exactly that, and still says Ni2+.
+    "c7": ("YgaV/HlyU/BigR", "persulfide/RSS", "non-metal"),
 }
 
 # Fur clusters, keyed by the FASTA stem (the representative regulator). The preprint resolves the family
@@ -522,7 +533,7 @@ def build_accession_map(*, force: bool = False) -> dict[str, str]:
             for acc, cids in members.items()}
 
     _CACHE.mkdir(parents=True, exist_ok=True)
-    _ACC_MAP_CACHE.write_text(json.dumps(amap), encoding="utf-8")
+    resources.atomic_write_text(_ACC_MAP_CACHE, json.dumps(amap))
     # Record WHICH accessions were ambiguous and how each was resolved, not just how many. A bare
     # count cannot be audited, and this is the file to read when a clade label looks wrong.
     multi = {a: sorted(c) for a, c in members.items() if len(c) > 1}

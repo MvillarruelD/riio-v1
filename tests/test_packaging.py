@@ -145,8 +145,14 @@ class TestVendoredData:
         manifest = json.loads((resources.DATA_DIR / "MANIFEST.json").read_text(encoding="utf-8"))
         paths = {row["path"] for row in manifest["files"]}
         # Database assets remain at their original release when only software packaging changes.
-        from tools.build_data_manifest import DATABASE_RELEASE
-        assert manifest["database_release"] == DATABASE_RELEASE
+        # tools/ is a script folder, not a package: load the builder by path. `from tools...` only
+        # worked when the repository root happened to be on sys.path, which CI's install does not do.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("build_data_manifest",
+                                                      REPO / "tools" / "build_data_manifest.py")
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        assert manifest["database_release"] == builder.DATABASE_RELEASE
         assert "refs/tf_pfam.hmm" in paths
         assert "ssn/database/accession_to_cluster.json" in paths
         assert len([p for p in paths if p.startswith("ssn/clusters/") and p.endswith(".fasta")]) == 71

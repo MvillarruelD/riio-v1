@@ -162,7 +162,7 @@ def fig_inducer_evidence(ev: dict, out_dir: Path) -> Path | None:
     gate = ev.get("coordination_gate")
     head = f"inferred inducer:  {top or '—'}"
     if ag is not None:
-        head += f"    (source agreement {ag:.2f}"
+        head += f"    ({ev.get('agreement_label', 'legacy source agreement')} {ag:.2f}"
         head += f", coordination gate {'yes' if gate else 'no' if gate is False else '?'})"
     ax.text(0.0, 1.0, head, fontsize=9, fontweight="bold", va="top", color=NMI["baseline_dark"])
     if not rows:

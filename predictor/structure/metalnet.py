@@ -229,9 +229,9 @@ def a3m_for(seq: str, *, tf_id: str | None = None, family: str | None = None,
 
     def _remember(path: Path, source: str) -> tuple[Path, str]:
         try:
-            cached.write_text(_clean_a3m(Path(path).read_text(encoding="utf-8", errors="replace")),
-                              encoding="utf-8", newline="\n")
-            src_file.write_text(json.dumps(source), encoding="utf-8")
+            resources.atomic_write_text(
+                cached, _clean_a3m(Path(path).read_text(encoding="utf-8", errors="replace")), newline="\n")
+            resources.atomic_write_text(src_file, json.dumps(source))
             return cached, source
         except Exception:
             return Path(path), source
@@ -324,9 +324,9 @@ def predict_site(seq: str, *, tf_id: str | None = None, family: str | None = Non
     elif not res.get("ok"):
         got["has_site"] = None
         got["reason"] = res.get("reason") or "engine could not score this sequence"
-    if use_cache:
+    if use_cache and res.get("ok"):           # an engine failure is retried, never remembered
         try:
-            cache_file.write_text(json.dumps(got, indent=2), encoding="utf-8", newline="\n")
+            resources.atomic_write_text(cache_file, json.dumps(got, indent=2), newline="\n")
         except Exception:
             pass
     return got
@@ -420,10 +420,10 @@ def predict_sites(items, *, allow_colabfold: bool = False, allow_local: bool = T
             got["has_site"] = None
             got["reason"] = res.get("reason") or "engine could not score this sequence"
         out[i] = got
-        if use_cache:
+        if use_cache and res.get("ok"):
             try:
-                (CACHE / f"{_key(norm[i]['seq'])}.json").write_text(
-                    json.dumps(got, indent=2), encoding="utf-8", newline="\n")
+                resources.atomic_write_text(CACHE / f"{_key(norm[i]['seq'])}.json",
+                                            json.dumps(got, indent=2), newline="\n")
             except Exception:
                 pass
     return out

@@ -58,7 +58,8 @@ OUT = RP.RESULTS
 GENOME = {
     "GCF_000195955.2": "M. tuberculosis H37Rv",
     "GCF_004345205.2": "M. avium subsp. hominissuis",
-    "GCF_008369605.1": "V. cholerae RFB16",
+    "GCF_008369605.1": "V. cholerae RFB16",      # runs before 2026-11-10
+    "GCF_000006745.1": "V. cholerae N16961",     # the final rerun's reference strain (Amendment 1)
     "GCF_002224265.1": "V. vulnificus NBRC15645",
 }
 
@@ -153,7 +154,12 @@ def collect():
             gene=r.get("gene") or "", product=(r.get("product") or "")[:60],
             # `inducer` is presentation-only; keep the class-bearing token beside it so every count
             # remains tied to the exact stored call even for legacy bundles backfilled on the fly.
-            inducer=display_inducer(ind), inducer_top=top, inducer_class=inducer_class(top),
+            inducer=display_inducer(ind), inducer_top=top,
+            # no headline: the pipeline's own sensor_class (a metal shortlist with no single top is
+            # still a metal call), else undetermined -- the same rule as reports/compute_numbers.py
+            inducer_class=(inducer_class(top) if top else
+                           (ind.get("sensor_class") if ind.get("sensor_class") in ("metal", "organic", "redox")
+                            else "undetermined")),
             # The fused candidate set, carried BESIDE the headline and never instead of it. The
             # consensus retains every source's ligand and flags a genuine mixture. Quantitative
             # analysis reads `inducer_top`; this display column and the candidate column expose the

@@ -46,8 +46,8 @@ works unchanged. Keep RIIO in your Ubuntu home folder (`~/riio-v1`), not under `
   `\\wsl.localhost\Ubuntu\home\<your Linux user name>\riio-v1` in the Explorer address bar.
 - **Use a file from Windows:** your `C:` drive appears in Ubuntu as `/mnt/c`, for example
   `cp /mnt/c/Users/<you>/Downloads/MyTF.faa ~/riio-v1/`.
-- **Graphical interface:** run `tfop-gui` in Ubuntu, then open <http://localhost:8501> in your Windows
-  browser.
+- **Graphical interface:** run `tfop gui` in Ubuntu (it opens your Windows browser, or prints the
+  address, normally <http://localhost:8501>). Saved runs are listed with their Windows path.
 
 ## Route B: RIIO directly on Windows
 
@@ -124,7 +124,8 @@ start runs\ZntR\jobs\ZntR\REPORT.html
 The prediction takes about 3 to 5 minutes and needs internet access; `start` opens the report in your
 browser. [Step 7 of the Linux guide](INSTALL_LINUX.md#7-analyse-your-own-proteins-and-genomes) explains
 how to run your own proteins and genomes; the commands are identical (Windows also accepts `/` in paths).
-For the graphical interface, run `tfop-gui` and open <http://localhost:8501>.
+For the graphical interface, run `tfop gui`; it opens your browser and prints the address (normally
+<http://localhost:8501>).
 
 ### B6. Add genome discovery (optional)
 
@@ -175,7 +176,7 @@ Linux; WSL itself can be removed in *Settings > Apps*.
 | Antivirus software quarantines `busybox.exe` or `mmseqs.exe` | They come from the official MMseqs2 release; restore them, then run the installer again. |
 | Errors about long paths, or files that cannot be found | Move the RIIO folder to a short path such as `C:\riio-v1` and run the installer again. |
 | `WslRegisterDistribution failed` or `0x80370102` | Enable virtualization in UEFI/BIOS (A1). |
-| The GUI page does not open | Use <http://localhost:8501>, and keep the window running `tfop-gui` open. |
+| The GUI page does not open | Use the address `tfop gui` printed (a busy port 8501 moves it to 8502, 8503 and so on), and keep that window open. |
 | BITACORA `MISSING` after `-WithWsl` | Run `tfop setup`; its *why:* line says what WSL lacks. Run the installer with `-WithWsl` again. |
 | Anything else | Run `tfop setup` and `tfop audit`, and read the per-protein logs in `runs\<name>\logs\`. |
 

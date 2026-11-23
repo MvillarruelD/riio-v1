@@ -7,6 +7,7 @@ absence of such defaults a checked property rather than a habit.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -32,12 +33,46 @@ def _sources() -> list[Path]:
             if not EXCLUDED_DIRS.intersection(p.parts) and p.resolve() != SELF]
 
 
+#: Numbered experiment records (`exp066_*` ... `exp072_*`, files and directories) under these two
+#: suites are FROZEN: the EXP067 scorer and truth tools are the frozen ruler, the `exp069_final_freeze`
+#: scripts are part of a hashed freeze, and `exp070_replay.py`'s sha256 is quoted in the EXP071 and
+#: EXP072 results. They name the run roots and caches that were true when the experiment ran, and
+#: editing them to pass this test would break the provenance they exist to carry. They are the same
+#: kind of thing as `project_archive`: a record, exempt from the path rule but still required to parse.
+#: Nothing in the production chain (`run_pipeline.py` and what it calls) imports them.
+_RECORD_SUITES = {"operon_chem", "ecoli_kb"}
+_RECORD = re.compile(r"exp0\d\d[_.]|exp0\d\d$")
+
+
+def _is_experiment_record(path: Path) -> bool:
+    rel = path.relative_to(ANALYSIS).parts
+    return (len(rel) >= 3 and rel[0] == "benchmarking" and rel[1] in _RECORD_SUITES
+            and any(_RECORD.match(part) for part in rel[2:]))
+
+
+def _portable_sources() -> list[Path]:
+    return [p for p in _sources() if not _is_experiment_record(p)]
+
+
+def test_experiment_record_exemption_is_narrow():
+    """The exemption covers numbered experiment records only, and none of the production drivers."""
+    records = [p for p in _sources() if _is_experiment_record(p)]
+    # The published distribution ships no experiment suite, so it has nothing to exempt; where the suite
+    # is present the exemption must actually be exercised.
+    if (ANALYSIS / "benchmarking" / "operon_chem").is_dir():
+        assert records
+    assert all("benchmarking" in p.parts for p in records)
+    assert all(p.relative_to(ANALYSIS).parts[1] in _RECORD_SUITES for p in records)
+    names = {p.name for p in _portable_sources()}
+    assert {"run_pipeline.py", "run_phase1.py", "aggregate_phase1.py", "bench_paths.py"} <= names
+
+
 def test_there_are_sources_to_check():
     """Guard the guard: a glob that silently matches nothing passes every test below."""
     assert len(_sources()) >= 25
 
 
-@pytest.mark.parametrize("path", _sources(), ids=lambda p: str(p.relative_to(ANALYSIS)))
+@pytest.mark.parametrize("path", _portable_sources(), ids=lambda p: str(p.relative_to(ANALYSIS)))
 def test_no_developer_specific_paths(path):
     offenders = []
     for lineno, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):

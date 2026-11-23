@@ -129,5 +129,36 @@ def autoregulated(dossier: dict, k: int = 5) -> bool:
     return any(h.get("generator") == "rescan_tier1" for h in ranked_hits(dossier)[:k])
 
 
+_OVERLAY: dict | None = None
+
+
+def inducer_overlay() -> dict:
+    """{resolved run root: {bundle name: replayed `inducers`}} for the canonical run, or {}.
+
+    `analysis/canonical_runs.toml` may name an inducer overlay (`[overlay] inducers = <path relative
+    to analysis/>`): the output of `final_rerun/refusion/replay_inducers.py`, an offline replay of
+    the inducer stage over the frozen bundles with a corrected predictor. The bundles on disk are
+    never rewritten; every reader that goes through `load_dossier` sees the replayed calls instead.
+    It applies only to bundles under the canonical run roots, never to an older run's bundle of the
+    same name."""
+    global _OVERLAY
+    if _OVERLAY is None:
+        import tomllib
+        analysis = Path(__file__).resolve().parents[1]
+        cfg = tomllib.loads((analysis / "canonical_runs.toml").read_text(encoding="utf-8"))
+        _OVERLAY = {}
+        rel = (cfg.get("overlay") or {}).get("inducers")
+        if rel:
+            rows = json.loads((analysis / rel).read_text(encoding="utf-8"))["rows"]
+            for name, r in rows.items():
+                root = str(Path(cfg["runs"][r["run"]]["root"]).resolve())
+                _OVERLAY.setdefault(root, {})[name] = r["inducers"]
+    return _OVERLAY
+
+
 def load_dossier(bundle: Path) -> dict:
-    return json.loads((bundle / "dossier.json").read_text(encoding="utf-8"))
+    d = json.loads((bundle / "dossier.json").read_text(encoding="utf-8"))
+    replayed = inducer_overlay().get(str(Path(bundle).resolve().parents[1]), {}).get(Path(bundle).name)
+    if replayed is not None:
+        d["inducers_frozen"], d["inducers"] = d.get("inducers"), replayed
+    return d

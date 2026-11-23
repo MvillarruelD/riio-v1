@@ -111,7 +111,10 @@ def benchmark_report(N: dict) -> str:
             outcome = ("missed: no clade profile reaches it" if s_["miss_reason"] == "profile_scope"
                        else "not searched: family outside the twelve")
         else:
-            outcome = {"hit": "exact ion", "shortlist": "ion in the shortlist, not first",
+            members = ", ".join(s_.get("shortlist") or [])
+            outcome = {"hit": "exact ion",
+                       "shortlist": f"ion in the shortlist ({members}), not first" if members
+                       else "ion in the shortlist, not first",
                        "class only": "metal class, ion unresolved"}.get(s_["ion"], "wrong ion")
         L.append(f"| {s_['genome']} | {s_['tf']} | {s_['known_ions'].replace(';', ', ')} | {s_['family']} | "
                  f"{s_['discovered']} | {s_['called'] or '—'} | {outcome} |")
@@ -185,6 +188,23 @@ def benchmark_report(N: dict) -> str:
     return "\n".join(L)
 
 
+def unresolved_calls(N: dict) -> list[str]:
+    """Every survey call that names no single inducer, with ALL the members it kept. The table
+    figures have room for the first few characters only; this is where the full sets are."""
+    L = ["## Calls that name no single inducer, with their members", "",
+         "A metal call without one ion lists its clade's candidate ions; a class-level non-metal call "
+         "lists the proposals it kept (the clade's label first, then operon chemistry). ‡: MetalNet2 "
+         "finds a conserved metal site that is not read as a sensing site.", "",
+         "| genome | TF | family | clade | class | members |", "|---|---|---|---|---|---|"]
+    for r in N["survey_table"]["rows"]:
+        members = r["shortlist"] if r["metal_call"] else r.get("candidates") or []
+        if r["ion"] or not members or (not r["metal_call"] and "undetermined" not in r["inducer"]):
+            continue
+        L.append(f"| {r['genome']} | {r['tf']}{' ‡' if r.get('metal_site_only') else ''} | {r['family']} | "
+                 f"{r['clade'] or '–'} | {r['cls']} | {'; '.join(members)} |")
+    return L + [""]
+
+
 def survey_report(N: dict) -> str:
     p, s, per = N["provenance"], N["survey"]["all"], N["survey"]["per_genome"]
     f = s["metal_funnel"]
@@ -233,6 +253,7 @@ def survey_report(N: dict) -> str:
         "metal call and the operator point at the same locus. The locality prior favours this region, "
         "so it is support, not independent proof.",
         "",
+        *unresolved_calls(N),
         "## Motif quality, stated plainly",
         "",
         f"Median PWM information content is {s['pwm']['median_mean_ic_bits']} bits per column, built from a "

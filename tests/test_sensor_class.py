@@ -151,9 +151,14 @@ class TestMetalBoundaryGuard:
         # allowed to supply an ion, and the regulon -- which did that here -- no longer feeds the
         # inducer call. Ligify is deliberately excluded from supplying the ion, so the honest result
         # is the class-level metal call: the gate knows there is a metal site, not which metal.
-        got = IND._finalize(self._rcnr_calls(), True, gate_name="CsoR-His/Cys", sensor_class="metal")
+        calls = self._rcnr_calls()
+        got = IND._finalize(calls, True, gate_name="CsoR-His/Cys", sensor_class="metal")
         assert got.top == "divalent metal (ion unresolved)"
-        assert got.top_display.startswith("inconclusive: formaldehyde or Co2+")
+        assert got.top_display == "divalent metal (ion unresolved)"
+        assert "formaldehyde" not in got.candidates and "ssn_cluster" not in got.support_sources
+        assert got.agreement == 0.0
+        assert got.calls == calls and got.calls[0].ligand == "formaldehyde"
+        assert any(c.source == "ligify" and c.ligand == "Co2+" and c.confidence == 0.393 for c in got.calls)
         assert any("metal-boundary" in n for n in got.notes), "the override must be explained in the notes"
 
     def test_silent_gate_leaves_the_cluster_label_alone(self):

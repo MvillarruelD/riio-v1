@@ -46,6 +46,11 @@ import tarfile
 import time
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
+
 REPO = Path(__file__).resolve().parents[1]
 #: A short protein used only to prove the installed CLI can resolve its packaged data and run.
 SMOKE_PROTEIN = (
@@ -129,7 +134,8 @@ def build_artifacts(py: Path, outdir: Path) -> tuple[Path, Path]:
         with tarfile.open(sdists[0]) as archive:
             names = {name.split("/", 1)[1] for name in archive.getnames() if "/" in name}
         required = {".env.example", "AUTHORS.md", "CITATION.cff", "analysis/canonical_config.py"}
-        required.update(f"analysis/run_manifest_{tag}_rerun20260924.csv" for tag in ("ecoli", "salm", "survey"))
+        canonical = tomllib.loads((REPO / "analysis" / "canonical_runs.toml").read_text(encoding="utf-8"))
+        required.update("analysis/" + run["manifest"] for run in canonical["runs"].values())
         if missing := required - names:
             raise Failure(f"source archive omits release configuration/inputs: {sorted(missing)}")
     return wheels[0], (sdists[0] if sdists else None)

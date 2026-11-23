@@ -56,7 +56,17 @@ GENOMES = {
     "GCF_000195955.2": ("MtubH37Rv", "Mycobacterium tuberculosis H37Rv"),
     "GCF_002224265.1": ("VvulNBRC", "Vibrio vulnificus NBRC 15645"),
     "GCF_004345205.2": ("MaviHomi", "Mycobacterium avium subsp. hominissuis mc2 2500"),
-    "GCF_008369605.1": ("VchoRFB16", "Vibrio cholerae RFB16"),
+    # 2026-11-10 (owner decision): the V. cholerae genome of the FINAL rerun is the species reference,
+    # O1 biovar El Tor str. N16961 (chromosomes NC_002505.1 + NC_002506.1), replacing RFB16. The
+    # survey's published candidate table was built on RFB16, so there are no survey truth rows for
+    # this accession and `compare_to_survey` prints "(no truth rows)" for it -- that is expected.
+    "GCF_000006745.1": ("VchoN16961", "Vibrio cholerae O1 biovar El Tor str. N16961"),
+}
+
+#: Genomes that WERE part of the survey set and no longer are. Named so a rerun of an old manifest, or
+#: an explicit `--genomes GCF_008369605.1`, still gets its historical short name; never a default.
+SUPERSEDED_GENOMES = {
+    "GCF_008369605.1": ("VchoRFB16", "Vibrio cholerae RFB16"),      # through the 2026-09-24 canonical run
 }
 
 #: Benchmark organisms. DELIBERATELY NOT IN `GENOMES`, because `--genomes` defaults to that dict and
@@ -206,7 +216,7 @@ def main(argv=None) -> int:
 
     rows, engines = [], set()
     for acc in a.genomes:
-        short, organism = {**GENOMES, **BENCHMARK_GENOMES}.get(acc, (safe(acc), acc))
+        short, organism = {**GENOMES, **SUPERSEDED_GENOMES, **BENCHMARK_GENOMES}.get(acc, (safe(acc), acc))
         print(f"[{acc}] {organism}")
         cands, engine, psource = discover(acc, census_fallback=a.census_fallback, verbose=a.verbose)
         engines.add(engine)

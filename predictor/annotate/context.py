@@ -140,7 +140,8 @@ def from_gff(gff_text_or_path, fasta_text_or_path, *, accession: str | None = No
             seqs[cur] = []
         elif cur is not None:
             seqs[cur].append(line.strip())
-    seqs = {k: "".join(v) for k, v in seqs.items()}
+    # Upper-case: soft masking is not information here, and lower-case sites drop out of the count matrices.
+    seqs = {k: "".join(v).upper() for k, v in seqs.items()}
     acc = accession or acc0 or "unknown"
     # For multi-contig assemblies: concatenate all contigs (N-padded) and build an offset map
     # so GFF coordinates (per-contig) can be lifted to the concatenated coordinate space.
@@ -177,7 +178,10 @@ def from_gff(gff_text_or_path, fasta_text_or_path, *, accession: str | None = No
         if len(cols) < 9:
             continue
         if cols[2] == "region":
-            circular = circular or _gff_attrs(cols[8]).get("Is_circular", "").lower() == "true"
+            # Only a replicon that is in this context: a circular chromosome does not make a separately
+            # loaded linear contig circular.
+            if cols[0] in contig_offsets:
+                circular = circular or _gff_attrs(cols[8]).get("Is_circular", "").lower() == "true"
             continue
         if cols[2] not in _GENE_FEATURES:
             continue

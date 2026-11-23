@@ -32,6 +32,9 @@ USAGE
   # optionally add an apo-dimer fold (off by default; needs BIOHUB_TOKEN):
   tfop predict mytf.fasta --name MyTF --fold
 
+  # the browser interface (Windows, Linux and WSL alike; opens your browser when it can):
+  tfop gui
+
   # after a run: rebuild its HTML/XLSX reports, or export the optional AlphaFold 3 jobs:
   tfop report runs/ecoli
   tfop af3 runs/ecoli --format both
@@ -159,10 +162,19 @@ def cmd_predict(a) -> int:
 
 def cmd_scan(a) -> int:
     from predictor.annotate import genome_scan as GS
-    from predictor import api
-    fams = {f.strip() for f in a.families.split(",")} if a.families else None
-    print(f"=== scan: {a.input}  [families={a.families or 'all 19'}] ===")
-    cands, kind, n = GS.scan(a.input, families=fams, cpus=a.cpus)
+    from predictor import api, resources
+    fams = {f.strip() for f in a.families.split(",") if f.strip()} if a.families else None
+    known = GS.census_families()
+    if fams and fams - known:
+        print(f"error: unknown famil{'ies' if len(fams - known) > 1 else 'y'} {', '.join(sorted(fams - known))}; "
+              f"choose from {', '.join(sorted(known))}", file=sys.stderr)
+        return 2
+    print(f"=== scan: {a.input}  [families={a.families or f'all {len(known)}'}] ===")
+    try:
+        cands, kind, n = GS.scan(a.input, families=fams, cpus=a.cpus)
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     out = Path(a.out) if a.out else Path("results") / f"scan_{Path(a.input).stem}"
     GS.write_outputs(cands, out, kind=kind, n_proteins=n, source=a.input)
     print(f"\n[{kind}] {n} proteins -> {len(cands)} candidate TF(s)   (written to {out})")
@@ -197,26 +209,39 @@ def cmd_scan(a) -> int:
     for i, c in enumerate(todo, 1):
         print(f"[{i}/{len(todo)}] {c.protein_id} ({c.family}) ...", flush=True)
         try:
-            res = api.predict(c.sequence, name=c.protein_id, family=c.family, organism=a.organism,
+            res = api.predict(c.sequence, name=_job_name(c.protein_id), family=c.family, organism=a.organism,
                               genome_acc=a.genome_acc, fold=False, verbose=False)
             rows.append([c.protein_id, c.family, res.inducer, res.primary_operator,
                          "ok" if res.ok else (res.error or "err")])
             preds[c.protein_id] = {"inducer": res.inducer, "primary_operator": res.primary_operator,
                                    "bundle": str(res.bundle) if res.bundle else None}
         except Exception as e:                                  # one bad candidate must not sink the batch
-            rows.append([c.protein_id, c.family, None, None, f"{type(e).__name__}"])
+            rows.append([c.protein_id, c.family, None, None, f"{type(e).__name__}: {e}"])
     with (out / "candidate_predictions.tsv").open("w", encoding="utf-8") as fh:
         fh.write("protein_id\tfamily\tinducer\tprimary_operator\tstatus\n")
         for r in rows:
-            fh.write("\t".join(str(x if x is not None else "") for x in r) + "\n")
+            # an error message may hold tabs or newlines; it is one cell
+            fh.write("\t".join(" ".join(str(x if x is not None else "").split()) for x in r) + "\n")
     # regenerate the JSON + HTML report + manifest with the predictions merged in
     GS.write_outputs(cands, out, kind=kind, n_proteins=n, source=a.input, predictions=preds)
     print(f"\n{'candidate':26s} {'family':12s} {'inducer':10s} primary operator")
     for pid, fam, ind, op, st in rows:
         print(f"  {pid[:24]:26s} {str(fam):12s} {str(ind):10s} {op or ('-' if st == 'ok' else st)}")
     print(f"\nreport: {out/'SCAN_REPORT.html'}   predictions: {out/'candidate_predictions.tsv'}  "
-          f"(full per-candidate bundles under results/jobs/)")
-    return 0
+          f"(full per-candidate bundles under {resources.OUTPUT_DIR / 'jobs'})")
+    return int(any(r[4] != "ok" for r in rows))
+
+
+def _job_name(identifier: str) -> str:
+    """A protein identifier as a folder name (`sp|P0A9E0|ARAC_ECOLI` is not one on Windows)."""
+    from predictor.genome_run import safe
+    return identifier if identifier == safe(identifier) else safe(identifier)
+
+
+def cmd_gui(a) -> int:
+    """Start the browser interface (same launcher as `tfop-gui`)."""
+    from predictor import gui
+    return gui.main([])
 
 
 def cmd_audit(_a) -> int:
@@ -234,7 +259,8 @@ def cmd_genome(a) -> int:
                                     discover_only=a.discover_only, verbose=a.verbose, fasta=a.fasta, gff=a.gff,
                                     genbank=a.genbank, proteome=a.proteome, organism=a.organism,
                                     metalnet=not a.no_metalnet, af3=not a.no_af3,
-                                    selected_names=a.select.split(",") if a.select else None)
+                                    selected_names=([s.strip() for s in a.select.split(",") if s.strip()]
+                                                    if a.select else None))
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -347,11 +373,11 @@ def cmd_selftest(a) -> int:
         label = m.replace("predictor.", "")
         try:
             r = subprocess.run([sys.executable, "-m", m, "--self-test"], cwd=root.parent,
-                               capture_output=True, text=True, timeout=a.timeout)
+                               capture_output=True, text=True, errors="replace", timeout=a.timeout)
             rc, out = r.returncode, (r.stderr or r.stdout or "")
             if rc != 0 and "unrecognized arguments" in out:
                 r = subprocess.run([sys.executable, "-m", m], cwd=root.parent,
-                                   capture_output=True, text=True, timeout=a.timeout)
+                                   capture_output=True, text=True, errors="replace", timeout=a.timeout)
                 rc, out = r.returncode, (r.stderr or r.stdout or "")
         except subprocess.TimeoutExpired:
             rc, out = None, "timed out"
@@ -384,12 +410,17 @@ def cmd_selftest(a) -> int:
     if fail:
         print("\nA failure usually means a missing reference file or a broken install. "
               "Run `tfop audit` to see how each external resource resolves.")
-    return 1 if fail else 0
+    return 1 if fail or timed_out else 0
 
 
 def _is_environmental(output: str) -> bool:
     """True when a self-test failed for a reason that is about the ENVIRONMENT, not the code: an absent
     external engine, no network, or a missing optional dependency. Those are skips, not failures."""
+    last = next((line.strip() for line in reversed(output.splitlines()) if line.strip()), "")
+    # These are defects whatever words the message happens to contain ("motif not found", "blast hit missing").
+    if last.startswith(("AssertionError", "NameError", "AttributeError", "SyntaxError", "IndentationError",
+                        "UnboundLocalError")) or "No module named 'predictor" in last:
+        return False
     markers = ("No module named", "not found", "FileNotFoundError", "ConnectionError", "URLError",
                "HTTPError", "timed out", "Temporary failure in name resolution", "mmseqs", "blast",
                "foldseek", "datasets", "BIOHUB_TOKEN", "NCBI", "CalledProcessError", "WinError 2")
@@ -402,6 +433,11 @@ def cmd_setup(_a) -> int:
 
 
 def main(argv=None) -> int:
+    # `tfop gui ...` hands every following flag to the launcher untouched (argparse cannot forward a leading option).
+    words = sys.argv[1:] if argv is None else list(argv)
+    if words and words[0] == "gui":
+        from predictor import gui
+        return gui.main(words[1:])
     # Output redirected on Windows (`tfop predict ... > log.txt`) is encoded with the ANSI code page;
     # escape a character it cannot represent (e.g. in a gene product name) instead of crashing the run.
     for stream in (sys.stdout, sys.stderr):
@@ -467,6 +503,10 @@ def main(argv=None) -> int:
                      help="with --predict, genome assembly accession; takes precedence over --organism")
     psc.add_argument("--limit", type=int, default=0, help="with --predict, cap the number of candidates")
     psc.set_defaults(func=cmd_scan)
+
+    pg_ui = sub.add_parser("gui", help="open the browser interface (same as `tfop-gui`; accepts --port, --no-browser)",
+                           add_help=False)
+    pg_ui.set_defaults(func=cmd_gui)
 
     pa = sub.add_parser("audit", help="show bundled database release/size plus cache and output paths")
     pa.set_defaults(func=cmd_audit)

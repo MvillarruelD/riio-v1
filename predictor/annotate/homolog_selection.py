@@ -113,7 +113,7 @@ def build_ssn_db(family: str, *, force: bool = False) -> Path:
         return out
     out.parent.mkdir(parents=True, exist_ok=True)
     n = 0
-    with out.open("w", encoding="ascii", errors="ignore") as fh:
+    with resources.atomic_path(out) as temporary, temporary.open("w", encoding="ascii", errors="ignore") as fh:
         for c in ssn.load_clusters(family):
             for acc, seq in ssn.iter_sequences(c):
                 if seq:

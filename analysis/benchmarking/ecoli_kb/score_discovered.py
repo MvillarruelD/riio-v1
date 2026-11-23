@@ -103,6 +103,9 @@ def main() -> int:
             "truth_class": t_cls or "", "pred_class": pred_cls,
             "class_ok": "" if not t_cls else str(pred_cls == t_cls),
             "truth_ions": ";".join(sorted(t_ions)), "pred_inducer": top, "pred_candidates": ";".join(cands),
+               # the bundle's own display label (EXP069: a two-ion clade reads "metal-ion shortlist: ...",
+               # not the raw "divalent metal (ion unresolved)" placeholder); display only, never scored
+               "pred_display": ind.get("top_display") or V.display_label(top, cands),
             "agreement": ind.get("agreement"),
             "ion": ion_outcome(top, cands, t_ions) if t_cls == "metal" else "",
             "n_precise_sites": len(precise[b]), "n_ht_sites": len(ht[b]),

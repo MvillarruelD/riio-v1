@@ -152,8 +152,14 @@ class InducerCall:
     #: candidates -- not that the source failed. Reporting one of them as the answer would be a
     #: fabricated precision; reporting both, and why nothing separates them, is the result.
     mixture_kind: str = ""
+    #: Empty defaults preserve legacy readers; new producers state identity and class separately.
+    identity_status: str = ""
+    sensor_class: str | None = None
+    class_status: str = ""
+    class_evidence: dict = field(default_factory=dict)
 
     def __post_init__(self):
+        self.candidates = tuple(self.candidates or ())
         # Enforce the documented [0,1] range at the type. Ligify derives its confidence from a rank that
         # can be NEGATIVE, which put out-of-range values in this field and made them awkward to reason
         # about downstream. Clamping does NOT change who votes: `from_calls` enfranchises
@@ -164,14 +170,37 @@ class InducerCall:
             self.confidence = min(1.0, max(0.0, float(self.confidence)))
 
 
+#: EXP072 source precedence for the HEADLINE: clade (SSN) > published database > local operon chemistry.
+#: A clade label rests on curated anchors; a published Ligify record is a reviewed tool's prediction for
+#: this protein (or, at >= 99 % identity, its near-identical homologue); the local route is our own
+#: operon-context guess, whose confidence is a Ligify rank and not a probability. Confidence therefore
+#: only breaks ties WITHIN a tier -- a local tie at 0.77 must not outrank a clade call at 0.50 (the
+#: E. coli FrmR case). On the MG1655 panel the marginal rates point the same way (truth in the source's
+#: candidate set: SSN 13/13, published 4/11, local 4/17 -- EXP072 prereg section 5.1), but the panel
+#: holds a single head-to-head disagreement, so the order is the owner's stated policy and not a fitted
+#: result. A source not listed sits with the local route.
+_SOURCE_TIER = {"ssn_cluster": 0, "coordination": 0, "ligify_db": 1, "ligify_db_homolog": 1}
+_LOWEST_TIER = 2
+
+
+def source_tier(source: str) -> int:
+    """Headline precedence of a source; smaller wins."""
+    return _SOURCE_TIER.get(source or "", _LOWEST_TIER)
+
+
+def precedence_key(call) -> tuple:
+    """Sort key for choosing among exact-eligible calls: source tier first, then confidence."""
+    return (source_tier(call.source), -(call.confidence or 0.0))
+
+
 @dataclass
 class InducerConsensus:
-    """Unified inducer inference that RETAINS every source's call. Per the design: agreement across
-    sources strengthens the call, but disagreement leaves all candidates valid (so `calls` is never
-    discarded). `top` is the headline pick; `coordination_gate` records whether the metal-coordination
+    """Unified inducer inference that RETAINS every raw source's call, including rejected proposals.
+    Final policy determines which evidence and alternatives remain accepted. `top` is the headline;
+    `coordination_gate` records whether the metal-coordination
     signature was confirmed (None = not checked) -- enforcement of the gate is the caller's policy."""
     top: str | None = None
-    agreement: float = 0.0                 # fraction of *calling* sources that name `top`
+    agreement: float = 0.0                 # fraction of positive calling sources giving exact support
     coordination_gate: bool | None = None
     calls: list = field(default_factory=list)      # list[InducerCall], all sources retained
     notes: tuple = ()
@@ -180,15 +209,33 @@ class InducerConsensus:
     candidates: tuple = ()
     #: "" | "co_sensed" | "unresolved" -- see InducerCall.mixture_kind.
     mixture_kind: str = ""
-    #: Human-facing label set by effector.inducer._finalize. It normally equals `top`; for unresolved
-    #: class placeholders it can expose the named candidate shortlist. DISPLAY ONLY: `top` remains the
-    #: sole input to inducer_class_of and to every derived class/count.
+    #: Human-facing label; use sensor_class for new classification, never this display string.
     top_display: str = ""
+    #: Finalization is explicit so a serialized null/empty set cannot revive a legacy proposal.
+    finalized: bool = False
+    #: Set membership is compatibility, not exact identification or independent corroboration.
+    compatibility: float = 0.0
+    support_sources: tuple = ()
+    compatible_sources: tuple = ()
+    #: Policy-accepted evidence; `calls` above always retains the original source output.
+    accepted_calls: list = field(default_factory=list)
+    #: Portable record acquired during the original local chemistry inference, never re-fetched.
+    chemistry_snapshot: dict | None = None
+    #: Candidate-only acceptances by existing finalization policy (not additional confidence votes).
+    policy_candidates: tuple = ()
+    policy_mixture_kind: str = ""
+    identity_status: str = ""
+    sensor_class: str | None = None
+    class_status: str = ""
+    class_evidence: dict = field(default_factory=dict)
 
     @staticmethod
     def from_calls(calls, *, coordination_gate: bool | None = None) -> "InducerConsensus":
-        """Default fusion: headline = highest-confidence named call; agreement = share of *voting*
-        sources that name it. Sources that abstained (ligand=None) are kept but don't vote.
+        """Default fusion: headline = the named call of the highest-precedence SOURCE (`source_tier`),
+        highest confidence within it (EXP072; before that, highest confidence alone); agreement = exact
+        support. A lower-tier call is not discarded -- it still feeds `candidates` and `compatibility`.
+        Positive candidate-only sets may contribute alternatives and compatibility, never a named
+        headline. Abstentions and nonpositive source proposals are retained without operative support.
 
         A named call with NON-POSITIVE confidence does not vote either: such a source is asserting "I have
         no usable evidence", and letting it become the headline merely because it was the only one to speak
@@ -199,54 +246,141 @@ class InducerConsensus:
         honest class-level fallback in `effector.inducer._finalize` ("non-metal effector (undetermined)" /
         "divalent metal (ion unresolved)") instead of inventing a ligand.
         """
-        named = [c for c in calls if c.ligand]
-        voting = [c for c in named if c.confidence > 0]
-        if not voting:
-            return InducerConsensus(calls=list(calls), coordination_gate=coordination_gate)
-        top = max(voting, key=lambda c: c.confidence).ligand
-        # A source that names a MIXTURE containing the headline agrees with it. Comparing raw strings
-        # counted `Ni2+/Co2+` as disagreeing with `Ni2+`, which is the same defect class as counting
-        # `Ni` and `Ni2+` as two inducers -- a flattened label can never equal one of its own members.
-        def _backs(c) -> bool:
-            return c.ligand == top or (bool(c.candidates) and top in c.candidates)
+        from predictor.effector.chemical_identity import exact_eligible
+        calls = list(calls)
+        voting = [c for c in calls if exact_eligible(c)]
+        cons = InducerConsensus(top=min(voting, key=precedence_key).ligand if voting else None,
+                                calls=calls, coordination_gate=coordination_gate)
+        cons.refresh([c for c in calls if (c.confidence or 0) > 0])
+        return cons
 
-        agreement = sum(1 for c in voting if _backs(c)) / len(voting)
-        # Union of the candidates, headline first, order-stable. Only sources that actually VOTE
-        # contribute, plus any explicit mixture components. A source asserting "I have no usable
-        # evidence" (confidence <= 0) must not put a ligand into the candidate set: on IdeR that swept
-        # in a down-weighted Ligify guess of `nitrate` alongside the two real alternatives, which
-        # makes a considered tie look like a shrug.
-        #
-        # Deduplicate on the CANONICAL token rather than the raw string. Sources spell one species
-        # differently -- the SSN cluster table writes arsenite `As3+` where the anchor KB writes
-        # `As(III)` -- so a raw dedup lets the same ion appear twice. Seen in the v7 run: E. coli ArsR
-        # came out ('As3+', 'antimonite', 'As(III)'), reading as a three-way ambiguity when it is a
-        # two-way one. The RAW spelling is what gets kept, since `top` is raw and the report prints
-        # these beside it; only the "have I got this one already?" identity is canonicalised.
-        from predictor.effector import inducer_vocab as _vocab
+    def refresh(self, accepted_calls, *, finalized: bool = False) -> "InducerConsensus":
+        """Rebuild all headline-dependent fields after policy, retaining the raw source calls.
 
-        cands: list = [top]
-        seen = {_vocab.normalise(top) or top}
-        for c in calls:
-            explicit = tuple(c.candidates or ())
-            implicit = (c.ligand,) if (c.ligand and c.confidence > 0) else ()
-            for x in explicit or implicit:
-                if not x:
-                    continue
-                key = _vocab.normalise(x) or x
-                if key not in seen:
-                    seen.add(key)
+        Agreement uses positive calling sources as its denominator, including rejected dissent.
+        An unresolved source is only compatible with a member, even if its raw first proposal happens
+        to equal the headline. Effective coordination proposals can be recorded separately without
+        overwriting an original abstention. New identity keys preserve charge and transport roles.
+        """
+        from predictor.effector.chemical_identity import (
+            identity_key, chemistry, display_label, exact_eligible, unique_names, SENSOR_CLASSES,
+        )
+
+        positive = [c for c in accepted_calls if (c.confidence or 0) > 0]
+        self.accepted_calls = positive
+
+        def key(x):
+            return identity_key(x) or x
+
+        top_key = key(self.top) if self.top else None
+        exact, compatible = [], []
+        cands, seen = [], set()
+        for c in positive:
+            components = tuple(c.candidates or ()) or ((c.ligand,) if c.ligand else ())
+            keys = {key(x) for x in components if x}
+            matches = bool(top_key and c.ligand and key(c.ligand) == top_key)
+            if top_key and (matches or top_key in keys):
+                if not exact_eligible(c):
+                    compatible.append(c.source)
+                elif matches or c.mixture_kind == "co_sensed":
+                    exact.append(c.source)
+                else:
+                    compatible.append(c.source)
+            for x in components:
+                if x and key(x) not in seen:
+                    seen.add(key(x))
                     cands.append(x)
-        kinds = {c.mixture_kind for c in calls if c.mixture_kind}
-        return InducerConsensus(top=top, agreement=agreement, coordination_gate=coordination_gate,
-                                calls=list(calls),
-                                candidates=tuple(cands) if len(cands) > 1 else (),
-                                mixture_kind=("unresolved" if "unresolved" in kinds
-                                              else ("co_sensed" if kinds else "")))
+        for x in self.policy_candidates:
+            if x and key(x) not in seen:
+                seen.add(key(x))
+                cands.append(x)
+        # Put a named final headline first; class placeholders do not manufacture candidates.
+        if top_key in seen:
+            cands = [self.top] + [x for x in cands if key(x) != top_key]
+        denominator = {c.source for c in self.calls
+                       if (c.confidence or 0) > 0 and (c.ligand or c.candidates)}
+        denominator.update(c.source for c in positive if c.ligand or c.candidates)
+        self.support_sources = tuple(dict.fromkeys(exact))
+        self.compatible_sources = tuple(dict.fromkeys(compatible))
+        self.agreement = len(self.support_sources) / len(denominator) if denominator else 0.0
+        self.compatibility = len(self.compatible_sources) / len(denominator) if denominator else 0.0
+        # A singleton represented by the named headline needs no separate set. A singleton that
+        # differs from a class/null/other headline is retained evidence, without implying a mixture.
+        self.candidates = tuple(cands) if len(cands) > 1 or (cands and key(cands[0]) != top_key) else ()
+        kinds = {c.mixture_kind for c in positive if c.mixture_kind and c.candidates}
+        if self.policy_candidates and self.policy_mixture_kind:
+            kinds.add(self.policy_mixture_kind)
+        self.mixture_kind = ("unresolved" if "unresolved" in kinds else
+                             "co_sensed" if kinds else "") if len(cands) > 1 else ""
+        self.identity_status = ("unresolved" if not self.top and len(cands) > 1 else
+                                chemistry(cands[0])[1] if not self.top and cands else chemistry(self.top)[1])
+        if not self.top and cands and self.identity_status == "resolved":
+            self.identity_status = "unresolved"
+        if not self.top and len(cands) == 1:
+            declared = {c.identity_status for c in positive if c.identity_status
+                        and any(key(x) == key(cands[0]) for x in (c.candidates or (c.ligand,)))}
+            if len(declared) == 1 and not declared.intersection({"resolved", "co_sensed"}):
+                self.identity_status = next(iter(declared))
+        if self.top and chemistry(self.top)[1] == "class_only" and cands:
+            self.identity_status = "unresolved"
+        if any(c.ligand == self.top and c.mixture_kind == "co_sensed" and exact_eligible(c)
+               and len(unique_names(c.candidates)) > 1 for c in positive):
+            self.identity_status = "co_sensed"
+        self.top_display = display_label(self.top, self.candidates)
+        # Class support belongs to the sensed signal, independently of exact identity.
+        class_records = []
+        uncertain = []
+        policy_input = self.class_evidence.get("policy_input")
+        if self.class_evidence.get("policy") and self.sensor_class in SENSOR_CLASSES:
+            class_records.append({**self.class_evidence["policy"], "class": self.sensor_class})
+        elif self.class_evidence.get("policy") and self.sensor_class is not None:
+            policy_input = self.sensor_class
+            self.sensor_class = None
+        if policy_input is not None:
+            uncertain.append({"source": "policy", "reported_class": policy_input, "status": "unknown"})
+        for c in positive:
+            cls = c.sensor_class
+            basis = c.class_evidence
+            invalid_class = cls is not None and cls not in SENSOR_CLASSES
+            if invalid_class or c.class_status not in {"", "supported"}:
+                uncertain.append({**basis, "source": c.source, "reported_class": cls,
+                                  "status": "conflicting" if c.class_status == "conflicting" else "unknown"})
+                continue
+            if not cls and c.source not in {"operon_chem", "ligify", "ligify_db", "ligify_db_homolog"}:
+                cls = {"metal": "metal", "redox": "redox", "non-metal": "organic",
+                       "multidrug": "organic"}.get(c.role)
+                basis = {"basis": "explicit_source_role"} if cls else {}
+            if c.source not in {"operon_chem", "ligify"}:
+                from predictor.effector.chemical_identity import collection_class
+                names = tuple(c.candidates or ()) or ((c.ligand,) if c.ligand else ())
+                collection_cls, collection_status, records = collection_class(names)
+                if collection_status == "conflicting":
+                    for candidate_cls in dict.fromkeys(record[0] for record in records if record[0]):
+                        class_records.append({"source": c.source, "class": candidate_cls,
+                                              "basis": "conflicting_signal_candidates"})
+                if not cls:
+                    cls = collection_cls
+                    basis = {"basis": "explicit_signal_vocabulary", "chemistry": records} if cls else {}
+            if cls:
+                class_records.append({**basis, "source": c.source, "class": cls})
+        classes = {r["class"] for r in class_records}
+        policy = self.class_evidence.get("policy") if self.sensor_class in SENSOR_CLASSES else None
+        if not policy:
+            self.sensor_class = next(iter(classes)) if len(classes) == 1 else None
+        self.class_status = ("conflicting" if len(classes) > 1 or any(r["status"] == "conflicting" for r in uncertain)
+                             else "unknown" if uncertain else "supported" if classes else "unknown")
+        self.class_evidence = {"records": class_records, **({"policy": policy} if policy else {}),
+                               **({"source_uncertainty": uncertain} if uncertain else {}),
+                               **({"policy_input": policy_input} if policy_input is not None else {})}
+        self.finalized = finalized
+        return self
 
     @property
     def metal(self) -> bool:
-        return any(c.ligand == self.top and c.role == "metal" for c in self.calls)
+        if self.class_status:
+            return self.sensor_class == "metal"
+        return bool(self.top) and any(c.ligand == self.top and c.role == "metal" and (c.confidence or 0) > 0
+                   for c in (self.accepted_calls if self.finalized else self.calls))
 
 
 # --------------------------------------------------------------------------- self-test
@@ -285,8 +419,13 @@ def _demo() -> None:
     assert cons.top == "Zn2+" and abs(cons.agreement - 1.0) < 1e-9 and cons.metal
     assert len(cons.calls) == 3 and cons.coordination_gate is True, "all sources retained + gate recorded"
     split = InducerConsensus.from_calls([InducerCall("ssn_cluster", "Ni2+", 0.7, "metal"),
-                                         InducerCall("ligify", "L-lactate", 0.9, "non-metal")])
-    assert split.top == "L-lactate" and abs(split.agreement - 0.5) < 1e-9, "disagreement -> 0.5 agreement"
+                                         InducerCall("ligify", "citrate", 0.9, "non-metal")])
+    # EXP072: the clade outranks a louder local operon-chemistry call; the local name stays a candidate
+    assert split.top == "Ni2+" and abs(split.agreement - 0.5) < 1e-9, "disagreement -> 0.5 agreement"
+    assert "citrate" in split.candidates, "a lower-precedence source is kept, not discarded"
+    same_tier = InducerConsensus.from_calls([InducerCall("ligify", "citrate", 0.9, "non-metal"),
+                                             InducerCall("operon_chem", "salicylate", 0.4, "non-metal")])
+    assert same_tier.top == "citrate", "confidence decides inside one tier"
 
     # invariants reject malformed inputs
     for bad in (

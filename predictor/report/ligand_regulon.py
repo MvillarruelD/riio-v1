@@ -49,15 +49,47 @@ def _element_key(effector) -> str | None:
 
 
 def infer_ligand(ctx, tf_gene, *, max_kb: float = 10.0):
-    """Top cognate-ligand candidates from the TF operon (Ligify). Best-effort; [] on any failure.
-    These are REPORTED, never used to rank operators -- see the discovery note in pipeline.run_novel."""
-    from predictor.effector import ligify
+    """Legacy explicit acquisition helper; reports use `accepted_ligands` and the saved snapshot.
+
+    Top cognate-ligand candidates from the TF's divergent operon (operon chemistry, EXP066).
+    Best-effort; [] on any failure. These are REPORTED, never used to rank operators -- see the
+    discovery note in pipeline.run_novel. `max_kb` is accepted for call-site compatibility and ignored:
+    the operon walk is bounded by its own promoter/gap/span parameters, not a flat window."""
+    from predictor.effector import operon_chemistry as _oc
     try:
-        effs = ligify.effectors_from_context(ctx, tf_gene, max_kb=max_kb)
+        effs = _oc.effectors_from_context(ctx, tf_gene)
         return [{"ligand": e.ligand, "rank": e.rank, "enzyme": e.enzyme, "rhea": e.rhea,
                  "equation": e.equation} for e in effs[:5]]
     except Exception:
         return []
+
+
+def accepted_ligands(consensus: dict) -> list[dict]:
+    """Read accepted final names and their recorded chemistry; never acquire evidence for a report.
+
+    A missing snapshot in a legacy dossier is unavailable evidence. Raw snapshot candidates are audit
+    records and are included here only when the final consensus accepts their identity.
+    """
+    from predictor.effector import inducer_vocab as vocab
+    from predictor.effector.chemical_identity import identity_key
+
+    names = consensus.get("candidates") or [consensus.get("top")]
+    snapshot = consensus.get("chemistry_snapshot") or {}
+    proposals = snapshot.get("candidates") or []
+    out, seen = [], set()
+    for name in names:
+        if not name or vocab.is_abstention(name) or name.strip().lower() in vocab._CLASS_LEVEL_CALLS:
+            continue
+        key = identity_key(name) or name
+        if key in seen:
+            continue
+        seen.add(key)
+        recorded = next((p for p in proposals if (identity_key(p.get("ligand")) or p.get("ligand")) == key), {})
+        out.append({**recorded, "ligand": name, "accepted": True, "source": "final_consensus",
+                    "final_role": "headline" if key == (identity_key(consensus.get("top")) or consensus.get("top"))
+                                  else "retained_alternative",
+                    "chemistry_status": snapshot.get("status", "legacy_unavailable")})
+    return out
 
 
 def ligand_genes(ctx, *, effector=None, ligand_names=None, max_genes: int = 12):

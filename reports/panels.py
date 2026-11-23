@@ -17,6 +17,8 @@ from figure_style import (CLASS_COLOR, CLASS_LABEL, FS_BODY, FS_SMALL, C, ION_CO
                           is_species)
 
 CLASS_ORDER = ["metal", "redox", "organic", "undetermined"]
+#: hatch of the organic calls that carry a MetalNet metal site (compute_numbers `site_only`)
+SITE_HATCH = "////"
 SHORT_FAM = {"LysR-type (LTTR)": "LysR"}
 #: a shorter ion label for the narrow ion column, where the full one would overflow the bar
 ION_SHORT = {"Cd2+/Pb2+": "Cd/Pb", "MoO42-": "MoO4", "As(III)": "As(III)"}
@@ -120,6 +122,12 @@ def class_panel(ax, rows: list[tuple[str, dict]]) -> None:
             if v >= 7:
                 ax.text(i, bottoms[i] + v / 2, str(n), ha="center", va="center", fontsize=FS_SMALL,
                         color="white" if cls in ("metal", "redox") else C["ink"])
+        if cls == "organic":
+            # the organic calls in which MetalNet finds a conserved metal site (GntR: read as a
+            # structural site, not a sensor call), hatched at the top of the organic segment
+            site = 100 * np.array([c.get("site_only", {}).get("organic", 0) / c["n"] for _, c in rows])
+            ax.bar(range(len(rows)), site, bottom=bottoms + vals - site, width=0.66, color="none",
+                   edgecolor="white", hatch=SITE_HATCH, linewidth=0)
         bottoms += vals
     ax.set_xticks(range(len(rows)))
     ax.set_xticklabels([f"{lab}\n({c['n']})" for lab, c in rows], fontsize=FS_BODY)
@@ -128,8 +136,10 @@ def class_panel(ax, rows: list[tuple[str, dict]]) -> None:
 
 
 def class_legend(ax, **kw) -> None:
-    ax.legend(handles=[Patch(fc=CLASS_COLOR[c], label=CLASS_LABEL[c]) for c in CLASS_ORDER],
-              handlelength=1.0, columnspacing=1.0, **kw)
+    handles = [Patch(fc=CLASS_COLOR[c], label=CLASS_LABEL[c]) for c in CLASS_ORDER]
+    handles.append(Patch(fc=CLASS_COLOR["organic"], ec="white", hatch=SITE_HATCH, linewidth=0,
+                         label="organic, metal site (MetalNet2)"))
+    ax.legend(handles=handles, handlelength=1.0, columnspacing=1.0, **kw)
 
 
 def _ion_order(ions) -> list[str]:

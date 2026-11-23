@@ -281,6 +281,10 @@ def test_no_environment_variable_selects_an_algorithm():
         # who we say we are
         "BIOHUB_TOKEN", "ESM_FORGE_TOKEN", "FORGE_TOKEN", "NCBI_TOKEN", "NCBI_EMAIL",
         "NCBI_API_KEY",
+        # where the browser interface runs. gui.py only decides whether opening a browser window makes
+        # sense (not over SSH, not without a display) and gui_support.py how to spell a path for the
+        # Windows side of WSL. Neither reaches the pipeline.
+        "SSH_CONNECTION", "SSH_TTY", "DISPLAY", "WAYLAND_DISPLAY", "WSL_DISTRO_NAME",
         # what an EXTERNAL search may spend -- BITACORA's own thresholds, not ours
         "BITACORA_EVALUE", "BITACORA_QCOV", "BITACORA_SCOV",
         # which remote/local ESM weights to call. The greyest two on this list: they name an

@@ -1,9 +1,9 @@
 [theme]
 base = "light"
-primaryColor = "#126652"
-backgroundColor = "#F5F7F4"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#17231F"
+primaryColor = "#B4431F"
+backgroundColor = "#F4F1EA"
+secondaryBackgroundColor = "#EAE6DB"
+textColor = "#1D1C19"
 font = "sans-serif"
 
 # Same defaults as the `tfop-gui` launcher: serve this machine only, send no usage statistics.
