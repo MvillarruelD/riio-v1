@@ -984,6 +984,12 @@ def build_html(data: dict, figs: dict) -> str:
                 f"{_esc(source_record.get('n_orthologs') or 0)} orthologs / "
                 f"{_esc(source_record.get('n_mapped') or 0)} mapped",
             ])
+        _xf = msa.get("failure") or (d.get("homolog_regions") or {}).get("expansion_failure")
+        if _xf:
+            attempt_rows.append([
+                "MSA expansion", "no", "0", f"{_esc(_xf.get('source') or '—')} (failed)",
+                f"{_esc(_xf.get('stage'))}: {_esc(_xf.get('error'))}",
+            ])
         parts.append('<h3>Homolog-source ledger</h3>')
         parts.append(_table(["route", "selected", "regions added", "source / cluster", "method / mapping"],
                             attempt_rows))
@@ -998,6 +1004,15 @@ def build_html(data: dict, figs: dict) -> str:
                 f'{_esc(_sf.get("floor"))} — {_esc(_sf.get("reason"))}. The homolog-derived logo and '
                 f'any conservation weighting rest on that set, so treat them as weak here rather than '
                 f'as evidence of a conserved site.</p>')
+        # A failed expansion is a transient outcome, not a property of the regulator: a rerun can
+        # give this candidate about 60 more homolog promoters and a different seed.
+        if _xf:
+            parts.append(
+                f'<p class="sub"><b>MSA expansion failed:</b> the local homolog set was sparse '
+                f'({_esc(msa.get("local", "?"))} promoters) and the {_esc(_xf.get("source") or "MSA")} '
+                f'alignment could not be obtained ({_esc(_xf.get("stage"))}, '
+                f'{_esc(_xf.get("attempts", 1))} attempt(s): {_esc(_xf.get("error"))}). The conservation '
+                f'axis rests on the local set alone; a rerun may give a different seed.</p>')
 
     stages = run.get("stages") or []
     if stages:
