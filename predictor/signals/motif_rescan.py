@@ -167,12 +167,22 @@ def classify_tier(gap, genes, regulator, flanks=None):
 
 
 def _resolve_regulator(genes, regulator):
+    """The regulator's Gene. Pass the Gene itself where it is known (the pipeline does).
+
+    A string is resolved by protein accession or locus_tag first, which are unique, and by gene name
+    only when exactly one gene carries it: names repeat (M. avium has several cmtR and ricR), and
+    taking the first match anchored tier 1 on another copy of the gene.
+    """
     if regulator is None or isinstance(regulator, Gene):
         return regulator
-    for g in genes:                     # allow passing a gene name or protein accession
-        if g.name == regulator or g.protein_id == regulator:
-            return g
-    return None
+    exact = [g for g in genes if regulator in (g.protein_id, g.locus_tag)]
+    if len(exact) == 1:
+        return exact[0]
+    named = exact or [g for g in genes if g.name == regulator]
+    if len(named) > 1:
+        raise ValueError(f"regulator {regulator!r} matches {len(named)} genes; pass the Gene, "
+                         f"its protein accession or its locus_tag")
+    return named[0] if named else None
 
 
 # --------------------------------------------------------------------------- public API

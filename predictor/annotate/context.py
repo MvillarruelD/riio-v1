@@ -319,12 +319,13 @@ def locate_operator_window(ctx: GenomeContext, tf_start: int, tf_end: int, tf_st
         gap_lo = tf_end
         gap_hi = nxt.start if nxt else min(len(ctx.sequence), tf_end + 300)
     else:
-        # upstream of a plus-strand gene = lower genomic coords (below tf_start)
-        prev = None
-        for g in genes:
-            if g.start >= tf_end:
-                break
-            prev = g
+        # upstream of a plus-strand gene = lower genomic coords (below tf_start): the nearest gene that
+        # ENDS at or before the TF starts, the mirror of the minus-strand rule above. The old loop took
+        # the last gene starting before tf_end, which is the TF itself, so every plus-strand TF fell
+        # through to the fixed 160-bp window below whatever its real intergenic gap.
+        prev = max((g for g in genes if g.end <= tf_start
+                    and not (g.start == tf_start and g.end == tf_end)),
+                   key=lambda g: g.end, default=None)
         gap_lo = (prev.end if prev else max(0, tf_start - 200))
         gap_hi = tf_start
         if gap_hi - gap_lo < 20:                          # fall back to a fixed upstream window

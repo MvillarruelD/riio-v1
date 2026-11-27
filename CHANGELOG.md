@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.2.2 — 2026-11-26
+
+A reproducibility fix for the homologue-promoter top-up. Results are unchanged wherever the ColabFold
+fetch succeeds. 1.2.1 was not published as a release of its own; this release carries its fixes too.
+
+- **The ColabFold MSA expansion reads its cache first, retries transient failures and records a
+  failure.** A regulator with fewer than 8 local homologue promoters gets about 60 more from a
+  ColabFold alignment of its sequence. That fetch was the one step that made a rerun of the canonical
+  candidates non-reproducible: across two runs of the 238, 6 fetches failed (read timeouts and refused
+  connections), each leaving 4-6 promoters instead of about 65, and 3 of the 6 moved the primary
+  operator.
+  - A cached alignment of the same sequence is used before the server is asked.
+  - Refused or dropped connections, read timeouts, HTTP 429/5xx and a busy submission status are
+    retried at submission, polling and download. Other 4xx answers are not retried.
+  - A needed expansion that fails is recorded as `homolog_regions.expansion_failure` in the dossier,
+    in `run_record.json` and as a note in `REPORT.html`. Before, it looked like an expansion that was
+    never needed.
+- **Canonical companion.** The supplied manifests are still those of the 2026-11-10 run. A complete
+  rerun of its 238 candidates with 1.2.1 left 235 primary operators unchanged; the other three are
+  survey regulators whose ColabFold fetch failed in the 2026-11-10 run. A run with this release
+  therefore differs from that run on the fields the 1.2.1 entry names and, when ColabFold answers, at
+  those three primaries.
+
+## 1.2.1 — 2026-11-23
+
+Three defects of 1.2.0, fixed. Query protein sequences change at residue 1 for regulators with an
+alternative start codon, and the operator anchor moves for + strand regulators; a run made with this
+version is not byte-comparable with a 1.2.0 run on those fields.
+
+- **Alternative start codons are translated as methionine.** In the bacterial code (NCBI translation
+  table 11) GTG, TTG, CTG, ATT, ATC and ATA can initiate, and the initiator codon is read as Met. The GFF
+  route translated codon by codon, giving Val for a GTG start and Leu for a TTG start: 54 of the 238
+  canonical query proteins began with V or L where the NCBI protein record has M. A new
+  `genome_scan.translate_cds` is used by the GFF route, the GenBank route (CDSs without `/translation`)
+  and the DNA-query helpers. A CDS marked as missing its 5' end, or starting out of frame, keeps its
+  literal first codon.
+- **The + strand operator anchor uses the real intergenic gap.** `locate_operator_window` took the
+  regulator itself as its upstream neighbour, so every + strand anchor was the 160-bp fallback. It now
+  mirrors the - strand rule. Over the 238 canonical runs, 61 anchors move and `nearest_bp` changes in
+  60; no autoregulation call and no operator changes.
+- **The regulator is passed to the genome rescan as its own gene, not by name.** Where a gene name
+  repeats in a genome, the rescan could anchor on another copy. A string regulator is now resolved by
+  accession or locus tag first, and by name only when the name is unique (a repeated name raises).
+
 ## 1.2.0 — 2026-11-23
 
 Inducer calls change in this release. Operator and regulon calls change only where the regulator was

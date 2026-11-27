@@ -27,6 +27,7 @@ import argparse
 import contextlib
 import contextvars
 import hashlib
+import http.client
 import json
 import re
 import sys
@@ -120,10 +121,72 @@ def alignment_path(tf_id: str | None, seq: str) -> Path:
     return CACHE / f"{label[:80]}_{hashlib.sha256(query.encode()).hexdigest()[:12]}_colabfold_uniref.a3m"
 
 
+def cached_alignment(tf_id: str | None, seq: str) -> Path | None:
+    """The ColabFold alignment already on disk for this exact sequence, or None.
+
+    The MSA expansion used to fetch from the server first and look at the disk only afterwards, so
+    an alignment -- and the promoter record built from it -- that were both already cached were lost
+    whenever the server failed. Observed on the 2026-11-26 rerun: E. coli GntR YP_026245.1 had its
+    2 MB alignment and its 60-promoter record on disk, the download timed out, and the run went
+    ahead on 6 homolog promoters. `structure.metalnet.a3m_for` has always looked at its cache
+    first. The query row is checked, not just the name (see `alignment_path`)."""
+    path = alignment_path(tf_id, seq)
+    query = "".join(str(seq).split()).upper()
+    try:
+        usable = path.is_file() and path.stat().st_size > 0 and _a3m_query(path) == query
+    except OSError:
+        usable = False
+    return path if usable else None
+
+
 def _get(url, timeout=60):
     req = urllib.request.Request(url, headers=_UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
+
+
+#: How a ColabFold request is retried. Only HTTP 429 used to be, at submission; a read timeout or a
+#: refused connection at any step ended the attempt, and the regulator lost its whole MSA expansion,
+#: which downstream reads exactly like a regulator that never needed one. Six such failures across
+#: the 2026-11-10 and 2026-11-26 runs of the 238 canonical candidates, all timeouts or refused
+#: connections, each leaving 4-6 homolog promoters where a success gives about 65.
+_CF_ATTEMPTS = 5
+_CF_DOWNLOAD_ATTEMPTS = 3   # each download may itself wait up to 300 s
+_CF_BACKOFF_S = 20          # the wait before retry n is n * _CF_BACKOFF_S: 20, 40, 60, 80 s
+
+
+class _ServerBusy(Exception):
+    """The server answered a submission with a busy status (RATELIMIT/UNKNOWN) and no ticket.
+    ColabFold's own client resubmits on these."""
+
+
+def _transient(exc: BaseException) -> bool:
+    """True for a failure a later identical request may not repeat: a refused or dropped connection,
+    a read timeout, rate limiting (429, or a busy status) or a server error (5xx). Any other 4xx is
+    the server's answer about the request itself and is not retried."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code == 429 or exc.code >= 500
+    return isinstance(exc, (_ServerBusy, urllib.error.URLError, TimeoutError, ConnectionError,
+                            http.client.HTTPException))
+
+
+def _retrying(stage: str, call, *, attempts: int = _CF_ATTEMPTS, failure: dict | None = None,
+              verbose: bool = True):
+    """`call()`, retried with a linear back-off while it fails transiently. The last error is
+    re-raised; before that, `failure` (when given) records the stage, the attempts and the error."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return call()
+        except Exception as exc:
+            if not _transient(exc) or attempt == attempts:
+                if failure is not None:
+                    failure.update(stage=stage, attempts=attempt, error=f"{type(exc).__name__}: {exc}")
+                raise
+            wait = _CF_BACKOFF_S * attempt
+            if verbose:
+                print(f"  ColabFold {stage}: {type(exc).__name__}; retrying in {wait}s "
+                      f"[{attempt}/{attempts - 1}]")
+            time.sleep(wait)
 
 
 #: Below this many MAPPED orthologs the pooled logo rests on too few sequences to mean much; far
@@ -483,7 +546,7 @@ def _build_cluster_record(info, query_seq, ssn_cluster, ck, *, n_cluster_genomes
 
 # --------------------------------------------------------------------------- ColabFold MSA (no AF3 server)
 def colabfold_a3m(seq: str, out_path, *, mode: str = "env", timeout: int = 1200, verbose: bool = True,
-                  prefer: str | None = None) -> Path | None:
+                  prefer: str | None = None, failure: dict | None = None) -> Path | None:
     """Fetch the MMseqs2 MSA for `seq` from the public ColabFold server -> write an a3m. This is the exact
     MSA the AlphaFold2 ColabFold notebook builds (UniRef30 + environmental), with NO AF3 account and NO
     folding. Submit -> poll -> download the result tar -> extract the largest a3m. None on failure.
@@ -491,55 +554,61 @@ def colabfold_a3m(seq: str, out_path, *, mode: str = "env", timeout: int = 1200,
     `prefer` selects a specific member of the result tar by filename substring instead of taking the
     largest -- `prefer="uniref"` picks `uniref.a3m`, which is what `structure.metalnet` needs because
     MetalNet2 was trained and benchmarked on the UniRef alignment specifically (`model/train/cmd.sh`:
-    `msa_type=uni`), not on the merged environmental one. Falls back to the largest if absent."""
+    `msa_type=uni`), not on the merged environmental one. Falls back to the largest if absent.
+
+    Every request is retried while it fails transiently (`_transient`). When the fetch fails anyway,
+    `failure` (when given) is filled with the stage (submit / poll / download / extract), the number
+    of attempts and the error, so the caller can record WHY there is no alignment."""
     out_path = Path(out_path)
     base = "https://api.colabfold.com"
     # the MMseqs2 server expects a FASTA-formatted query (`>101\n<seq>`), not a bare sequence
     q = f">101\n{seq.strip().replace(chr(10), '')}\n"
     data = urllib.parse.urlencode({"q": q, "mode": mode}).encode()
+    failure = failure if failure is not None else {}
+
+    def _give_up(stage, error):
+        failure.update(stage=stage, attempts=failure.get("attempts", 1), error=error)
+        if verbose:
+            print(f"  ColabFold {stage}: {error}")
+        return None
+
     try:
         # The public server rate-limits ticket submission with HTTP 429. A single sequence rarely trips
         # it; a batch (structure.metalnet over a 150-candidate run) trips it repeatedly, and an
         # unretried 429 silently costs that TF its alignment -- which reads downstream as "no opinion"
         # rather than as a transient network failure. Back off and retry instead.
         req = urllib.request.Request(base + "/ticket/msa", data=data, headers=_UA)
-        tk = None
-        for attempt in range(5):
-            try:
-                with urllib.request.urlopen(req, timeout=120) as r:
-                    tk = json.loads(r.read().decode())
-                break
-            except urllib.error.HTTPError as e:
-                if e.code != 429 or attempt == 4:
-                    raise
-                wait = 20 * (attempt + 1)
-                if verbose:
-                    print(f"  ColabFold rate-limited (429); retrying in {wait}s "
-                          f"[{attempt + 1}/4]")
-                time.sleep(wait)
+
+        def _submit():
+            with urllib.request.urlopen(req, timeout=120) as r:
+                ticket = json.loads(r.read().decode())
+            if not (ticket or {}).get("id") and (ticket or {}).get("status") in ("RATELIMIT", "UNKNOWN"):
+                raise _ServerBusy(f"status={ticket.get('status')}")
+            return ticket
+
+        tk = _retrying("submit", _submit, failure=failure, verbose=verbose)
         tid = (tk or {}).get("id")
         if not tid:
-            if verbose:
-                print(f"  ColabFold: no ticket id ({tk})")
-            return None
+            return _give_up("submit", f"no ticket id ({tk})")
         if verbose:
             print(f"  ColabFold ticket {tid} ({tk.get('status')}); polling...")
+
+        def _status():
+            with urllib.request.urlopen(base + f"/ticket/{tid}", timeout=60) as r:
+                return json.loads(r.read().decode()).get("status")
+
         t0 = time.time()
         while time.time() - t0 < timeout:
-            with urllib.request.urlopen(base + f"/ticket/{tid}", timeout=60) as r:
-                st = json.loads(r.read().decode()).get("status")
+            st = _retrying("poll", _status, failure=failure, verbose=verbose)
             if st == "COMPLETE":
                 break
             if st in ("ERROR", "UNKNOWN", "MAINTENANCE"):
-                if verbose:
-                    print(f"  ColabFold status={st}")
-                return None
+                return _give_up("poll", f"status={st}")
             time.sleep(8)
         else:
-            if verbose:
-                print("  ColabFold timed out")
-            return None
-        raw = _get(base + f"/result/download/{tid}", timeout=300)
+            return _give_up("poll", f"not complete after {timeout} s")
+        raw = _retrying("download", lambda: _get(base + f"/result/download/{tid}", timeout=300),
+                        attempts=_CF_DOWNLOAD_ATTEMPTS, failure=failure, verbose=verbose)
         import io
         import tarfile
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -555,7 +624,7 @@ def colabfold_a3m(seq: str, out_path, *, mode: str = "env", timeout: int = 1200,
                         best, best_n = txt, n
         best = wanted if wanted is not None else best
         if best is None:
-            return None
+            return _give_up("extract", "no .a3m member in the result archive")
         # the server can emit NUL bytes inside the alignment; they are never meaningful and, left in,
         # they shift the columns of every consumer that reads the rows positionally
         resources.atomic_write_text(out_path, best.replace("\x00", ""))
@@ -563,6 +632,8 @@ def colabfold_a3m(seq: str, out_path, *, mode: str = "env", timeout: int = 1200,
             print(f"  ColabFold MSA -> {out_path} ({best_n} sequences)")
         return out_path
     except Exception as e:
+        if "stage" not in failure:          # _retrying has already recorded a request failure
+            failure.update(stage="extract", attempts=1, error=f"{type(e).__name__}: {e}")
         if verbose:
             print(f"  ColabFold failed: {type(e).__name__}: {e}")
         return None
@@ -576,7 +647,12 @@ def expand_homolog_regions(local_regions: list, *, tf_id: str | None = None, seq
     IC 0.845->0.909). When local is already rich (>= min_local), returns it unchanged (no network).
 
     Returns (regions, info) where info records whether MSA was used and how many regions it added. MSA
-    source: an AF3 op a3m on disk (free), else a ColabFold MSA if `allow_colabfold` (the AF3-free route)."""
+    source: an AF3 op a3m on disk (free), else this sequence's ColabFold alignment if one is already
+    cached (`alignment_cached: true`), else a ColabFold fetch if `allow_colabfold` (the AF3-free route).
+
+    When an expansion was needed and could not be made, `info["failure"]` says where and why
+    ({source, stage, attempts, error}). Without it a failed expansion and one that was never needed
+    leave the same record (`msa_added: 0, source: null`), and only the run log told them apart."""
     info = {"local": len(local_regions), "msa_added": 0, "source": None,
             "alignment_path": None, "source_record": {}}
     if len(local_regions) >= min_local:
@@ -594,12 +670,28 @@ def expand_homolog_regions(local_regions: list, *, tf_id: str | None = None, seq
         # 59 of the 86 candidates that reached this step in run A mapped 0 orthologs.
         # structure/metalnet.py has always asked for the UniRef member; this path needs it for a
         # different reason -- mappable accessions, not a trained-on alignment -- and never said so.
-        a3m = colabfold_a3m(seq, alignment_path(tf_id, seq), prefer="uniref", verbose=verbose)
+        # The cache is read FIRST (see `cached_alignment`): a server failure must not throw away an
+        # alignment this machine already holds.
+        a3m = cached_alignment(tf_id, seq)
+        if a3m is not None:
+            info["alignment_cached"] = True
+            if verbose:
+                print(f"  ColabFold MSA (cached) -> {a3m}")
+        else:
+            failure: dict = {}
+            a3m = colabfold_a3m(seq, alignment_path(tf_id, seq), prefer="uniref", verbose=verbose,
+                                failure=failure)
+            if a3m is None:
+                info["failure"] = {"source": "colabfold",
+                                   **(failure or {"stage": "unknown", "error": "no alignment returned"})}
         info["source"] = "colabfold" if a3m else None
     if a3m is None:
         if verbose:
+            why = info.get("failure")
             print(f"  MSA expansion: local sparse ({len(local_regions)}) but no MSA source "
-                  f"(af3 a3m absent; allow_colabfold={allow_colabfold})")
+                  + (f"(ColabFold failed at {why['stage']} after {why.get('attempts', 1)} attempt(s): "
+                     f"{why['error']})" if why else
+                     f"(af3 a3m absent; allow_colabfold={allow_colabfold})"))
         return local_regions, info
     info["alignment_path"] = str(a3m)
     try:
@@ -612,6 +704,8 @@ def expand_homolog_regions(local_regions: list, *, tf_id: str | None = None, seq
             for region, source in zip(msa_regions, msa_record.get("sources") or [])
         ]
     except Exception as e:
+        info["failure"] = {"source": info["source"], "stage": "map", "attempts": 1,
+                           "error": f"{type(e).__name__}: {e}"}
         if verbose:
             print(f"  MSA expansion failed: {type(e).__name__}: {e}")
         return local_regions, info
@@ -629,7 +723,8 @@ def regions_for_tf(tf_id: str, *, seq: str | None = None, allow_colabfold: bool 
     (novel TF) fetches a ColabFold MSA if `allow_colabfold`. Returns a list of region sequences ('' filtered)."""
     a3m = _op_msa(tf_id)
     if a3m is None and seq and allow_colabfold:
-        a3m = colabfold_a3m(seq, alignment_path(tf_id, seq), prefer="uniref")
+        a3m = cached_alignment(tf_id, seq) or colabfold_a3m(seq, alignment_path(tf_id, seq),
+                                                            prefer="uniref")
     if a3m is None:
         return []
     return collect_msa_regions(a3m, key=tf_id, **kw)["regions"]

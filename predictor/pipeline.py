@@ -486,6 +486,8 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
             homs, msa_info = mh.expand_homolog_regions(homs, tf_id=name, seq=seq,
                                                        allow_colabfold=allow_colabfold, verbose=verbose)
         except Exception as e:
+            msa_info["failure"] = {"source": None, "stage": "expansion", "attempts": 1,
+                                   "error": f"{type(e).__name__}: {e}"}
             if verbose:
                 print(f"  MSA expansion skipped ({type(e).__name__}: {e})")
     homolog_collection["msa"] = msa_info
@@ -574,7 +576,9 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     # overlap by a few bp (YegW->yegV, LldR->lldP, DgoR->dgoK on MG1655), so the tier-1 prior and the
     # regulon's self-reference were anchored on the neighbour instead of the regulator.
     _tf_gene = context.find_tf_gene(ctx, tf_start, tf_end)
-    reg = (_tf_gene.name or _tf_gene.protein_id or None) if _tf_gene is not None else None
+    # The Gene itself, not its name: the rescan resolved a name back to the FIRST gene carrying it,
+    # which is another copy where names repeat (M. avium cmtR, ricR), so tier 1 sat on the wrong gene.
+    reg = _tf_gene
     # One rescan PER SEED WIDTH, then the genome picks the winner. The old code rescanned once with the
     # single surviving width, so a mis-chosen anchor was unrecoverable -- every downstream artifact, up
     # to the exported AF3 jobs, pointed at the wrong DNA. Each width now gets a fair genome-wide test.
@@ -858,10 +862,16 @@ def _run_novel_impl(seq: str, *, name: str = "query", family: str | None = None,
     # homolog_collection, but the dossier is what the report, the figures and the analysis scorers
     # read -- a thin conservation axis that appears only in the provenance file is not visible where
     # anyone looks at it. Absent when the floor was met, or when the MSA path never ran.
+    # `expansion_failure` is the same idea one step earlier: the local set was sparse, an expansion was
+    # attempted and none was made ({source, stage, attempts, error}). Without it a failed expansion and
+    # one that was never needed leave the same dossier. Absent when the expansion succeeded or was not
+    # needed.
     doss_d["homolog_regions"] = {"pre_msa": homs_pre, "expanded": homs}
     _msa_shortfall = ((msa_info.get("source_record") or {}) or {}).get("shortfall")
     if _msa_shortfall:
         doss_d["homolog_regions"]["shortfall"] = _msa_shortfall
+    if msa_info.get("failure"):
+        doss_d["homolog_regions"]["expansion_failure"] = msa_info["failure"]
     doss_d["literature_seed_candidates"] = [
         {
             "sequence": c.seq, "start": reg_start + c.start, "end": reg_start + c.end,
